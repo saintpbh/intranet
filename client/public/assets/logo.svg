@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 40" width="280" height="40">
+  <!-- Blue geometric mark (cross + triangle) -->
+  <g transform="translate(2, 2)">
+    <!-- Outer triangle shape -->
+    <polygon points="16,0 0,32 32,32" fill="#2B5BA5" opacity="0.85"/>
+    <!-- Cross overlay -->
+    <rect x="13" y="2" width="6" height="28" fill="#FFFFFF" rx="1"/>
+    <rect x="5" y="12" width="22" height="6" fill="#FFFFFF" rx="1"/>
+    <!-- Inner diamond accent -->
+    <polygon points="16,6 22,16 16,26 10,16" fill="#3B7DD8" opacity="0.5"/>
+  </g>
+  <!-- Korean text -->
+  <text x="42" y="24" font-family="-apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif" font-size="18" font-weight="700" fill="#1A1D26" letter-spacing="-0.3">한국기독교장로회총회</text>
+  <!-- English subtitle -->
+  <text x="42" y="36" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="7.5" fill="#6B7280" letter-spacing="0.3">The Presbyterian Church in the Republic of Korea</text>
+</svg>
