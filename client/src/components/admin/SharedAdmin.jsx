@@ -9,11 +9,13 @@ const STATUS_COLORS = {
   APPROVED: { bg: 'rgba(52, 199, 89, 0.1)', color: '#34C759' },
   ISSUED: { bg: 'rgba(52, 199, 89, 0.15)', color: '#248A3D' },
   REJECTED: { bg: 'rgba(255, 59, 48, 0.1)', color: '#FF3B30' },
+  MODIFY_REQUESTED: { bg: 'rgba(162, 28, 175, 0.1)', color: '#A21CAF' },
 };
 
 const STATUS_LABELS = {
   SUBMITTED: '신청됨', CHURCH_CONFIRMED: '교회 확인', SICHAL_CONFIRMED: '시찰 확인',
   NOH_CONFIRMED: '노회 확인', APPROVED: '총회 승인', ISSUED: '발급 완료', REJECTED: '반려',
+  MODIFY_REQUESTED: '수정 요청됨',
 };
 
 const StatusBadge = ({ status }) => {
@@ -65,21 +67,45 @@ const RequestDetail = ({ request, onBack, onAction, actionRole }) => {
   const [detail, setDetail] = useState(null);
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(true);
+  const [docNumber, setDocNumber] = useState('');
+  const [pdfFilename, setPdfFilename] = useState('');
+  const [pdfOriginal, setPdfOriginal] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/admin/cert-requests/${request.id}`)
       .then(r => r.json()).then(setDetail).finally(() => setLoading(false));
   }, [request.id]);
 
+  const handleFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setPdfOriginal(file.name);
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(`${API_BASE}/api/documents/upload`, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) { setPdfFilename(data.filename); }
+      else { alert('업로드 실패'); }
+    } catch { alert('업로드 오류'); }
+    setUploading(false);
+  };
+
   const handleAction = async (action) => {
     const res = await fetch(`${API_BASE}/api/admin/cert-requests/${request.id}/approve`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, actor_name: '관리자', actor_role: actionRole, comment }),
+      body: JSON.stringify({ 
+        action, actor_name: '관리자', actor_role: actionRole, comment,
+        doc_number: action === 'approve' ? docNumber : '',
+        pdf_filename: action === 'approve' ? pdfFilename : ''
+      }),
     });
     const data = await res.json();
     if (data.success) {
       setDetail(prev => ({ ...prev, status: data.new_status, status_label: data.status_label }));
-      setComment('');
+      setComment(''); setDocNumber(''); setPdfFilename(''); setPdfOriginal('');
       // Refresh history
       const updated = await fetch(`${API_BASE}/api/admin/cert-requests/${request.id}`).then(r => r.json());
       setDetail(updated);
@@ -89,7 +115,18 @@ const RequestDetail = ({ request, onBack, onAction, actionRole }) => {
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--system-gray)' }}>불러오는 중...</div>;
   if (!detail) return null;
 
-  const canApprove = detail.status !== 'ISSUED' && detail.status !== 'REJECTED';
+  const REQUIRED_ROLE = {
+    SUBMITTED: 'church',
+    CHURCH_CONFIRMED: 'sichal',
+    SICHAL_CONFIRMED: 'presbytery',
+    NOH_CONFIRMED: 'assembly',
+    APPROVED: 'assembly',
+    ISSUED: 'assembly',
+    MODIFY_REQUESTED: 'assembly',
+  };
+
+  const canApprove = detail.status !== 'REJECTED' && REQUIRED_ROLE[detail.status] === actionRole;
+  const isReissue = detail.status === 'ISSUED' || detail.status === 'MODIFY_REQUESTED';
 
   return (
     <div>
@@ -110,6 +147,13 @@ const RequestDetail = ({ request, onBack, onAction, actionRole }) => {
           <StatusBadge status={detail.status} />
           <div style={{ fontSize: 13, color: 'var(--system-gray)', marginTop: 12 }}>신청일: {detail.created_at?.substring(0, 10)}</div>
           <div style={{ fontSize: 13, color: 'var(--system-gray)' }}>갱신일: {detail.updated_at?.substring(0, 10)}</div>
+          {detail.doc_number && <div style={{ fontSize: 13, fontWeight: 600, marginTop: 8, color: 'var(--system-blue)' }}>문서번호: {detail.doc_number}</div>}
+          {detail.pdf_filename && (
+            <a href={`${API_BASE}/api/documents/download/${detail.pdf_filename}`} target="_blank" rel="noreferrer"
+              style={{ display: 'inline-block', fontSize: 12, marginTop: 8, background: 'rgba(52,199,89,0.1)', color: '#248A3D', padding: '4px 8px', borderRadius: 6, textDecoration: 'none' }}>
+              📎 증명서 다운로드
+            </a>
+          )}
         </div>
       </div>
 
@@ -141,8 +185,22 @@ const RequestDetail = ({ request, onBack, onAction, actionRole }) => {
             style={{ width: '100%', padding: 12, border: '1px solid var(--opaque-separator)', borderRadius: 8, fontSize: 14, resize: 'none', marginBottom: 12, fontFamily: 'inherit', boxSizing: 'border-box' }}
             rows={2}
           />
+          {actionRole === 'assembly' && (
+            <div style={{ marginBottom: 16, padding: 12, background: 'var(--grouped-bg)', borderRadius: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--system-gray)' }}>최종 발급 시 첨부 (선택)</div>
+              <input type="text" placeholder="문서번호 (예: 총회-2026-001)" value={docNumber} onChange={e => setDocNumber(e.target.value)}
+                style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--opaque-separator)', borderRadius: 8, fontSize: 13, marginBottom: 8, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              <div>
+                <input type="file" accept=".pdf" onChange={handleFileSelect} style={{ fontSize: 13 }} />
+                {uploading && <span style={{ fontSize: 12, color: 'var(--system-gray)', marginLeft: 8 }}>업로드 중...</span>}
+                {pdfFilename && <div style={{ fontSize: 12, color: '#34C759', marginTop: 4 }}>✅ {pdfOriginal || pdfFilename} 업로드됨</div>}
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-primary" style={{ flex: 1, padding: 12 }} onClick={() => handleAction('approve')}>승인</button>
+            <button className="btn btn-primary" style={{ flex: 1, padding: 12 }} onClick={() => handleAction('approve')}>
+              {isReissue ? '재발급 (승인)' : '승인'}
+            </button>
             <button className="btn" style={{ flex: 1, padding: 12, background: 'rgba(255, 59, 48, 0.1)', color: '#FF3B30' }} onClick={() => handleAction('reject')}>반려</button>
           </div>
         </div>

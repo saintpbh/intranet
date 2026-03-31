@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import API_BASE from '../api';
 import { useBackButton } from '../useBackButton';
+import MobileHeader from './mobile/MobileHeader';
+import { useAuth } from '../AuthContext';
 
 const isNew = (dateStr) => {
   if (!dateStr) return false;
@@ -8,40 +11,65 @@ const isNew = (dateStr) => {
   return diff < 3 * 24 * 60 * 60 * 1000;
 };
 
+const scopeOrder = { assembly: 0, presbytery: 1, sichal: 2 };
+const scopeLabel = { assembly: '총회', presbytery: '노회', sichal: '시찰' };
+const scopeColor = { assembly: '#0a2540', presbytery: '#0058bc', sichal: '#34C759' };
+
 const HomePage = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [notices, setNotices] = useState([]);
+  const [ads, setAds] = useState([]);
+  const [adIdx, setAdIdx] = useState(0);
   const [selectedNotice, setSelectedNotice] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/notices?scope=assembly`)
-      .then(r => r.json())
-      .then(data => setNotices(Array.isArray(data) ? data : []))
-      .finally(() => setLoading(false));
-  }, []);
+    const nohName = user?.NOHNAME || user?.noh_name || '';
+    const sichalName = user?.SICHALNAME || user?.sichal_name || '';
+    
+    Promise.all([
+      fetch(`${API_BASE}/api/notices?target_noh=${encodeURIComponent(nohName)}&target_sichal=${encodeURIComponent(sichalName)}`).then(r => r.json()),
+      fetch(`${API_BASE}/api/ads?active_only=true`).then(r => r.json())
+    ]).then(([noticeData, adData]) => {
+      const sorted = (Array.isArray(noticeData) ? noticeData : [])
+        .sort((a, b) => (scopeOrder[a.scope] ?? 99) - (scopeOrder[b.scope] ?? 99));
+      setNotices(sorted);
+      setAds(Array.isArray(adData) ? adData : []);
+    }).finally(() => setLoading(false));
+  }, [user]);
+
+  // Ad auto-slide every 4 seconds
+  useEffect(() => {
+    if (ads.length <= 1) return;
+    const timer = setInterval(() => setAdIdx(p => (p + 1) % ads.length), 4000);
+    return () => clearInterval(timer);
+  }, [ads.length]);
 
   const clearNotice = useCallback(() => setSelectedNotice(null), []);
   useBackButton(!!selectedNotice, clearNotice);
 
-  // Notice detail
+  // Notice Detail View
   if (selectedNotice) {
     return (
-      <div className="app-container">
-        <header className="app-header">
-          <div className="header-bar">
-            <button className="btn-back" onClick={clearNotice}>뒤로</button>
+      <div className="bg-surface text-on-surface min-h-screen pb-32 font-['Plus_Jakarta_Sans',_'Pretendard']">
+        <MobileHeader showBack={true} onBack={clearNotice} title="소식 상세" />
+        <main className="pt-24 px-6 max-w-2xl mx-auto">
+          <div className="mb-8">
+            <span className="inline-block text-[10px] font-bold text-secondary bg-secondary-container/10 px-3 py-1 rounded-full uppercase mb-4 font-['Plus_Jakarta_Sans']">
+              {selectedNotice.is_pinned && '📌 '} {scopeLabel[selectedNotice.scope] || ''} · {selectedNotice.category}
+            </span>
+            {isNew(selectedNotice.created_at) && (
+              <span className="inline-block ml-2 text-[10px] font-bold text-white bg-error px-2 py-1 rounded-full uppercase">NEW</span>
+            )}
+            <h2 className="text-3xl font-extrabold text-primary leading-tight mb-4 font-['Manrope',_'Pretendard']">
+              {selectedNotice.title}
+            </h2>
+            <p className="text-on-surface-variant text-sm font-medium">
+              {selectedNotice.created_at?.substring(0, 10)} · {selectedNotice.author_name || '관리자'}
+            </p>
           </div>
-        </header>
-        <main className="app-main" style={{ padding: '0 16px 32px' }}>
-          <span className="badge" style={{ marginBottom: 8, display: 'inline-block' }}>
-            {selectedNotice.is_pinned ? '📌 ' : ''}{selectedNotice.category}
-          </span>
-          {isNew(selectedNotice.created_at) && <span style={{ marginLeft: 8, fontSize: 12, color: '#FF3B30', fontWeight: 700 }}>🆕 NEW</span>}
-          <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8, lineHeight: 1.35 }}>{selectedNotice.title}</h2>
-          <p style={{ fontSize: 13, color: 'var(--system-gray)', marginBottom: 16 }}>
-            {selectedNotice.created_at?.substring(0, 10)} · {selectedNotice.author_name || '관리자'}
-          </p>
-          <div style={{ fontSize: 16, lineHeight: 1.8, color: 'var(--label)', whiteSpace: 'pre-wrap' }}>
+          <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-[0_20px_40px_rgba(10,37,64,0.04)] text-on-surface leading-loose whitespace-pre-wrap text-[15px]">
             {selectedNotice.content}
           </div>
         </main>
@@ -49,67 +77,133 @@ const HomePage = () => {
     );
   }
 
+  // Home Dashboard
   return (
-    <div className="app-container">
-      <header className="app-header">
-        <div className="header-bar">
-          <img src="/assets/logo_v3.png" alt="한국기독교장로회총회" className="header-logo" />
-          <div className="header-title-group">
-            <h1>총회소식</h1>
-          </div>
-        </div>
-      </header>
-      <main className="app-main" style={{ padding: '0 16px' }}>
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: 'var(--system-gray)' }}>불러오는 중...</div>
-        ) : notices.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 60 }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
-            <div style={{ color: 'var(--system-gray)', fontSize: 15 }}>등록된 소식이 없습니다.</div>
-          </div>
-        ) : (
-          <>
-            {/* Featured card for pinned or first notice */}
-            {notices.length > 0 && (
-              <div className="news-featured" onClick={() => setSelectedNotice(notices[0])} style={{ cursor: 'pointer', background: 'linear-gradient(135deg, #1a1a2e, #16213e)', borderRadius: 16, padding: 24, marginBottom: 16, position: 'relative', minHeight: 120 }}>
-                <div style={{ position: 'relative', zIndex: 1 }}>
-                  <span className="badge badge-featured" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', marginBottom: 8, display: 'inline-block' }}>
-                    {notices[0].is_pinned ? '📌 ' : ''}{notices[0].category}
-                  </span>
-                  {isNew(notices[0].created_at) && <span style={{ marginLeft: 8, background: '#FF3B30', color: '#fff', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700 }}>NEW</span>}
-                  <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 700, lineHeight: 1.4, marginTop: 8 }}>{notices[0].title}</h2>
-                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 8 }}>{notices[0].created_at?.substring(0, 10)}</p>
-                </div>
-              </div>
-            )}
+    <div className="bg-surface text-on-surface min-h-screen pb-32 font-['Plus_Jakarta_Sans',_'Pretendard']">
+      <MobileHeader />
+      
+      <main className="pt-24 px-6 max-w-2xl mx-auto space-y-6">
+        
+        {/* Welcome Section - compact */}
+        <section>
+          <h2 className="text-2xl font-extrabold text-primary leading-tight font-['Manrope',_'Pretendard']">
+            {user?.name || '사용자'}님, 평안하세요.
+          </h2>
+        </section>
 
-            {/* Rest of notices */}
-            {notices.length > 1 && (
-              <>
-                <div className="section-header">최근 소식</div>
-                <div className="grouped-list">
-                  {notices.slice(1).map(n => (
-                    <div key={n.id} className="result-row" onClick={() => setSelectedNotice(n)} style={{ cursor: 'pointer' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="result-name" style={{ fontSize: 15 }}>
-                          <span className="badge" style={{ marginRight: 6, fontSize: 11 }}>
-                            {n.is_pinned ? '📌 ' : ''}{n.category}
-                          </span>
-                          {n.title}
-                          {isNew(n.created_at) && <span style={{ color: '#FF3B30', fontSize: 11, fontWeight: 700, marginLeft: 6 }}>🆕</span>}
-                        </div>
-                        <div className="result-subtitle">{n.created_at?.substring(0, 10)} · {n.author_name || '관리자'}</div>
-                      </div>
-                      <svg className="chevron" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M1 1L6 6L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
+        {/* Quick Actions - compact */}
+        <section>
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => navigate('/documents')} className="flex items-center gap-3 p-4 bg-gradient-to-br from-secondary to-secondary-container text-white rounded-2xl shadow-[0_10px_20px_rgba(0,112,235,0.15)] active:scale-95 transition-all">
+              <span className="material-symbols-outlined text-2xl opacity-90" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400" }}>auto_awesome</span>
+              <div className="text-left">
+                <span className="font-bold text-sm font-['Manrope',_'Pretendard'] block">증명서 신청</span>
+                <span className="text-[11px] opacity-80 font-medium">행정문서 발급</span>
+              </div>
+            </button>
+            <button onClick={() => navigate('/directory')} className="flex items-center gap-3 p-4 bg-surface-container-lowest text-primary rounded-2xl shadow-[0_20px_40px_rgba(10,37,64,0.04)] active:scale-95 transition-all">
+              <span className="material-symbols-outlined text-2xl text-primary-container" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400" }}>contact_page</span>
+              <div className="text-left">
+                <span className="font-bold text-sm font-['Manrope',_'Pretendard'] block">주소록 검색</span>
+                <span className="text-[11px] text-on-surface-variant font-medium">목회자 및 교회</span>
+              </div>
+            </button>
+          </div>
+        </section>
+
+        {/* Ad Banner Carousel */}
+        {ads.length > 0 && (
+          <section className="relative mt-2 mb-2">
+            <div 
+              className="rounded-[20px] overflow-hidden relative transform transition-all duration-300 hover:-translate-y-1" 
+              style={{ 
+                height: 130, 
+                backgroundColor: '#ffffff',
+                boxShadow: '0 20px 40px rgba(10,37,64,0.12), 0 8px 16px rgba(10,37,64,0.08), inset 0 2px 0 rgba(255,255,255,0.8)',
+                border: '1px solid rgba(10,37,64,0.05)'
+              }}
+            >
+              {ads.map((ad, i) => (
+                <a
+                  key={ad.id}
+                  href={ad.link_url || '#'}
+                  target={ad.link_url ? '_blank' : '_self'}
+                  rel="noreferrer"
+                  className="absolute inset-0 transition-opacity duration-700"
+                  style={{ opacity: i === adIdx ? 1 : 0, pointerEvents: i === adIdx ? 'auto' : 'none' }}
+                >
+                  <img
+                    src={`${API_BASE}${ad.image_url}`}
+                    alt={ad.title}
+                    className="w-full h-full object-cover"
+                  />
+                </a>
+              ))}
+              {/* Dots */}
+              {ads.length > 1 && (
+                <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex gap-1.5 z-10 p-1.5 px-2 bg-black/20 backdrop-blur-md rounded-full">
+                  {ads.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={(e) => { e.preventDefault(); setAdIdx(i); }}
+                      className={`rounded-full transition-all duration-300 ${i === adIdx ? 'w-4 h-1.5 bg-white shadow-sm' : 'w-1.5 h-1.5 bg-white/60 hover:bg-white/80'}`}
+                    />
                   ))}
                 </div>
-              </>
-            )}
-          </>
+              )}
+            </div>
+          </section>
         )}
+
+        {/* Recent Notices - COMPACT */}
+        <section>
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-['Manrope',_'Pretendard'] text-lg font-bold text-primary">최신 공지</h3>
+          </div>
+          
+          {loading ? (
+             <div className="text-center py-6 text-on-surface-variant text-sm">불러오는 중...</div>
+          ) : notices.length === 0 ? (
+            <div className="bg-surface-container-lowest rounded-2xl p-6 text-center shadow-sm">
+              <span className="material-symbols-outlined text-3xl text-outline-variant mb-2">inbox</span>
+              <p className="text-on-surface-variant font-medium text-sm">새로운 소식이 없습니다.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {notices.map((n) => (
+                <div 
+                  key={n.id} 
+                  onClick={() => setSelectedNotice(n)}
+                  className="group rounded-xl px-4 py-3 bg-surface-container-lowest shadow-[0_4px_12px_rgba(10,37,64,0.04)] cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center gap-3"
+                >
+                  {/* Scope badge */}
+                  <div 
+                    className="w-1 h-8 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: scopeColor[n.scope] || '#74777e' }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-surface-container-low text-on-surface-variant">
+                        {scopeLabel[n.scope] || n.scope}
+                      </span>
+                      <span className="text-[10px] text-outline font-medium">{n.category}</span>
+                      {isNew(n.created_at) && (
+                        <span className="text-[9px] font-bold text-white bg-error px-1.5 py-0.5 rounded-full">N</span>
+                      )}
+                    </div>
+                    <h4 className="text-sm font-bold text-primary truncate leading-snug font-['Manrope',_'Pretendard']">
+                      {n.title}
+                    </h4>
+                  </div>
+                  <span className="text-xs text-outline font-medium flex-shrink-0 hidden sm:block">
+                    {n.created_at?.substring(5, 10)}
+                  </span>
+                  <span className="material-symbols-outlined text-sm text-outline-variant/50 flex-shrink-0">chevron_right</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </main>
     </div>
   );

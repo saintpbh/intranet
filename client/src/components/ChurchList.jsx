@@ -21,36 +21,56 @@ const ChurchList = ({ searchTerm, onSelect }) => {
 
   if (!searchTerm || searchTerm.trim() === '') {
     return (
-      <div className="empty-state">
-        <img src="/assets/banner_v2.png" alt="새 역사 70년" className="empty-state-banner" />
-        <p>이름, 노회명, 교회명으로 검색해 주세요.</p>
+      <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+        <span className="material-symbols-outlined text-6xl text-outline-variant/50 mb-4" style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}>church</span>
+        <p className="text-on-surface-variant font-medium">이름, 노회명, 교회명으로 검색해 주세요.</p>
       </div>
     );
   }
-  if (loading) return <div className="loading">불러오는 중...</div>;
-  if (error) return <div className="error">{error}</div>;
+  
+  if (loading) return <div className="text-center py-12 text-on-surface-variant font-medium">검색 중...</div>;
+  if (error) return <div className="text-center py-12 text-error font-medium">{error}</div>;
   if (data.length === 0) return (
-    <div className="no-results">
-      <img src="/assets/banner_v2.png" alt="새 역사 70년" className="empty-state-banner" style={{opacity: 0.5, maxWidth: '200px', marginBottom: '16px'}} />
-      <p>검색 결과가 없습니다.</p>
+    <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+      <span className="material-symbols-outlined text-6xl text-outline-variant/50 mb-4" style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}>search_off</span>
+      <p className="text-on-surface-variant font-medium">검색 결과가 없습니다.</p>
     </div>
   );
 
   return (
-    <div className="list-container">
-      <div className="result-count">{data.length}건의 검색 결과</div>
-      <div className="grouped-list">
+    <div className="p-4 sm:p-6 bg-surface-container-lowest">
+      <div className="flex items-end justify-between mb-6">
+        <div>
+          <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] text-[10px] uppercase tracking-[0.2em] text-secondary font-bold mb-1 block">소속 교회</span>
+          <h3 className="font-['Manrope',_'Pretendard'] font-bold text-2xl text-primary">교회 목록 <span className="text-sm font-medium text-outline ml-2">{data.length}개</span></h3>
+        </div>
+      </div>
+      
+      <div className="space-y-4">
         {data.map((item, idx) => {
-           const details = [item.NohName, item.SichalName].filter(Boolean);
-           return (
-            <div key={idx} className="result-row" onClick={() => onSelect(item)}>
-              <div style={{flex: 1, minWidth: 0}}>
-                <div className="result-name">{item.ChrName?.trim()}</div>
-                {details.length > 0 && <div className="result-subtitle">{details.join(' · ')}</div>}
+          return (
+            <div 
+              key={idx} 
+              onClick={() => onSelect(item)}
+              className="bg-white border border-surface-variant/50 rounded-2xl flex flex-col sm:flex-row overflow-hidden shadow-[0_10px_20px_rgba(10,37,64,0.03)] hover:shadow-[0_20px_40px_rgba(10,37,64,0.06)] hover:border-secondary/30 transition-all cursor-pointer active:scale-[0.98] group"
+            >
+              <div className="h-20 sm:h-auto sm:w-32 bg-surface-container-low flex items-center justify-center flex-shrink-0">
+                 <span className="material-symbols-outlined text-5xl text-outline-variant/30">account_balance</span>
               </div>
-              <svg className="chevron" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 1L6 6L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <div className="p-5 flex-1 flex flex-col justify-center">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 rounded-md bg-secondary/10 text-secondary text-[11px] font-bold tracking-wide">{item.NOHNAME}</span>
+                  <h4 className="font-['Manrope',_'Pretendard'] font-bold text-lg text-primary truncate leading-tight">{item.CHRNAME?.trim()}</h4>
+                </div>
+                <p className="text-xs text-on-surface-variant flex items-center gap-1 mb-1 font-medium truncate">
+                  <span className="material-symbols-outlined text-[14px]">person</span>
+                  담임: {item.MOCKNAME || '미배정'}
+                </p>
+                <p className="text-xs text-outline flex items-center gap-1 font-medium truncate">
+                  <span className="material-symbols-outlined text-[14px]">location_on</span>
+                  {item.ADDRESS ? item.ADDRESS.split(' ').slice(0, 3).join(' ') : '주소 미등록'}
+                </p>
+              </div>
             </div>
           );
         })}
@@ -58,4 +78,5 @@ const ChurchList = ({ searchTerm, onSelect }) => {
     </div>
   );
 };
+
 export default ChurchList;

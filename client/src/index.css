@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* ============================================
    Apple iOS Style Design System
    Based on Apple Human Interface Guidelines

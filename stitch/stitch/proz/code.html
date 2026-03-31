@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sanctuary - PROZ Dashboard</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-high": "#e8e8ed",
+              "on-secondary-container": "#fefcff",
+              "on-surface-variant": "#43474d",
+              "inverse-primary": "#b0c8eb",
+              "error": "#ba1a1a",
+              "error-container": "#ffdad6",
+              "tertiary-fixed": "#ffdcbe",
+              "surface-variant": "#e2e2e7",
+              "tertiary-container": "#381d00",
+              "primary": "#000f22",
+              "secondary": "#0058bc",
+              "on-tertiary-container": "#ae835a",
+              "on-primary-container": "#768dad",
+              "inverse-surface": "#2e3034",
+              "inverse-on-surface": "#f0f0f5",
+              "primary-fixed-dim": "#b0c8eb",
+              "surface-container-lowest": "#ffffff",
+              "on-tertiary-fixed": "#2d1600",
+              "on-secondary": "#ffffff",
+              "on-error-container": "#93000a",
+              "on-background": "#1a1c1f",
+              "surface": "#f9f9fe",
+              "on-tertiary": "#ffffff",
+              "secondary-fixed": "#d8e2ff",
+              "outline": "#74777e",
+              "on-error": "#ffffff",
+              "background": "#f9f9fe",
+              "on-surface": "#1a1c1f",
+              "on-secondary-fixed": "#001a41",
+              "secondary-container": "#0070eb",
+              "surface-tint": "#49607e",
+              "surface-container-low": "#f3f3f8",
+              "surface-container": "#ededf2",
+              "on-tertiary-fixed-variant": "#613f1c",
+              "primary-fixed": "#d2e4ff",
+              "surface-bright": "#f9f9fe",
+              "secondary-fixed-dim": "#adc6ff",
+              "on-primary-fixed": "#001c37",
+              "on-primary": "#ffffff",
+              "surface-container-highest": "#e2e2e7",
+              "tertiary": "#1a0b00",
+              "on-primary-fixed-variant": "#314865",
+              "primary-container": "#0a2540",
+              "outline-variant": "#c4c6ce",
+              "tertiary-fixed-dim": "#eebd90",
+              "surface-dim": "#d9dade",
+              "on-secondary-fixed-variant": "#004493"
+            },
+            fontFamily: {
+              "headline": ["Manrope", "sans-serif"],
+              "body": ["Plus Jakarta Sans", "sans-serif"],
+              "label": ["Plus Jakarta Sans", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl flex justify-between items-center px-6 py-4 shadow-[0_20px_40px_rgba(10,37,64,0.06)] bg-gradient-to-b from-slate-100/50 to-transparent">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-surface-container-high">
+<img class="w-full h-full object-cover" data-alt="professional portrait of a middle-aged man with a warm smile, corporate clean background, soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIQ_Ckc46p_--O6Xgc7S65kIsOA8nYRlaTKqzB2xHMK3vVp-0UxPQzeJWmILMAtpXObgQsp9mW-Vw-IiLFPrjE_0bJ3LA94WG6MyheyJ6QN-X_Cg2m3Divw9d0jgd5dFp0Bu2rJUbr6xzCEdKNCw6sszNxizOGGrc_I4qa8Uoc-unxEHp7K9uO2GfBwPWkWpfjN-wCdSyutb-EiDpgWa_GXMG373_wI0YZ8FoGJF0c-QKh_819IK8_tODlSM1vJztrLy4fm0E27l3_"/>
+</div>
+<span class="font-manrope font-bold tracking-tight text-xl text-[#0A2540]">Sanctuary</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 hover:bg-surface-container-low active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+</div>
+</header>
+<main class="pt-24 pb-32 px-6 max-w-5xl mx-auto space-y-10">
+<!-- Welcome Hero -->
+<section class="space-y-2">
+<p class="text-on-surface-variant font-label text-sm tracking-widest uppercase">Overview</p>
+<h1 class="font-headline text-4xl font-extrabold text-primary tracking-tight">Welcome back,<br/>Pastor Kim.</h1>
+</section>
+<!-- Document Status Widget (Timeline View) -->
+<section class="bg-surface-container-lowest p-8 rounded-lg shadow-[0_20px_40px_rgba(10,37,64,0.06)] relative overflow-hidden">
+<div class="absolute top-0 right-0 w-32 h-32 bg-secondary/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+<div class="flex justify-between items-end mb-8">
+<div>
+<h2 class="font-headline text-xl font-bold text-primary">My Document Status</h2>
+<p class="text-on-surface-variant text-sm">Real-time application tracking</p>
+</div>
+<span class="text-secondary font-bold text-sm">3 Active Cases</span>
+</div>
+<div class="relative flex justify-between items-start before:content-[''] before:absolute before:top-4 before:left-0 before:w-full before:h-[2px] before:bg-surface-container-high z-10">
+<!-- Step 1 -->
+<div class="relative flex flex-col items-center text-center space-y-3 px-2">
+<div class="w-8 h-8 rounded-full bg-secondary text-white flex items-center justify-center z-20">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+<div class="space-y-1">
+<p class="font-bold text-sm">Submitted</p>
+<p class="text-[10px] text-on-surface-variant">Oct 24, 09:30</p>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="relative flex flex-col items-center text-center space-y-3 px-2">
+<div class="w-8 h-8 rounded-full bg-secondary text-white flex items-center justify-center z-20">
+<span class="material-symbols-outlined text-sm" data-icon="pending">pending</span>
+</div>
+<div class="space-y-1">
+<p class="font-bold text-sm">Reviewing</p>
+<p class="text-[10px] text-on-surface-variant">In Progress</p>
+</div>
+</div>
+<!-- Step 3 -->
+<div class="relative flex flex-col items-center text-center space-y-3 px-2">
+<div class="w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center z-20">
+<span class="material-symbols-outlined text-sm" data-icon="description">description</span>
+</div>
+<div class="space-y-1">
+<p class="font-bold text-sm text-on-surface-variant">Approved</p>
+<p class="text-[10px] text-on-surface-variant">Pending</p>
+</div>
+</div>
+<!-- Step 4 -->
+<div class="relative flex flex-col items-center text-center space-y-3 px-2">
+<div class="w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center z-20">
+<span class="material-symbols-outlined text-sm" data-icon="verified">verified</span>
+</div>
+<div class="space-y-1">
+<p class="font-bold text-sm text-on-surface-variant">Issued</p>
+<p class="text-[10px] text-on-surface-variant">Ready</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Quick Actions (Bento Grid Style) -->
+<section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<button class="group flex flex-col items-start p-6 bg-surface-container-lowest rounded-lg hover:shadow-xl transition-all duration-300 active:scale-95 text-left border border-outline-variant/10">
+<div class="w-12 h-12 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined" data-icon="verified_user">verified_user</span>
+</div>
+<p class="font-bold text-sm text-primary leading-tight">Certificate<br/>Application</p>
+</button>
+<button class="group flex flex-col items-start p-6 bg-surface-container-lowest rounded-lg hover:shadow-xl transition-all duration-300 active:scale-95 text-left border border-outline-variant/10">
+<div class="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined" data-icon="folder_managed">folder_managed</span>
+</div>
+<p class="font-bold text-sm text-primary leading-tight">Admin<br/>Documents</p>
+</button>
+<button class="group flex flex-col items-start p-6 bg-surface-container-lowest rounded-lg hover:shadow-xl transition-all duration-300 active:scale-95 text-left border border-outline-variant/10">
+<div class="w-12 h-12 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined" data-icon="edit_note">edit_note</span>
+</div>
+<p class="font-bold text-sm text-primary leading-tight">Request<br/>Edit</p>
+</button>
+<button class="group flex flex-col items-start p-6 bg-surface-container-lowest rounded-lg hover:shadow-xl transition-all duration-300 active:scale-95 text-left border border-outline-variant/10">
+<div class="w-12 h-12 rounded-xl bg-primary-container text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined" data-icon="church">church</span>
+</div>
+<p class="font-bold text-sm text-primary leading-tight">Church<br/>Search</p>
+</button>
+</section>
+<!-- News Sections -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+<!-- General Assembly News -->
+<section class="space-y-6">
+<div class="flex items-center justify-between border-b border-outline-variant/20 pb-4">
+<h3 class="font-headline text-lg font-bold text-primary">General Assembly News</h3>
+<button class="text-secondary text-xs font-bold uppercase tracking-wider">See All</button>
+</div>
+<div class="space-y-4">
+<!-- News Item 1 -->
+<div class="group flex gap-4 p-4 bg-white/50 rounded-lg hover:bg-white transition-colors cursor-pointer">
+<div class="flex-1 space-y-2">
+<div class="flex gap-2">
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-error-container text-on-error-container">Notice</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container-high text-on-surface-variant">2023.11.01</span>
+</div>
+<h4 class="font-bold text-sm text-primary group-hover:text-secondary transition-colors">2024 Budget Planning Guidelines for All Local Parishes</h4>
+</div>
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:text-secondary">
+<span class="material-symbols-outlined text-lg" data-icon="picture_as_pdf">picture_as_pdf</span>
+</button>
+</div>
+<!-- News Item 2 -->
+<div class="group flex gap-4 p-4 bg-white/50 rounded-lg hover:bg-white transition-colors cursor-pointer">
+<div class="flex-1 space-y-2">
+<div class="flex gap-2">
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-secondary-fixed text-on-secondary-fixed-variant">Admin</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container-high text-on-surface-variant">2023.10.28</span>
+</div>
+<h4 class="font-bold text-sm text-primary group-hover:text-secondary transition-colors">Upcoming Annual Clergy Seminar Registration</h4>
+</div>
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:text-secondary">
+<span class="material-symbols-outlined text-lg" data-icon="picture_as_pdf">picture_as_pdf</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Presbytery News -->
+<section class="space-y-6">
+<div class="flex items-center justify-between border-b border-outline-variant/20 pb-4">
+<h3 class="font-headline text-lg font-bold text-primary">Presbytery News</h3>
+<button class="text-secondary text-xs font-bold uppercase tracking-wider">See All</button>
+</div>
+<div class="space-y-4">
+<!-- Local News Item 1 -->
+<div class="group flex gap-4 p-4 bg-white/50 rounded-lg hover:bg-white transition-colors cursor-pointer">
+<div class="flex-1 space-y-2">
+<div class="flex gap-2">
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-secondary-fixed text-on-secondary-fixed-variant">District</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container-high text-on-surface-variant">2023.11.02</span>
+</div>
+<h4 class="font-bold text-sm text-primary group-hover:text-secondary transition-colors">Seoul District Monthly Meeting Schedule - November</h4>
+</div>
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:text-secondary">
+<span class="material-symbols-outlined text-lg" data-icon="picture_as_pdf">picture_as_pdf</span>
+</button>
+</div>
+<!-- Local News Item 2 -->
+<div class="group flex gap-4 p-4 bg-white/50 rounded-lg hover:bg-white transition-colors cursor-pointer">
+<div class="flex-1 space-y-2">
+<div class="flex gap-2">
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container-high text-on-surface-variant">Archive</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container-high text-on-surface-variant">2023.10.25</span>
+</div>
+<h4 class="font-bold text-sm text-primary group-hover:text-secondary transition-colors">Local Mission Report: Community Outreach Program</h4>
+</div>
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:text-secondary">
+<span class="material-symbols-outlined text-lg" data-icon="picture_as_pdf">picture_as_pdf</span>
+</button>
+</div>
+</div>
+</section>
+</div>
+<!-- Featured Resource (Editorial Touch) -->
+<section class="relative h-64 rounded-xl overflow-hidden flex items-end p-8 group">
+<img class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="serene cathedral interior with light beams filtering through stained glass windows, cinematic atmosphere, dust motes in the air" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIdZ9peZaxjUGoAtTVkrsKaiT7xrbx1J0ii8XA3wslNDdZrtkd6wY49K-s2_X1uwyqE2swYRY5QhNHftnvu4Vnf83CcSYAU0jqSsnog-xOqyxXa3BxqtiyAoYDols2F3XTCbOK4D7p1rvh_zclXfoR77xisTRhg1NN4ZZwYiaUZLB51FiLoC_Onjiw9NyPdbZCVPDa0wJpBX8AWZHSlrv-IjvDnDIlQMObGVluPV-nri_SYltxYERzCjtDnm0tg4bQwLbtTPeW-dOy"/>
+<div class="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent"></div>
+<div class="relative z-10 space-y-2">
+<span class="text-secondary-fixed-dim text-xs font-bold uppercase tracking-widest">Digital Resource</span>
+<h3 class="text-white font-headline text-2xl font-bold">2024 Liturgical Guidebook</h3>
+<p class="text-slate-300 text-sm max-w-md">The complete companion for upcoming seasonal planning and ecclesiastical ordinances.</p>
+<button class="mt-4 px-6 py-2 bg-white text-primary font-bold rounded-full text-sm active:scale-95 transition-transform">Download Guide</button>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-50 flex justify-around items-center py-4 px-2 bg-white/70 backdrop-blur-2xl rounded-full shadow-[0_20px_40px_rgba(10,37,64,0.12)]">
+<!-- Home (Active) -->
+<a class="relative flex flex-col items-center justify-center text-[#0070eb] after:content-[''] after:absolute after:-bottom-2 after:w-1 after:h-1 after:bg-[#0070eb] after:rounded-full group active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="home" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-plus-jakarta text-[10px] tracking-wider uppercase mt-1">Home</span>
+</a>
+<!-- Documents -->
+<a class="flex flex-col items-center justify-center text-slate-400 hover:text-[#0070eb] group active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="import_contacts">import_contacts</span>
+<span class="font-plus-jakarta text-[10px] tracking-wider uppercase mt-1">Directory</span>
+</a>
+<!-- Status -->
+<a class="flex flex-col items-center justify-center text-slate-400 hover:text-[#0070eb] group active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="font-plus-jakarta text-[10px] tracking-wider uppercase mt-1">Forms</span>
+</a>
+<!-- Profile -->
+<a class="flex flex-col items-center justify-center text-slate-400 hover:text-[#0070eb] group active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-plus-jakarta text-[10px] tracking-wider uppercase mt-1">Account</span>
+</a>
+</nav>
+</body></html>

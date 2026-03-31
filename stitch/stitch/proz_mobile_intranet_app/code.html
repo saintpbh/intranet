@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PROZ - Church Admin Portal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-tertiary-container": "#ae835a",
+            "on-primary": "#ffffff",
+            "surface-container-high": "#e8e8ed",
+            "on-secondary-fixed-variant": "#004493",
+            "on-surface-variant": "#43474d",
+            "surface-container-highest": "#e2e2e7",
+            "outline-variant": "#c4c6ce",
+            "primary": "#000f22",
+            "surface-tint": "#49607e",
+            "secondary-container": "#0070eb",
+            "on-tertiary-fixed": "#2d1600",
+            "on-error-container": "#93000a",
+            "on-primary-fixed": "#001c37",
+            "inverse-on-surface": "#f0f0f5",
+            "surface": "#f9f9fe",
+            "secondary-fixed": "#d8e2ff",
+            "secondary": "#0058bc",
+            "tertiary-fixed": "#ffdcbe",
+            "on-secondary": "#ffffff",
+            "surface-container-low": "#f3f3f8",
+            "on-surface": "#1a1c1f",
+            "outline": "#74777e",
+            "background": "#f9f9fe",
+            "on-secondary-container": "#fefcff",
+            "surface-dim": "#d9dade",
+            "surface-bright": "#f9f9fe",
+            "secondary-fixed-dim": "#adc6ff",
+            "error-container": "#ffdad6",
+            "on-primary-container": "#768dad",
+            "on-error": "#ffffff",
+            "tertiary-fixed-dim": "#eebd90",
+            "surface-container-lowest": "#ffffff",
+            "inverse-surface": "#2e3034",
+            "primary-fixed-dim": "#b0c8eb",
+            "tertiary-container": "#381d00",
+            "tertiary": "#1a0b00",
+            "inverse-primary": "#b0c8eb",
+            "on-tertiary": "#ffffff",
+            "on-secondary-fixed": "#001a41",
+            "on-tertiary-fixed-variant": "#613f1c",
+            "on-background": "#1a1c1f",
+            "surface-variant": "#e2e2e7",
+            "surface-container": "#ededf2",
+            "on-primary-fixed-variant": "#314865",
+            "primary-container": "#0a2540",
+            "error": "#ba1a1a",
+            "primary-fixed": "#d2e4ff"
+          },
+          fontFamily: {
+            "headline": ["Manrope"],
+            "body": ["Plus Jakarta Sans"],
+            "label": ["Plus Jakarta Sans"]
+          },
+          borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+        },
+      },
+    }
+  </script>
+<style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f9f9fe; color: #1a1c1f; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    .glass-nav { backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+    .editorial-shadow { box-shadow: 0 20px 40px rgba(10, 37, 64, 0.06); }
+    ::-webkit-scrollbar { display: none; }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface overflow-x-hidden">
+<!-- Top App Bar (Shared Component Execution) -->
+<header class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl flex justify-between items-center px-6 py-4 shadow-sm">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-surface-container-high">
+<img alt="Pastor Kim Profile Picture" class="w-full h-full object-cover" data-alt="professional headshot of a middle-aged man with a warm smile, wearing a dark suit, soft studio lighting, clean background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCRRmg5v-k8gtxfctTo1WOWqWaaQz0O2_B0W4IYN82sVFB8oHomF_Lvc3zU7yThjK3aOE_kpD3gN4LVmMbf1c9W7gHfCI6CG7Z1vVu23rUZVUEjrN-Yc7EXFCXWzE_YWVBQjjyQtjz66ohvTF3UBJ_4c2pz9ugpzLXreMtPK98L0qgXoarOCwvP0VbtanEz536fXQPOd_mSONuPe6iBqf15GK-32eddAaS6ouSfKzzJdW2Ukdj0XuxW291JCnz57mC4Kx-tNgxKpFKl"/>
+</div>
+<h1 class="font-headline font-bold text-lg tracking-tight text-slate-900">Welcome, Pastor Kim</h1>
+</div>
+<button class="w-10 h-10 flex items-center justify-center text-slate-500 hover:opacity-80 transition-opacity active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+</header>
+<main class="pt-24 pb-32 px-6 max-w-md mx-auto">
+<!-- Home Screen Section -->
+<section class="space-y-8" id="screen-home">
+<!-- Quick Action Grid (Bento Style) -->
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container-lowest p-6 rounded-lg editorial-shadow flex flex-col justify-between aspect-square group active:scale-95 transition-all">
+<div class="w-12 h-12 rounded-2xl bg-secondary-fixed flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+</div>
+<span class="font-body font-semibold text-primary leading-tight">Certificate Request</span>
+</div>
+<div class="bg-primary-container p-6 rounded-lg editorial-shadow flex flex-col justify-between aspect-square group active:scale-95 transition-all">
+<div class="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white">
+<span class="material-symbols-outlined" data-icon="edit_note">edit_note</span>
+</div>
+<span class="font-body font-semibold text-white leading-tight">Write Document</span>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-lg editorial-shadow flex flex-col justify-between aspect-square group active:scale-95 transition-all">
+<div class="w-12 h-12 rounded-2xl bg-tertiary-fixed flex items-center justify-center text-on-tertiary-container">
+<span class="material-symbols-outlined" data-icon="badge">badge</span>
+</div>
+<span class="font-body font-semibold text-primary leading-tight">Update Info</span>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-lg editorial-shadow flex flex-col justify-between aspect-square group active:scale-95 transition-all">
+<div class="w-12 h-12 rounded-2xl bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="church">church</span>
+</div>
+<span class="font-body font-semibold text-primary leading-tight">Search Church</span>
+</div>
+</div>
+<!-- Latest News Carousel Hint -->
+<div class="space-y-4">
+<div class="flex justify-between items-end">
+<h2 class="font-headline font-bold text-xl text-primary">Latest News</h2>
+<span class="text-secondary font-label text-sm font-semibold">View All</span>
+</div>
+<div class="relative w-full overflow-hidden rounded-lg aspect-[16/9]">
+<div class="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent z-10"></div>
+<img alt="General Assembly Notice" class="w-full h-full object-cover" data-alt="interior of a modern grand hall with soft lighting and warm wood accents, representing a peaceful official assembly space" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAmP8-_0OGywZrR-s8QigPRYm7W7DSHVp6fBpXGoxE2VNkOte3TX2CaO7RPEezj21aLoXV7OzRX5Z7oitZYg5MF5dBX_4dhRhYieS_yJxYD0-j_EJoG1LDqU1IJVKdsRgaJru5871KzEEVSdUcsJ37bG4R6L6YVxIenGtcjHc-AZeYzM310Xd89PA3HZom8WSbN90yoig5Oy-kORP8MwW2bL53ZZ5wpHyEv7rMnVIUcu8zzr5W47y03IDayPCjMLD58JjbnrexuUIu5"/>
+<div class="absolute bottom-4 left-4 right-4 z-20">
+<div class="inline-block px-2 py-1 bg-secondary rounded-md text-[10px] font-bold text-white uppercase tracking-wider mb-2">Notice</div>
+<p class="text-white font-headline font-semibold text-lg leading-snug">2025 General Assembly Official Notice (PDF)</p>
+</div>
+</div>
+</div>
+<!-- My Document Status (Timeline Widget) -->
+<div class="bg-surface-container-low p-6 rounded-lg space-y-4">
+<h3 class="font-headline font-bold text-sm text-on-surface-variant uppercase tracking-widest">Document Status</h3>
+<div class="space-y-6">
+<div class="flex gap-4 items-start">
+<div class="flex flex-col items-center">
+<div class="w-2 h-2 rounded-full bg-secondary ring-4 ring-secondary/20"></div>
+<div class="w-0.5 h-12 bg-outline-variant/30 mt-2"></div>
+</div>
+<div class="flex-1 -mt-1">
+<p class="font-body font-bold text-primary">Ordination Certificate</p>
+<p class="text-xs text-on-surface-variant">Approved by Regional Office</p>
+<p class="text-[10px] text-outline mt-1 italic">2 hours ago</p>
+</div>
+</div>
+<div class="flex gap-4 items-start">
+<div class="flex flex-col items-center">
+<div class="w-2 h-2 rounded-full bg-outline-variant"></div>
+</div>
+<div class="flex-1 -mt-1">
+<p class="font-body font-bold text-on-surface-variant/70">Membership Verification</p>
+<p class="text-xs text-on-surface-variant/70">Pending Review</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Address Book Section (Initially Hidden) -->
+<section class="hidden space-y-6" id="screen-directory">
+<div class="flex bg-surface-container-high p-1 rounded-full">
+<button class="flex-1 py-2 rounded-full bg-white shadow-sm font-label text-sm font-bold text-primary">Pastor</button>
+<button class="flex-1 py-2 rounded-full font-label text-sm font-medium text-on-surface-variant">Church</button>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline" data-icon="search">search</span>
+<input class="w-full bg-surface-container-lowest border-none rounded-full py-4 pl-12 pr-6 editorial-shadow focus:ring-2 focus:ring-secondary/20 transition-all font-body text-sm" placeholder="Search pastors or ministries..." type="text"/>
+</div>
+<div class="space-y-4">
+<!-- Result Card 1 -->
+<div class="bg-surface-container-lowest p-5 rounded-lg editorial-shadow flex items-center gap-4">
+<img alt="Pastor profile" class="w-14 h-14 rounded-full object-cover" data-alt="portrait of a professional male leader, soft natural lighting, clean modern office background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNErPT9biiCdyjQMXGMQ4zCiBBmVCPQNaIhLpnnCSSFEEOJ3VmhGDDmOBQCnxfHn0EawO7xaFl7Bh4e3hpvES52mCp9WP0XfikZi_iMAoUHIhLbB05I2K3say9Id-EcsC5k2bJOlBXRiNEUlonJENESt_1pmaNy9qeWLj8XBSHoPHQyvtXwPguv8JltLwoKS95OjpZscw4_JpsZMrdnhib57RLjAPSoU5OCZn52wX5quUFMMhzeyyaxk7SZzPAQW671X48Ki292yyM"/>
+<div class="flex-1">
+<p class="font-headline font-bold text-primary">Dr. Michael Chen</p>
+<p class="text-xs text-secondary font-medium">Senior Pastor • Grace Global</p>
+</div>
+<div class="flex gap-2">
+<button class="w-9 h-9 rounded-full bg-secondary-fixed flex items-center justify-center text-secondary active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-lg" data-icon="call">call</span>
+</button>
+<button class="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-lg" data-icon="mail">mail</span>
+</button>
+</div>
+</div>
+<!-- Result Card 2 -->
+<div class="bg-surface-container-lowest p-5 rounded-lg editorial-shadow flex items-center gap-4">
+<img alt="Pastor profile" class="w-14 h-14 rounded-full object-cover" data-alt="portrait of a smiling woman in business casual attire, soft bright indoor setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBqkeOVG-RrQUPISdTdPQ8F0q-kvjvevHo7QVcysd3k0PHKEePF4k_wy_fREh_l8aqfb6H3eB8PRH5WnHI-GtgCSP01JveXuaQY28VWuRHaC6K5WuUXEGDeAyQ_dOfQxZLewyQQ1PReAgMY3nWTfAqxdAD4z_7wqUt5sR2mNkwFJNVJw_cXDU2geteoBnZzxOygtEOzH8P6m8o3zypicRcC0y4jOqB_4qqxRi2BX3KAy-5f-jhSFjPKHRQdEqToRXKTbzlzBuMjzdAl"/>
+<div class="flex-1">
+<p class="font-headline font-bold text-primary">Rev. Sarah Williams</p>
+<p class="text-xs text-secondary font-medium">Associate Pastor • Zion West</p>
+</div>
+<div class="flex gap-2">
+<button class="w-9 h-9 rounded-full bg-secondary-fixed flex items-center justify-center text-secondary active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-lg" data-icon="call">call</span>
+</button>
+<button class="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-lg" data-icon="mail">mail</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Administrative Documents (Initially Hidden) -->
+<section class="hidden space-y-6" id="screen-documents">
+<div class="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+<button class="whitespace-nowrap px-5 py-2 rounded-full bg-primary text-white font-label text-xs font-bold">Available Forms</button>
+<button class="whitespace-nowrap px-5 py-2 rounded-full bg-surface-container-high text-on-surface-variant font-label text-xs font-medium">History</button>
+<button class="whitespace-nowrap px-5 py-2 rounded-full bg-surface-container-high text-on-surface-variant font-label text-xs font-medium">Certificates</button>
+</div>
+<div class="space-y-4">
+<div class="bg-surface-container-lowest p-5 rounded-lg editorial-shadow space-y-4">
+<div class="flex justify-between items-start">
+<div class="w-10 h-10 rounded-xl bg-error-container/30 flex items-center justify-center text-error">
+<span class="material-symbols-outlined" data-icon="picture_as_pdf">picture_as_pdf</span>
+</div>
+<div class="px-2 py-1 rounded bg-surface-container-high text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">Deadline: Mar 15</div>
+</div>
+<div>
+<h4 class="font-headline font-bold text-primary text-base">2025 General Assembly Status Report</h4>
+<p class="text-sm text-on-surface-variant mt-1 leading-relaxed">Required for all senior administrative staff to finalize annual budgeting.</p>
+</div>
+<button class="w-full py-3 bg-secondary-container rounded-full text-white font-label font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all">
+            Open Form <span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+<div class="bg-surface-container-lowest p-5 rounded-lg editorial-shadow space-y-4">
+<div class="flex justify-between items-start">
+<div class="w-10 h-10 rounded-xl bg-secondary-fixed flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" data-icon="article">article</span>
+</div>
+</div>
+<div>
+<h4 class="font-headline font-bold text-primary text-base">Regional Ministry Update</h4>
+<p class="text-sm text-on-surface-variant mt-1 leading-relaxed">Monthly submission for regional activity tracking.</p>
+</div>
+<button class="w-full py-3 border border-outline-variant/30 rounded-full text-on-surface font-label font-bold text-sm active:scale-[0.98] transition-all">
+            Resume Draft
+          </button>
+</div>
+</div>
+</section>
+<!-- Profile Section (Initially Hidden) -->
+<section class="hidden space-y-8" id="screen-profile">
+<div class="flex flex-col items-center text-center space-y-4">
+<div class="relative">
+<div class="w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-secondary to-secondary-container">
+<img alt="Pastor Kim Profile" class="w-full h-full rounded-full object-cover border-4 border-white" data-alt="high quality portrait of a male professional, serene expression, crisp lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPCUXF8wg9yNhIap9cZ5IaliV-1lcDREce90l0MA-GxjG4A1Tp0-qZISAT6JZUyAkzzMm5ZZkLuryo2tXy1_W4ytVneqcayZd4z_C3L-LhIp-bzw90qP6MLuBCfau7P4VYKINFJjTTmTZc3l_iOPZkNqIiDtnoekxpBJcge8spJ_Lqw2f--wuF4OWyr6hti8qFHDTlMrL2XqL0IDYlAOUtyuY4aLs1RoRSKuziU6E-ZgjhIPm7UcYQ9cof84ZNcwRs2B3jypXpUe3I"/>
+</div>
+<button class="absolute bottom-1 right-1 bg-white w-9 h-9 rounded-full editorial-shadow flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-base" data-icon="photo_camera">photo_camera</span>
+</button>
+</div>
+<div>
+<h2 class="font-headline font-extrabold text-2xl text-primary">Pastor Joseph Kim</h2>
+<div class="mt-1 flex items-center justify-center gap-2">
+<span class="px-3 py-1 bg-primary text-white text-[10px] font-bold rounded-full uppercase tracking-widest">Senior Pastor</span>
+<span class="text-sm text-on-surface-variant">Seoul Central District</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 gap-3">
+<button class="w-full p-4 bg-secondary text-white rounded-lg font-label font-bold text-sm flex items-center justify-between group active:scale-[0.98] transition-all">
+          Request Information Update
+          <span class="material-symbols-outlined transition-transform group-hover:translate-x-1" data-icon="chevron_right">chevron_right</span>
+</button>
+<div class="bg-surface-container-low rounded-lg p-2 space-y-1">
+<div class="flex items-center gap-4 p-4 bg-white rounded-md">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="verified_user">verified_user</span>
+<div class="flex-1 text-left">
+<p class="text-[10px] text-outline uppercase font-bold tracking-tight">Access Level</p>
+<p class="font-body font-bold text-primary">District Administrator</p>
+</div>
+</div>
+<div class="flex items-center gap-4 p-4 hover:bg-white/50 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="settings">settings</span>
+<p class="flex-1 text-sm font-semibold text-primary">App Settings</p>
+</div>
+<div class="flex items-center gap-4 p-4 hover:bg-white/50 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="security">security</span>
+<p class="flex-1 text-sm font-semibold text-primary">Privacy &amp; Security</p>
+</div>
+<div class="flex items-center gap-4 p-4 hover:bg-white/50 transition-colors">
+<span class="material-symbols-outlined text-error" data-icon="logout">logout</span>
+<p class="flex-1 text-sm font-semibold text-error">Logout</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar (Shared Component Execution) -->
+<nav class="fixed bottom-6 left-0 right-0 z-50 flex justify-around items-center px-4 py-3 bg-white/80 backdrop-blur-2xl w-[90%] mx-auto rounded-full shadow-[0_20_40px_rgba(10,37,64,0.06)] border-none">
+<!-- Active State: Home -->
+<button class="nav-item flex flex-col items-center justify-center text-[#0070eb] after:content-[''] after:w-1 after:h-1 after:bg-[#0070eb] after:rounded-full after:mt-1 transition-all duration-200 active:scale-95" onclick="switchScreen('home', this)">
+<span class="material-symbols-outlined" data-icon="home" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label font-medium text-[10px] tracking-wide uppercase mt-0.5">Home</span>
+</button>
+<button class="nav-item flex flex-col items-center justify-center text-slate-400 hover:text-[#0058bc] transition-all duration-200 active:scale-95" onclick="switchScreen('directory', this)">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-label font-medium text-[10px] tracking-wide uppercase mt-0.5">Directory</span>
+</button>
+<button class="nav-item flex flex-col items-center justify-center text-slate-400 hover:text-[#0058bc] transition-all duration-200 active:scale-95" onclick="switchScreen('documents', this)">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="font-label font-medium text-[10px] tracking-wide uppercase mt-0.5">Documents</span>
+</button>
+<button class="nav-item flex flex-col items-center justify-center text-slate-400 hover:text-[#0058bc] transition-all duration-200 active:scale-95" onclick="switchScreen('profile', this)">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-label font-medium text-[10px] tracking-wide uppercase mt-0.5">Profile</span>
+</button>
+</nav>
+<script>
+    function switchScreen(screenId, el) {
+      // Hide all screens
+      document.querySelectorAll('section[id^="screen-"]').forEach(s => s.classList.add('hidden'));
+      // Show selected screen
+      document.getElementById('screen-' + screenId).classList.remove('hidden');
+
+      // Update Nav Styles
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('text-[#0070eb]', "after:content-['']", "after:w-1", "after:h-1", "after:bg-[#0070eb]", "after:rounded-full", "after:mt-1");
+        item.classList.add('text-slate-400');
+        // Reset icons to outline
+        const icon = item.querySelector('.material-symbols-outlined');
+        icon.style.fontVariationSettings = "'FILL' 0";
+      });
+
+      // Set active styles
+      el.classList.remove('text-slate-400');
+      el.classList.add('text-[#0070eb]', "after:content-['']", "after:w-1", "after:h-1", "after:bg-[#0070eb]", "after:rounded-full", "after:mt-1");
+      const activeIcon = el.querySelector('.material-symbols-outlined');
+      activeIcon.style.fontVariationSettings = "'FILL' 1";
+
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+</body></html>

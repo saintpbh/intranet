@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Minister Profile - My Information</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-lowest": "#ffffff",
+              "primary-fixed": "#d2e4ff",
+              "primary-fixed-dim": "#b0c8eb",
+              "on-secondary-fixed": "#001a41",
+              "error-container": "#ffdad6",
+              "on-secondary-container": "#fefcff",
+              "on-primary": "#ffffff",
+              "surface-container-high": "#e8e8ed",
+              "surface-dim": "#d9dade",
+              "secondary-container": "#0070eb",
+              "on-tertiary-fixed-variant": "#613f1c",
+              "on-primary-fixed": "#001c37",
+              "primary-container": "#0a2540",
+              "outline": "#74777e",
+              "tertiary": "#1a0b00",
+              "on-tertiary-fixed": "#2d1600",
+              "inverse-on-surface": "#f0f0f5",
+              "on-error": "#ffffff",
+              "surface-bright": "#f9f9fe",
+              "primary": "#000f22",
+              "on-surface": "#1a1c1f",
+              "surface-container-highest": "#e2e2e7",
+              "on-surface-variant": "#43474d",
+              "on-background": "#1a1c1f",
+              "surface-variant": "#e2e2e7",
+              "tertiary-container": "#381d00",
+              "background": "#f9f9fe",
+              "surface-tint": "#49607e",
+              "on-secondary": "#ffffff",
+              "surface-container-low": "#f3f3f8",
+              "inverse-primary": "#b0c8eb",
+              "surface-container": "#ededf2",
+              "outline-variant": "#c4c6ce",
+              "on-tertiary-container": "#ae835a",
+              "error": "#ba1a1a",
+              "secondary": "#0058bc",
+              "tertiary-fixed": "#ffdcbe",
+              "on-error-container": "#93000a",
+              "on-primary-fixed-variant": "#314865",
+              "surface": "#f9f9fe",
+              "inverse-surface": "#2e3034",
+              "tertiary-fixed-dim": "#eebd90",
+              "secondary-fixed": "#d8e2ff",
+              "on-tertiary": "#ffffff",
+              "secondary-fixed-dim": "#adc6ff",
+              "on-secondary-fixed-variant": "#004493",
+              "on-primary-container": "#768dad"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Plus Jakarta Sans"],
+              "label": ["Plus Jakarta Sans"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-header {
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+      }
+      .tonal-transition {
+        background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(243,243,248,1) 100%);
+      }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface font-body text-on-surface antialiased pb-32">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl shadow-sm shadow-slate-900/5 flex items-center justify-between px-6 h-16">
+<button class="active:scale-95 transition-transform duration-200 text-slate-900">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h1 class="font-manrope font-bold text-lg tracking-tight text-slate-900">Minister Profile</h1>
+<button class="active:scale-95 transition-transform duration-200 text-slate-900">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</header>
+<main class="pt-20 px-6 max-w-2xl mx-auto space-y-8">
+<!-- Profile Header Section -->
+<section class="relative">
+<div class="flex flex-col items-center text-center space-y-4">
+<div class="relative group">
+<div class="w-32 h-32 rounded-full ring-4 ring-white shadow-2xl overflow-hidden bg-surface-container-high">
+<img alt="Rev. David Kim" class="w-full h-full object-cover" data-alt="professional portrait of a middle-aged Korean man in a dark suit with a warm and welcoming expression, soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDXV2_aGGaUqb6EPlRTUxtkDn4THGT3RNDbX8nzISg9Ls6slFcFBLhBm5-JL1Y01jw6Yb1L9fhdoVSRXiQmRfSXjaiKao_tqe590VSBEJ8MfHz5eYtGObAbT-pqytnlZfo6VyTUm6bmPsja76Lo5Z5_OyqXsensU8G_Ymkd9JmNZw9w_xHnc-H-0Wgggg5yzZQdHJGfvn2NzhwMdMOQn5AW56mTYRdPryyqdf3_wSMrAVssec4lmvzlrv_a3G1uzyyXY7ADPyhXRYqj"/>
+</div>
+<button class="absolute bottom-0 right-0 bg-secondary p-2 rounded-full text-white shadow-lg active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+</button>
+</div>
+<div class="space-y-1">
+<h2 class="font-headline font-extrabold text-3xl text-primary tracking-tight">Rev. David Kim</h2>
+<p class="font-label text-secondary font-semibold uppercase tracking-widest text-xs">Senior Pastor</p>
+<p class="text-on-surface-variant text-sm font-medium">Grace Church • Seoul, Korea</p>
+</div>
+<div class="flex flex-wrap justify-center gap-2 pt-2">
+<span class="px-4 py-1.5 rounded-full bg-primary-container text-on-primary-container text-xs font-bold tracking-tight shadow-sm">Ordained 2012</span>
+<span class="px-4 py-1.5 rounded-full bg-surface-container-highest text-on-surface text-xs font-bold tracking-tight">M.Div</span>
+<span class="px-4 py-1.5 rounded-full bg-surface-container-highest text-on-surface text-xs font-bold tracking-tight">Leadership Coach</span>
+</div>
+</div>
+</section>
+<!-- Resume Section (나의 이력서) -->
+<section class="space-y-6">
+<div class="flex items-center justify-between">
+<h3 class="font-headline font-bold text-xl text-primary">나의 이력서</h3>
+<button class="flex items-center gap-1 text-secondary font-bold text-sm active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[20px]" data-icon="add">add</span>
+                    이력 추가
+                </button>
+</div>
+<!-- Education Bento Card -->
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-[0_20px_40px_rgba(10,37,64,0.04)] space-y-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="school">school</span>
+</div>
+<h4 class="font-bold text-primary">Education</h4>
+</div>
+<button class="text-outline-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+</div>
+<div class="space-y-4 pl-1">
+<div class="border-l-2 border-primary-fixed pl-4 relative">
+<p class="font-bold text-primary">Seoul Theological Seminary</p>
+<p class="text-sm text-on-surface-variant">Master of Divinity (M.Div)</p>
+<p class="text-[10px] font-bold text-on-tertiary-container uppercase tracking-tighter mt-1">Graduated 2010</p>
+</div>
+<div class="border-l-2 border-transparent pl-4 relative">
+<p class="font-bold text-primary">Yonsei University</p>
+<p class="text-sm text-on-surface-variant">B.A. in Philosophy</p>
+<p class="text-[10px] font-bold text-on-tertiary-container uppercase tracking-tighter mt-1">Graduated 2007</p>
+</div>
+</div>
+</div>
+<!-- Experience Bento Card -->
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-[0_20px_40px_rgba(10,37,64,0.04)] space-y-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" data-icon="history_edu">history_edu</span>
+</div>
+<h4 class="font-bold text-primary">Ministry Experience</h4>
+</div>
+<button class="text-outline-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+</div>
+<div class="space-y-4 pl-1">
+<div class="border-l-2 border-secondary-fixed pl-4 relative">
+<div class="flex justify-between items-start">
+<div>
+<p class="font-bold text-primary">Grace Church</p>
+<p class="text-sm text-on-surface-variant font-medium">Senior Pastor</p>
+</div>
+<span class="bg-secondary/10 text-secondary text-[10px] font-black px-2 py-0.5 rounded">PRESENT</span>
+</div>
+<p class="text-[10px] font-bold text-on-tertiary-container uppercase tracking-tighter mt-1">2018 - Current</p>
+</div>
+<div class="border-l-2 border-transparent pl-4 relative">
+<p class="font-bold text-primary">Bethany Community</p>
+<p class="text-sm text-on-surface-variant">Associate Pastor of Youth</p>
+<p class="text-[10px] font-bold text-on-tertiary-container uppercase tracking-tighter mt-1">2012 - 2018</p>
+</div>
+</div>
+</div>
+<!-- Certifications -->
+<div class="bg-surface-container-low p-6 rounded-lg space-y-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-white flex items-center justify-center text-tertiary-container">
+<span class="material-symbols-outlined" data-icon="workspace_premium">workspace_premium</span>
+</div>
+<h4 class="font-bold text-primary">Certifications</h4>
+</div>
+<button class="text-outline-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+</div>
+<div class="grid grid-cols-1 gap-3">
+<div class="bg-white/50 p-3 rounded-lg flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="verified">verified</span>
+<span class="text-sm font-semibold text-on-surface">Ordination Certificate - KAICAM</span>
+</div>
+<div class="bg-white/50 p-3 rounded-lg flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="verified">verified</span>
+<span class="text-sm font-semibold text-on-surface">Professional Coach Certification</span>
+</div>
+</div>
+</div>
+</section>
+<!-- CTA Action -->
+<div class="pt-4">
+<button class="w-full h-14 rounded-full bg-gradient-to-r from-secondary to-secondary-container text-white font-bold text-lg shadow-xl shadow-secondary/20 active:scale-95 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-icon="save">save</span>
+                정보 업데이트
+            </button>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 h-20 bg-white/80 backdrop-blur-2xl shadow-[0_-10px_40px_rgba(10,37,64,0.06)] rounded-t-[32px] pb-safe">
+<a class="flex flex-col items-center justify-center text-slate-400 hover:text-blue-500 active:scale-90 transition-all duration-300" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="church">church</span>
+<span class="font-label text-[11px] font-medium tracking-wide">Sanctuary</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-400 hover:text-blue-500 active:scale-90 transition-all duration-300" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="menu_book">menu_book</span>
+<span class="font-label text-[11px] font-medium tracking-wide">Ministry</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-400 hover:text-blue-500 active:scale-90 transition-all duration-300" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="auto_graph">auto_graph</span>
+<span class="font-label text-[11px] font-medium tracking-wide">Growth</span>
+</a>
+<a class="flex flex-col items-center justify-center text-blue-600 after:content-[''] after:w-1 after:h-1 after:bg-blue-600 after:rounded-full after:mt-1 active:scale-90 transition-all duration-300" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="person" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-label text-[11px] font-medium tracking-wide">Profile</span>
+</a>
+</nav>
+</body></html>

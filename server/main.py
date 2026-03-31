@@ -1,11 +1,19 @@
 from fastapi import FastAPI, Query, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import pymssql
 import os
 import json
+import shutil
+import sqlite3
+from datetime import datetime
 
 app = FastAPI()
+
+os.makedirs("uploads/profiles", exist_ok=True)
+os.makedirs("uploads/church_photos", exist_ok=True)
+app.mount("/api/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Enable CORS for React frontend
 app.add_middleware(
@@ -32,23 +40,198 @@ def get_connection():
         charset='cp949'
     )
 
+@app.get("/api/user-profiles/{minister_code}")
+def get_user_profile(minister_code: str):
+    conn = sqlite3.connect('requests.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT profile_image_url, status_message, phone, email, background_image_url FROM user_profiles WHERE minister_code=?", (minister_code,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return {"profile_image_url": row[0] or "", "status_message": row[1] or "", "phone": row[2] or "", "email": row[3] or "", "background_image_url": row[4] or ""}
+    return {"profile_image_url": "", "status_message": "", "phone": "", "email": "", "background_image_url": ""}
+
+@app.post("/api/user-profiles/{minister_code}")
+def update_user_profile(minister_code: str, payload: dict):
+    print(f"DEBUG: Updating profile for {minister_code}. Payload: {payload}")
+    conn = sqlite3.connect('requests.db')
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO user_profiles (minister_code, profile_image_url, status_message, background_image_url, updated_at)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(minister_code) DO UPDATE SET
+            profile_image_url=excluded.profile_image_url,
+            status_message=excluded.status_message,
+            background_image_url=excluded.background_image_url,
+            updated_at=CURRENT_TIMESTAMP
+    ''', (minister_code, payload.get("profile_image_url", ""), payload.get("status_message", ""), payload.get("background_image_url", "")))
+    conn.commit()
+    conn.close()
+    return {"success": True}
+
+@app.post("/api/upload-profile")
+def upload_profile_image(file: UploadFile = File(...)):
+    filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}"
+    file_path = os.path.join("uploads", "profiles", filename)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"url": f"/api/uploads/profiles/{filename}"}
+
+# --- Self-edit phone/email ---
+@app.put("/api/user-profiles/{minister_code}/contact")
+def update_user_contact(minister_code: str, payload: dict):
+    conn = sqlite3.connect('requests.db')
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO user_profiles (minister_code, phone, email, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(minister_code) DO UPDATE SET
+            phone=excluded.phone,
+            email=excluded.email,
+            updated_at=CURRENT_TIMESTAMP
+    ''', (minister_code, payload.get("phone", ""), payload.get("email", "")))
+    conn.commit()
+    conn.close()
+    return {"success": True}
+
+# --- Info Edit Requests (3-step workflow) ---
+@app.post("/api/info-edit-requests")
+def create_info_edit_request(payload: dict):
+    conn = sqlite3.connect('requests.db')
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO info_edit_requests (minister_code, minister_name, noh_code, noh_name, changes_json, reason)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (
+        payload.get("minister_code", ""),
+        payload.get("minister_name", ""),
+        payload.get("noh_code", ""),
+        payload.get("noh_name", ""),
+        json.dumps(payload.get("changes", []), ensure_ascii=False),
+        payload.get("reason", ""),
+    ))
+    conn.commit()
+    req_id = c.lastrowid
+    conn.close()
+    return {"success": True, "id": req_id}
+
+@app.get("/api/info-edit-requests")
+def list_info_edit_requests(noh_code: str = "", status: str = "", minister_code: str = ""):
+    conn = sqlite3.connect('requests.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    sql = "SELECT * FROM info_edit_requests WHERE 1=1"
+    params = []
+    if noh_code:
+        sql += " AND noh_code=?"
+        params.append(noh_code)
+    if status:
+        sql += " AND status=?"
+        params.append(status)
+    if minister_code:
+        sql += " AND minister_code=?"
+        params.append(minister_code)
+    sql += " ORDER BY created_at DESC"
+    c.execute(sql, params)
+    rows = [dict(r) for r in c.fetchall()]
+    for r in rows:
+        try:
+            r["changes"] = json.loads(r["changes_json"]) if r.get("changes_json") else []
+        except:
+            r["changes"] = []
+    conn.close()
+    return rows
+
+@app.put("/api/info-edit-requests/{req_id}/noh-confirm")
+def noh_confirm_edit_request(req_id: int, payload: dict):
+    conn = sqlite3.connect('requests.db')
+    c = conn.cursor()
+    c.execute('''
+        UPDATE info_edit_requests SET status='NOH_CONFIRMED', noh_reviewer=?, noh_reviewed_at=CURRENT_TIMESTAMP, noh_memo=?, updated_at=CURRENT_TIMESTAMP
+        WHERE id=?
+    ''', (payload.get("reviewer", ""), payload.get("memo", ""), req_id))
+    conn.commit()
+    conn.close()
+    return {"success": True}
+
+@app.put("/api/info-edit-requests/{req_id}/noh-reject")
+def noh_reject_edit_request(req_id: int, payload: dict):
+    conn = sqlite3.connect('requests.db')
+    c = conn.cursor()
+    c.execute('''
+        UPDATE info_edit_requests SET status='NOH_REJECTED', noh_reviewer=?, noh_reviewed_at=CURRENT_TIMESTAMP, noh_memo=?, updated_at=CURRENT_TIMESTAMP
+        WHERE id=?
+    ''', (payload.get("reviewer", ""), payload.get("memo", ""), req_id))
+    conn.commit()
+    conn.close()
+    return {"success": True}
+
+@app.put("/api/info-edit-requests/{req_id}/assembly-complete")
+def assembly_complete_edit_request(req_id: int, payload: dict):
+    conn = sqlite3.connect('requests.db')
+    c = conn.cursor()
+    c.execute('''
+        UPDATE info_edit_requests SET status='COMPLETED', assembly_reviewer=?, assembly_completed_at=CURRENT_TIMESTAMP, assembly_memo=?, updated_at=CURRENT_TIMESTAMP
+        WHERE id=?
+    ''', (payload.get("reviewer", ""), payload.get("memo", ""), req_id))
+    conn.commit()
+    conn.close()
+    return {"success": True}
+
+from typing import List
+
+@app.get("/api/churches/{chr_code}/photos")
+def get_church_photos(chr_code: str):
+    conn = sqlite3.connect('requests.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT photo_url, order_idx FROM church_photos WHERE chr_code=? ORDER BY order_idx", (chr_code,))
+    rows = c.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.post("/api/churches/{chr_code}/photos")
+def update_church_photos(chr_code: str, files: List[UploadFile] = File(...)):
+    conn = sqlite3.connect('requests.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM church_photos WHERE chr_code=?", (chr_code,))
+    
+    saved_photos = []
+    for idx, file in enumerate(files[:3]):
+        filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{idx}_{file.filename}"
+        file_path = os.path.join("uploads", "church_photos", filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        photo_url = f"/api/uploads/church_photos/{filename}"
+        c.execute("INSERT INTO church_photos (chr_code, photo_url, order_idx, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)", 
+                  (chr_code, photo_url, idx))
+        saved_photos.append({"photo_url": photo_url, "order_idx": idx})
+        
+    conn.commit()
+    conn.close()
+    return {"success": True, "photos": saved_photos}
+
 @app.get("/api/churches")
 def get_churches(search: str = ""):
     conn = get_connection()
     cursor = conn.cursor(as_dict=True)
     try:
         search_term = f"%{search}%".encode('cp949')
+        duty_term = "%담임%".encode('cp949')
         query = """
             SELECT TOP 100 
-                c.ChrCode, c.ChrName, n.NohName, s.SichalName, 
-                c.Tel_Church, c.Tel_Mobile, c.Tel_Fax, c.Address, c.Juso, c.PostNo, c.Email 
+                c.ChrCode, c.ChrName AS CHRNAME, n.NohName AS NOHNAME, s.SichalName AS SICHALNAME, 
+                c.Tel_Church, c.Tel_Mobile, c.Tel_Fax, c.Address AS ADDRESS, c.Juso AS JUSO, c.PostNo, c.Email,
+                (SELECT TOP 1 m.MinisterName FROM VI_MIN_INFO m WHERE m.ChrCode = c.ChrCode AND m.DUTYNAME LIKE %s) AS MOCKNAME 
             FROM TB_Chr100 c 
             LEFT JOIN TB_Chr910 n ON c.NohCode = n.NohCode 
             LEFT JOIN TB_Chr920 s ON c.NohCode = s.NohCode AND c.SichalCode = s.SichalCode
             WHERE c.ChrName LIKE %s OR n.NohName LIKE %s
             ORDER BY n.NohName, c.ChrName
         """
-        cursor.execute(query, (search_term, search_term))
+        cursor.execute(query, (duty_term, search_term, search_term))
         results = cursor.fetchall()
         return results
     except Exception as e:
@@ -72,6 +255,23 @@ def get_ministers(search: str = ""):
         """
         cursor.execute(query, (search_term, search_term, search_term))
         results = cursor.fetchall()
+        
+        try:
+            sql_conn = sqlite3.connect('requests.db')
+            sql_c = sql_conn.cursor()
+            sql_c.execute('SELECT minister_code, profile_image_url, status_message, background_image_url FROM user_profiles')
+            profiles = {row[0]: {"profile_image_url": row[1], "status_message": row[2], "background_image_url": row[3] or ""} for row in sql_c.fetchall()}
+            sql_conn.close()
+        except:
+            profiles = {}
+            
+        for row in results:
+            code = str(row.get("MinisterCode", "")).strip()
+            if code in profiles:
+                row["custom_image"] = profiles[code]["profile_image_url"]
+                row["status_message"] = profiles[code]["status_message"]
+                row["background_image"] = profiles[code]["background_image_url"]
+                
         return results
     except Exception as e:
         return {"error": str(e)}
@@ -162,6 +362,23 @@ def init_sqlite():
     conn = sqlite3.connect('requests.db')
     c = conn.cursor()
     c.execute('''
+        CREATE TABLE IF NOT EXISTS user_profiles (
+            minister_code TEXT PRIMARY KEY,
+            profile_image_url TEXT,
+            status_message TEXT,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS church_photos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chr_code TEXT,
+            photo_url TEXT,
+            order_idx INTEGER,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    c.execute('''
         CREATE TABLE IF NOT EXISTS modify_requests (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             minister_code TEXT,
@@ -189,9 +406,16 @@ def init_sqlite():
             status TEXT DEFAULT 'SUBMITTED',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            memo TEXT
+            memo TEXT,
+            doc_number TEXT DEFAULT '',
+            pdf_filename TEXT DEFAULT ''
         )
     ''')
+    for col, coldef in [('doc_number', "TEXT DEFAULT ''"), ('pdf_filename', "TEXT DEFAULT ''")]:
+        try:
+            c.execute(f"ALTER TABLE cert_requests ADD COLUMN {col} {coldef}")
+        except:
+            pass
     c.execute('''
         CREATE TABLE IF NOT EXISTS approval_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -243,6 +467,145 @@ def init_sqlite():
     for col, coldef in [('target_type', "TEXT DEFAULT 'all'"), ('recipients', "TEXT DEFAULT '[]'")]:
         try:
             c.execute(f"ALTER TABLE notices ADD COLUMN {col} {coldef}")
+        except:
+            pass
+            
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS church_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            church_code TEXT NOT NULL,
+            church_name TEXT,
+            noh_code TEXT,
+            noh_name TEXT,
+            report_year INTEGER NOT NULL,
+            status TEXT DEFAULT 'SUBMITTED',
+            submitted_by TEXT,
+            statistics_data TEXT,
+            elders_data TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(church_code, report_year)
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS ads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            image_url TEXT NOT NULL,
+            link_url TEXT DEFAULT '',
+            display_order INTEGER DEFAULT 0,
+            start_date TEXT NOT NULL,
+            end_date TEXT NOT NULL,
+            is_active INTEGER DEFAULT 1,
+            created_by TEXT DEFAULT '',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    # Info Edit Requests (3-step workflow: user -> noh_secretary -> assembly)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS info_edit_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            minister_code TEXT NOT NULL,
+            minister_name TEXT NOT NULL,
+            noh_code TEXT DEFAULT '',
+            noh_name TEXT DEFAULT '',
+            changes_json TEXT NOT NULL,
+            reason TEXT DEFAULT '',
+            status TEXT DEFAULT 'SUBMITTED',
+            noh_reviewer TEXT DEFAULT '',
+            noh_reviewed_at DATETIME,
+            noh_memo TEXT DEFAULT '',
+            assembly_reviewer TEXT DEFAULT '',
+            assembly_completed_at DATETIME,
+            assembly_memo TEXT DEFAULT '',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    # Add phone/email columns to user_profiles if not exist
+    for col, coldef in [('phone', "TEXT DEFAULT ''"), ('email', "TEXT DEFAULT ''"), ('background_image_url', "TEXT DEFAULT ''")]:
+        try:
+            c.execute(f"ALTER TABLE user_profiles ADD COLUMN {col} {coldef}")
+        except:
+            pass
+    # --- Document Builder Tables ---
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS form_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            version INTEGER DEFAULT 1,
+            schema_json TEXT NOT NULL,
+            created_by TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS form_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            doc_type TEXT NOT NULL DEFAULT 'pdf',
+            title TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            template_id INTEGER,
+            pdf_filename TEXT DEFAULT '',
+            content TEXT DEFAULT '',
+            visibility_roles TEXT DEFAULT '[]',
+            report_year INTEGER,
+            deadline TEXT DEFAULT '',
+            status TEXT DEFAULT 'draft',
+            approval_steps TEXT DEFAULT '[]',
+            created_by TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS form_responses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_id INTEGER NOT NULL,
+            respondent_code TEXT,
+            respondent_name TEXT,
+            respondent_org TEXT,
+            noh_code TEXT,
+            response_data TEXT NOT NULL,
+            status TEXT DEFAULT 'SUBMITTED',
+            current_step INTEGER DEFAULT 0,
+            approval_history TEXT DEFAULT '[]',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (document_id) REFERENCES form_documents(id)
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS visibility_roles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            role_tag TEXT NOT NULL UNIQUE,
+            display_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    # Seed visibility roles
+    seed_roles = [
+        ('신학생', 1), ('전도사', 2), ('목사수련생', 3), ('목후생', 4), ('준목', 5),
+        ('목사', 6), ('담임목사', 7), ('노회서기', 8), ('노회장', 9), ('총회직원', 10),
+        ('장로', 11), ('권사', 12), ('집사', 13), ('교회담당자', 14), ('시찰서기', 15)
+    ]
+    for tag, order in seed_roles:
+        try:
+            c.execute("INSERT OR IGNORE INTO visibility_roles (role_tag, display_order) VALUES (?, ?)", (tag, order))
+        except:
+            pass
+    # Migrate: add new columns if missing
+    for stmt in [
+        "ALTER TABLE form_documents ADD COLUMN approval_steps TEXT DEFAULT '[]'",
+        "ALTER TABLE form_responses ADD COLUMN current_step INTEGER DEFAULT 0",
+        "ALTER TABLE form_responses ADD COLUMN approval_history TEXT DEFAULT '[]'",
+    ]:
+        try:
+            c.execute(stmt)
         except:
             pass
     c.execute('''
@@ -402,21 +765,32 @@ class NoticeCreate(BaseModel):
     recipients: list = []     # [{type, code, name}]
 
 @app.get("/api/notices")
-def get_notices(scope: str = "", scope_code: str = "", limit: int = 50):
+def get_notices(scope: str = "", scope_code: str = "", target_noh: str = "", target_sichal: str = "", limit: int = 50):
     try:
         conn = sqlite3.connect('requests.db')
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
-        query = "SELECT * FROM notices WHERE 1=1"
-        params = []
-        if scope:
-            query += " AND scope = ?"
-            params.append(scope)
-        if scope_code:
-            query += " AND scope_code = ?"
-            params.append(scope_code)
-        query += " ORDER BY is_pinned DESC, created_at DESC LIMIT ?"
-        params.append(limit)
+        
+        if target_noh or target_sichal:
+            query = """
+                SELECT * FROM notices 
+                WHERE scope = 'assembly'
+                   OR (scope = 'presbytery' AND (scope_name = ? OR scope_name = '' OR scope_name IS NULL))
+                   OR (scope = 'sichal' AND (scope_name = ? OR scope_name = '' OR scope_name IS NULL))
+                ORDER BY is_pinned DESC, created_at DESC LIMIT ?
+            """
+            params = [target_noh, target_sichal, limit]
+        else:
+            query = "SELECT * FROM notices WHERE 1=1"
+            params = []
+            if scope:
+                query += " AND scope = ?"
+                params.append(scope)
+            if scope_code:
+                query += " AND scope_code = ?"
+                params.append(scope_code)
+            query += " ORDER BY is_pinned DESC, created_at DESC LIMIT ?"
+            params.append(limit)
         c.execute(query, params)
         rows = []
         for row in c.fetchall():
@@ -495,6 +869,94 @@ def delete_notice(notice_id: int):
         return {"success": True}
     except Exception as e:
         return {"error": str(e)}
+
+# --- Ads APIs ---
+
+class AdCreate(BaseModel):
+    title: str
+    image_url: str = ""
+    link_url: str = ""
+    display_order: int = 0
+    start_date: str
+    end_date: str
+    created_by: str = ""
+
+@app.get("/api/ads")
+def get_ads(active_only: bool = False):
+    try:
+        conn = sqlite3.connect('requests.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        if active_only:
+            today = datetime.now().strftime('%Y-%m-%d')
+            c.execute("SELECT * FROM ads WHERE is_active=1 AND start_date <= ? AND end_date >= ? ORDER BY display_order, id", (today, today))
+        else:
+            c.execute("SELECT * FROM ads ORDER BY display_order, id")
+        rows = [dict(r) for r in c.fetchall()]
+        conn.close()
+        return rows
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/api/ads")
+def create_ad(req: AdCreate):
+    try:
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        c.execute('''
+            INSERT INTO ads (title, image_url, link_url, display_order, start_date, end_date, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (req.title, req.image_url, req.link_url, req.display_order, req.start_date, req.end_date, req.created_by))
+        conn.commit()
+        ad_id = c.lastrowid
+        conn.close()
+        return {"success": True, "id": ad_id}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.put("/api/ads/{ad_id}")
+def update_ad(ad_id: int, req: AdCreate):
+    try:
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        c.execute('''
+            UPDATE ads SET title=?, image_url=?, link_url=?, display_order=?, start_date=?, end_date=?, updated_at=CURRENT_TIMESTAMP
+            WHERE id=?
+        ''', (req.title, req.image_url, req.link_url, req.display_order, req.start_date, req.end_date, ad_id))
+        conn.commit()
+        conn.close()
+        return {"success": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.delete("/api/ads/{ad_id}")
+def delete_ad(ad_id: int):
+    try:
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        c.execute("DELETE FROM ads WHERE id = ?", (ad_id,))
+        conn.commit()
+        conn.close()
+        return {"success": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/api/upload-ad")
+def upload_ad_image(file: UploadFile = File(...)):
+    os.makedirs(os.path.join("uploads", "ads"), exist_ok=True)
+    filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}"
+    file_path = os.path.join("uploads", "ads", filename)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"url": f"/api/uploads/ads/{filename}"}
+
+@app.get("/api/uploads/ads/{filename}")
+def get_ad_image(filename: str):
+    from fastapi.responses import FileResponse
+    file_path = os.path.join("uploads", "ads", filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    return {"error": "File not found"}
 
 # --- Cert Type APIs ---
 
@@ -680,6 +1142,7 @@ NEXT_STATUS = {
     'SICHAL_CONFIRMED': 'NOH_CONFIRMED',
     'NOH_CONFIRMED': 'APPROVED',
     'APPROVED': 'ISSUED',
+    'MODIFY_REQUESTED': 'ISSUED',
 }
 
 STATUS_LABELS = {
@@ -690,6 +1153,7 @@ STATUS_LABELS = {
     'APPROVED': '총회 승인',
     'ISSUED': '발급 완료',
     'REJECTED': '반려',
+    'MODIFY_REQUESTED': '수정 요청됨',
 }
 
 STAGE_ROLE = {
@@ -698,6 +1162,8 @@ STAGE_ROLE = {
     'SICHAL_CONFIRMED': 'presbytery',
     'NOH_CONFIRMED': 'assembly',
     'APPROVED': 'assembly',
+    'ISSUED': 'assembly',
+    'MODIFY_REQUESTED': 'assembly',
 }
 
 # --- My Info APIs ---
@@ -783,6 +1249,57 @@ def submit_cert_request(req: CertRequestModel):
     except Exception as e:
         return {"error": str(e)}
 
+@app.get("/api/cert-requests/me")
+def get_my_cert_requests(minister_code: str):
+    try:
+        conn = sqlite3.connect('requests.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM cert_requests WHERE minister_code = ? ORDER BY created_at DESC", (minister_code,))
+        rows = [dict(row) for row in c.fetchall()]
+        conn.close()
+        return rows
+    except Exception as e:
+        return {"error": str(e)}
+
+class ModifyRequestModel(BaseModel):
+    minister_code: str
+    comment: str
+
+@app.post("/api/cert-requests/{req_id}/request-modify")
+def request_cert_modification(req_id: int, req: ModifyRequestModel):
+    try:
+        conn = sqlite3.connect('requests.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM cert_requests WHERE id = ? AND minister_code = ?", (req_id, req.minister_code))
+        cert = c.fetchone()
+        if not cert:
+            return {"error": "요청을 찾을 수 없거나 권한이 없습니다."}
+        
+        if cert['status'] != 'ISSUED':
+            return {"error": "발급 완료된 증명서만 수정 요청이 가능합니다."}
+            
+        now = datetime.now().isoformat()
+        new_status = 'MODIFY_REQUESTED'
+        
+        c.execute('''
+            UPDATE cert_requests 
+            SET status = ?, updated_at = ?
+            WHERE id = ?
+        ''', (new_status, now, req_id))
+        
+        c.execute('''
+            INSERT INTO approval_history (request_id, request_type, stage, action, actor_name, actor_role, comment)
+            VALUES (?, 'cert', ?, ?, ?, ?, ?)
+        ''', (req_id, new_status, 'request_modify', cert['minister_name'], 'personal', req.comment))
+        
+        conn.commit()
+        conn.close()
+        return {"success": True, "new_status": new_status, "status_label": STATUS_LABELS.get(new_status, new_status)}
+    except Exception as e:
+        return {"error": str(e)}
+
 # --- Admin Cert Request APIs ---
 
 @app.get("/api/admin/cert-requests")
@@ -838,6 +1355,8 @@ class ApprovalAction(BaseModel):
     actor_name: str
     actor_role: str  # 'church', 'sichal', 'presbytery', 'assembly'
     comment: str = ""
+    doc_number: str = ""
+    pdf_filename: str = ""
 
 @app.post("/api/admin/cert-requests/{req_id}/approve")
 def approve_cert_request(req_id: int, req: ApprovalAction):
@@ -851,16 +1370,30 @@ def approve_cert_request(req_id: int, req: ApprovalAction):
             return {"error": "요청을 찾을 수 없습니다."}
         
         current_status = cert['status']
+        expected_role = STAGE_ROLE.get(current_status)
+        
+        if req.actor_role != expected_role:
+            return {"error": f"이 단계({STATUS_LABELS.get(current_status, current_status)})의 결재 권한이 없습니다."}
         
         if req.action == 'reject':
             new_status = 'REJECTED'
         else:
             new_status = NEXT_STATUS.get(current_status)
             if not new_status:
-                return {"error": f"현재 상태({current_status})에서 승인할 수 없습니다."}
+                if current_status == 'ISSUED':
+                    # 재발급 허용
+                    new_status = 'ISSUED'
+                else:
+                    return {"error": f"현재 상태({current_status})에서 승인할 수 없습니다."}
         
         now = datetime.now().isoformat()
-        c.execute("UPDATE cert_requests SET status = ?, updated_at = ? WHERE id = ?", (new_status, now, req_id))
+        c.execute('''
+            UPDATE cert_requests 
+            SET status = ?, updated_at = ?,
+                doc_number = CASE WHEN ? != '' THEN ? ELSE doc_number END,
+                pdf_filename = CASE WHEN ? != '' THEN ? ELSE pdf_filename END
+            WHERE id = ?
+        ''', (new_status, now, req.doc_number, req.doc_number, req.pdf_filename, req.pdf_filename, req_id))
         c.execute('''
             INSERT INTO approval_history (request_id, request_type, stage, action, actor_name, actor_role, comment)
             VALUES (?, 'cert', ?, ?, ?, ?, ?)
@@ -868,6 +1401,551 @@ def approve_cert_request(req_id: int, req: ApprovalAction):
         conn.commit()
         conn.close()
         return {"success": True, "new_status": new_status, "status_label": STATUS_LABELS.get(new_status, new_status)}
+    except Exception as e:
+        return {"error": str(e)}
+
+# --- Church Report APIs ---
+
+class ChurchReportModel(BaseModel):
+    church_code: str
+    church_name: str
+    noh_code: str
+    noh_name: str
+    report_year: int
+    submitted_by: str
+    statistics_data: str  # JSON string
+    elders_data: str      # JSON string
+
+@app.post("/api/church-reports")
+def submit_church_report(req: ChurchReportModel):
+    try:
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        
+        now = datetime.now().isoformat()
+        
+        c.execute("SELECT id, status FROM church_reports WHERE church_code = ? AND report_year = ?", (req.church_code, req.report_year))
+        row = c.fetchone()
+        
+        if row:
+            if row[1] in ['NOH_APPROVED', 'ASSEMBLY_APPROVED']:
+                conn.close()
+                return {"error": "이미 승인된 보고서는 수정할 수 없습니다."}
+            
+            c.execute('''
+                UPDATE church_reports 
+                SET church_name=?, noh_code=?, noh_name=?, submitted_by=?, statistics_data=?, elders_data=?, status='SUBMITTED', updated_at=?
+                WHERE id=?
+            ''', (req.church_name, req.noh_code, req.noh_name, req.submitted_by, req.statistics_data, req.elders_data, now, row[0]))
+            req_id = row[0]
+            action = "update"
+        else:
+            c.execute('''
+                INSERT INTO church_reports 
+                (church_code, church_name, noh_code, noh_name, report_year, submitted_by, statistics_data, elders_data, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'SUBMITTED')
+            ''', (req.church_code, req.church_name, req.noh_code, req.noh_name, req.report_year, req.submitted_by, req.statistics_data, req.elders_data))
+            req_id = c.lastrowid
+            action = "submit"
+            
+        c.execute('''
+            INSERT INTO approval_history (request_id, request_type, stage, action, actor_name, actor_role, comment)
+            VALUES (?, 'report', 'SUBMITTED', ?, ?, 'church', '상황보고서 제출')
+        ''', (req_id, action, req.submitted_by))
+        
+        conn.commit()
+        conn.close()
+        return {"success": True, "message": "보고서가 성공적으로 제출되었습니다.", "id": req_id}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/church-reports")
+def get_church_reports(church_code: str = "", noh_code: str = "", report_year: str = "", status: str = ""):
+    try:
+        conn = sqlite3.connect('requests.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        query = "SELECT id, church_code, church_name, noh_code, noh_name, report_year, status, submitted_by, created_at, updated_at FROM church_reports WHERE 1=1"
+        params = []
+        if church_code:
+            query += " AND church_code = ?"
+            params.append(church_code)
+        if noh_code:
+            query += " AND noh_code = ?"
+            params.append(noh_code)
+        if report_year:
+            query += " AND report_year = ?"
+            params.append(report_year)
+        if status:
+            query += " AND status = ?"
+            params.append(status)
+            
+        query += " ORDER BY report_year DESC, updated_at DESC"
+        c.execute(query, params)
+        rows = [dict(row) for row in c.fetchall()]
+        conn.close()
+        return rows
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/church-reports/{req_id}")
+def get_church_report_detail(req_id: int):
+    try:
+        conn = sqlite3.connect('requests.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM church_reports WHERE id = ?", (req_id,))
+        req_row = c.fetchone()
+        if not req_row:
+            return {"error": "보고서를 찾을 수 없습니다."}
+            
+        c.execute("SELECT * FROM approval_history WHERE request_id = ? AND request_type = 'report' ORDER BY created_at ASC", (req_id,))
+        history = [dict(row) for row in c.fetchall()]
+        conn.close()
+        
+        result = dict(req_row)
+        result['history'] = history
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+class ReportApprovalAction(BaseModel):
+    action: str  # 'approve' or 'reject'
+    actor_name: str
+    actor_role: str
+    comment: str = ""
+
+@app.post("/api/admin/church-reports/{req_id}/approve")
+def approve_church_report(req_id: int, req: ReportApprovalAction):
+    try:
+        conn = sqlite3.connect('requests.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM church_reports WHERE id = ?", (req_id,))
+        report = c.fetchone()
+        if not report:
+            return {"error": "보고서를 찾을 수 없습니다."}
+        
+        current_status = report['status']
+        new_status = current_status
+        
+        if req.action == 'reject':
+            new_status = 'REJECTED'
+        elif req.action == 'approve':
+            if current_status == 'SUBMITTED':
+                new_status = 'NOH_APPROVED'
+            elif current_status in ['NOH_APPROVED', 'REJECTED']:  # Can re-approve if rejected maybe, but normally just move forward
+                new_status = 'ASSEMBLY_APPROVED'
+            else:
+                return {"error": f"현재 상태({current_status})에서 승인할 수 없습니다."}
+                
+        now = datetime.now().isoformat()
+        c.execute("UPDATE church_reports SET status = ?, updated_at = ? WHERE id = ?", (new_status, now, req_id))
+        
+        c.execute('''
+            INSERT INTO approval_history (request_id, request_type, stage, action, actor_name, actor_role, comment)
+            VALUES (?, 'report', ?, ?, ?, ?, ?)
+        ''', (req_id, new_status, req.action, req.actor_name, req.actor_role, req.comment))
+        
+        conn.commit()
+        conn.close()
+        return {"success": True, "new_status": new_status}
+    except Exception as e:
+        return {"error": str(e)}
+
+# =============================================
+#  Document Builder & Management APIs
+# =============================================
+
+# --- Visibility Roles ---
+@app.get("/api/visibility-roles")
+def get_visibility_roles():
+    conn = sqlite3.connect('requests.db')
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute("SELECT * FROM visibility_roles ORDER BY display_order").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+class VisibilityRoleModel(BaseModel):
+    role_tag: str
+    display_order: int = 0
+
+@app.post("/api/visibility-roles")
+def add_visibility_role(req: VisibilityRoleModel):
+    try:
+        conn = sqlite3.connect('requests.db')
+        conn.execute("INSERT INTO visibility_roles (role_tag, display_order) VALUES (?, ?)", (req.role_tag, req.display_order))
+        conn.commit()
+        conn.close()
+        return {"success": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.delete("/api/visibility-roles/{role_id}")
+def delete_visibility_role(role_id: int):
+    conn = sqlite3.connect('requests.db')
+    conn.execute("DELETE FROM visibility_roles WHERE id = ?", (role_id,))
+    conn.commit()
+    conn.close()
+    return {"success": True}
+
+# --- Form Templates ---
+class FormTemplateModel(BaseModel):
+    name: str
+    description: str = ""
+    schema_json: str
+    created_by: str = ""
+
+@app.get("/api/form-templates")
+def get_form_templates(active_only: bool = False):
+    conn = sqlite3.connect('requests.db')
+    conn.row_factory = sqlite3.Row
+    q = "SELECT * FROM form_templates"
+    if active_only:
+        q += " WHERE is_active = 1"
+    q += " ORDER BY updated_at DESC"
+    rows = conn.execute(q).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.post("/api/form-templates")
+def create_form_template(req: FormTemplateModel):
+    try:
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        c.execute("INSERT INTO form_templates (name, description, schema_json, created_by) VALUES (?, ?, ?, ?)",
+                  (req.name, req.description, req.schema_json, req.created_by))
+        conn.commit()
+        tid = c.lastrowid
+        conn.close()
+        return {"success": True, "id": tid}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/form-templates/{tid}")
+def get_form_template(tid: int):
+    conn = sqlite3.connect('requests.db')
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT * FROM form_templates WHERE id = ?", (tid,)).fetchone()
+    conn.close()
+    return dict(row) if row else {"error": "양식을 찾을 수 없습니다."}
+
+class FormTemplateUpdate(BaseModel):
+    name: str
+    description: str = ""
+    schema_json: str
+
+@app.put("/api/form-templates/{tid}")
+def update_form_template(tid: int, req: FormTemplateUpdate):
+    try:
+        conn = sqlite3.connect('requests.db')
+        now = datetime.now().isoformat()
+        conn.execute("UPDATE form_templates SET name=?, description=?, schema_json=?, updated_at=?, version=version+1 WHERE id=?",
+                     (req.name, req.description, req.schema_json, now, tid))
+        conn.commit()
+        conn.close()
+        return {"success": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.delete("/api/form-templates/{tid}")
+def delete_form_template(tid: int):
+    conn = sqlite3.connect('requests.db')
+    conn.execute("UPDATE form_templates SET is_active = 0 WHERE id = ?", (tid,))
+    conn.commit()
+    conn.close()
+    return {"success": True}
+
+@app.delete("/api/form-templates/{tid}/permanent")
+def delete_form_template_permanent(tid: int):
+    try:
+        conn = sqlite3.connect('requests.db')
+        conn.execute("DELETE FROM form_templates WHERE id = ?", (tid,))
+        conn.commit()
+        conn.close()
+        return {"success": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+# --- Form Documents ---
+class FormDocumentModel(BaseModel):
+    doc_type: str = "pdf"  # 'pdf' or 'form'
+    title: str
+    description: str = ""
+    template_id: int = 0
+    pdf_filename: str = ""
+    content: str = ""
+    visibility_roles: str = "[]"  # JSON string
+    report_year: int = 0
+    deadline: str = ""
+    approval_steps: str = "[]"  # JSON: [{step, target}]
+    created_by: str = ""
+
+@app.post("/api/form-documents")
+def create_form_document(req: FormDocumentModel):
+    try:
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        c.execute('''INSERT INTO form_documents
+            (doc_type, title, description, template_id, pdf_filename, content, visibility_roles, report_year, deadline, status, approval_steps, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)''',
+            (req.doc_type, req.title, req.description, req.template_id or None, req.pdf_filename, req.content,
+             req.visibility_roles, req.report_year or None, req.deadline, req.approval_steps, req.created_by))
+        conn.commit()
+        did = c.lastrowid
+        conn.close()
+        return {"success": True, "id": did}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/form-documents")
+def get_form_documents(status: str = "", doc_type: str = ""):
+    conn = sqlite3.connect('requests.db')
+    conn.row_factory = sqlite3.Row
+    q = "SELECT * FROM form_documents WHERE 1=1"
+    params = []
+    if status:
+        q += " AND status = ?"
+        params.append(status)
+    if doc_type:
+        q += " AND doc_type = ?"
+        params.append(doc_type)
+    q += " ORDER BY updated_at DESC"
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.get("/api/form-documents/{did}")
+def get_form_document(did: int):
+    conn = sqlite3.connect('requests.db')
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT * FROM form_documents WHERE id = ?", (did,)).fetchone()
+    conn.close()
+    if not row:
+        return {"error": "문서를 찾을 수 없습니다."}
+    result = dict(row)
+    if result.get('template_id'):
+        conn2 = sqlite3.connect('requests.db')
+        conn2.row_factory = sqlite3.Row
+        tpl = conn2.execute("SELECT * FROM form_templates WHERE id = ?", (result['template_id'],)).fetchone()
+        conn2.close()
+        if tpl:
+            result['template'] = dict(tpl)
+    return result
+
+class FormDocumentUpdate(BaseModel):
+    title: str = ""
+    description: str = ""
+    content: str = ""
+    visibility_roles: str = "[]"
+    deadline: str = ""
+    status: str = ""
+
+@app.put("/api/form-documents/{did}")
+def update_form_document(did: int, req: FormDocumentUpdate):
+    try:
+        conn = sqlite3.connect('requests.db')
+        now = datetime.now().isoformat()
+        sets = ["updated_at = ?"]
+        params = [now]
+        if req.title:
+            sets.append("title = ?")
+            params.append(req.title)
+        if req.description:
+            sets.append("description = ?")
+            params.append(req.description)
+        if req.content:
+            sets.append("content = ?")
+            params.append(req.content)
+        if req.visibility_roles:
+            sets.append("visibility_roles = ?")
+            params.append(req.visibility_roles)
+        if req.deadline:
+            sets.append("deadline = ?")
+            params.append(req.deadline)
+        if req.status:
+            sets.append("status = ?")
+            params.append(req.status)
+        params.append(did)
+        conn.execute(f"UPDATE form_documents SET {', '.join(sets)} WHERE id = ?", params)
+        conn.commit()
+        conn.close()
+        return {"success": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+# --- Form Responses ---
+class FormResponseModel(BaseModel):
+    document_id: int
+    respondent_code: str
+    respondent_name: str
+    respondent_org: str = ""
+    noh_code: str = ""
+    response_data: str  # JSON
+
+@app.post("/api/form-responses")
+def submit_form_response(req: FormResponseModel):
+    try:
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        # Check for existing response (update if draft/rejected)
+        c.execute("SELECT id, status FROM form_responses WHERE document_id = ? AND respondent_code = ?",
+                  (req.document_id, req.respondent_code))
+        existing = c.fetchone()
+        now = datetime.now().isoformat()
+        if existing:
+            if existing[1] in ['ASSEMBLY_APPROVED']:
+                conn.close()
+                return {"error": "이미 최종 승인된 응답은 수정할 수 없습니다."}
+            c.execute("UPDATE form_responses SET response_data=?, respondent_name=?, respondent_org=?, noh_code=?, status='SUBMITTED', updated_at=? WHERE id=?",
+                      (req.response_data, req.respondent_name, req.respondent_org, req.noh_code, now, existing[0]))
+            rid = existing[0]
+        else:
+            c.execute('''INSERT INTO form_responses (document_id, respondent_code, respondent_name, respondent_org, noh_code, response_data)
+                         VALUES (?, ?, ?, ?, ?, ?)''',
+                      (req.document_id, req.respondent_code, req.respondent_name, req.respondent_org, req.noh_code, req.response_data))
+            rid = c.lastrowid
+        conn.commit()
+        conn.close()
+        return {"success": True, "id": rid}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/form-responses")
+def get_form_responses(document_id: int = 0, respondent_code: str = "", status: str = ""):
+    conn = sqlite3.connect('requests.db')
+    conn.row_factory = sqlite3.Row
+    q = "SELECT * FROM form_responses WHERE 1=1"
+    params = []
+    if document_id:
+        q += " AND document_id = ?"
+        params.append(document_id)
+    if respondent_code:
+        q += " AND respondent_code = ?"
+        params.append(respondent_code)
+    if status:
+        q += " AND status = ?"
+        params.append(status)
+    q += " ORDER BY updated_at DESC"
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+# --- Approval workflow: step-based approve/reject ---
+class StepApprovalModel(BaseModel):
+    action: str  # 'approve' or 'reject'
+    actor_name: str
+    actor_role: str  # 'church', 'sichal', 'presbytery', 'assembly'
+    comment: str = ""
+
+@app.post("/api/form-responses/{rid}/step-approve")
+def step_approve_response(rid: int, req: StepApprovalModel):
+    try:
+        conn = sqlite3.connect('requests.db')
+        conn.row_factory = sqlite3.Row
+        resp = conn.execute("SELECT * FROM form_responses WHERE id = ?", (rid,)).fetchone()
+        if not resp:
+            conn.close()
+            return {"error": "응답을 찾을 수 없습니다."}
+        # Get document approval_steps
+        doc = conn.execute("SELECT approval_steps FROM form_documents WHERE id = ?", (resp['document_id'],)).fetchone()
+        steps = json.loads(doc['approval_steps']) if doc and doc['approval_steps'] else []
+        current_step = resp['current_step'] or 0
+        history = json.loads(resp['approval_history']) if resp['approval_history'] else []
+        now = datetime.now().isoformat()
+
+        history.append({
+            'step': current_step,
+            'actor': req.actor_name,
+            'role': req.actor_role,
+            'action': req.action,
+            'comment': req.comment,
+            'date': now
+        })
+
+        if req.action == 'reject':
+            new_status = 'REJECTED'
+            new_step = current_step
+        elif req.action == 'approve':
+            new_step = current_step + 1
+            if new_step >= len(steps):
+                new_status = 'ASSEMBLY_APPROVED'  # Final
+            else:
+                new_status = f'STEP_{new_step}'
+        else:
+            conn.close()
+            return {"error": "잘못된 액션입니다."}
+
+        conn.execute(
+            "UPDATE form_responses SET status=?, current_step=?, approval_history=?, updated_at=? WHERE id=?",
+            (new_status, new_step, json.dumps(history, ensure_ascii=False), now, rid)
+        )
+        conn.commit()
+        conn.close()
+        return {"success": True, "new_status": new_status, "new_step": new_step}
+    except Exception as e:
+        return {"error": str(e)}
+
+# --- Get responses pending for a specific approval role ---
+@app.get("/api/form-responses/pending")
+def get_pending_responses(role: str = ""):
+    """Get responses that are pending approval at a step matching the given role"""
+    conn = sqlite3.connect('requests.db')
+    conn.row_factory = sqlite3.Row
+    # Get all non-final responses
+    responses = conn.execute(
+        "SELECT fr.*, fd.title as doc_title, fd.approval_steps, fd.doc_type "
+        "FROM form_responses fr JOIN form_documents fd ON fr.document_id = fd.id "
+        "WHERE fr.status NOT IN ('ASSEMBLY_APPROVED', 'REJECTED') "
+        "ORDER BY fr.updated_at DESC"
+    ).fetchall()
+    result = []
+    for r in responses:
+        row = dict(r)
+        steps = json.loads(row.get('approval_steps') or '[]')
+        current = row.get('current_step') or 0
+        if current < len(steps) and steps[current].get('target', '').lower() == role.lower():
+            result.append(row)
+        elif not steps and role:  # No steps defined, show to everyone
+            result.append(row)
+    conn.close()
+    return result
+
+class FormResponseApproval(BaseModel):
+    action: str  # 'approve' or 'reject'
+    actor_name: str
+    actor_role: str
+    comment: str = ""
+
+@app.post("/api/admin/form-responses/{rid}/approve")
+def approve_form_response(rid: int, req: FormResponseApproval):
+    try:
+        conn = sqlite3.connect('requests.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        resp = c.execute("SELECT * FROM form_responses WHERE id = ?", (rid,)).fetchone()
+        if not resp:
+            return {"error": "응답을 찾을 수 없습니다."}
+        current = resp['status']
+        if req.action == 'reject':
+            new_status = 'REJECTED'
+        elif req.action == 'approve':
+            if current == 'SUBMITTED':
+                new_status = 'NOH_APPROVED'
+            elif current == 'NOH_APPROVED':
+                new_status = 'ASSEMBLY_APPROVED'
+            else:
+                return {"error": f"현재 상태({current})에서 승인할 수 없습니다."}
+        else:
+            return {"error": "잘못된 액션입니다."}
+        now = datetime.now().isoformat()
+        c.execute("UPDATE form_responses SET status=?, updated_at=? WHERE id=?", (new_status, now, rid))
+        c.execute('''INSERT INTO approval_history (request_id, request_type, stage, action, actor_name, actor_role, comment)
+                     VALUES (?, 'form_response', ?, ?, ?, ?, ?)''',
+                  (rid, new_status, req.action, req.actor_name, req.actor_role, req.comment))
+        conn.commit()
+        conn.close()
+        return {"success": True, "new_status": new_status}
     except Exception as e:
         return {"error": str(e)}
 
@@ -932,6 +2010,19 @@ def get_minister_detail(code: str):
         result = cursor.fetchone()
         if not result:
             return {"error": "Minister not found."}
+        # Attach user_profiles data (profile image, background, status)
+        try:
+            sql_conn = sqlite3.connect('requests.db')
+            sql_c = sql_conn.cursor()
+            sql_c.execute('SELECT profile_image_url, status_message, background_image_url FROM user_profiles WHERE minister_code=?', (code,))
+            prow = sql_c.fetchone()
+            sql_conn.close()
+            if prow:
+                result["custom_image"] = prow[0] or ""
+                result["status_message"] = prow[1] or ""
+                result["background_image"] = prow[2] or ""
+        except:
+            pass
         return result
     except Exception as e:
         return {"error": str(e)}
@@ -1710,7 +2801,25 @@ if CLIENT_BUILD.exists():
     
     # Serve files from public/assets (logo, banner, etc.)
     public_assets = CLIENT_BUILD / "assets"
-    
+
+# Serve uploaded files (profiles, ads, etc.)
+UPLOAD_DIR = Path(__file__).parent / "uploads"
+
+@app.get("/api/uploads/profiles/{filename}")
+def serve_profile_image(filename: str):
+    file_path = UPLOAD_DIR / "profiles" / filename
+    if file_path.is_file():
+        return FileResponse(str(file_path))
+    return {"error": "not found"}
+
+@app.get("/api/uploads/ads/{filename}")
+def serve_ad_image(filename: str):
+    file_path = UPLOAD_DIR / "ads" / filename
+    if file_path.is_file():
+        return FileResponse(str(file_path))
+    return {"error": "not found"}
+
+if CLIENT_BUILD.exists():
     # SPA fallback: serve index.html for all non-API routes
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):

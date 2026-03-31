@@ -23,57 +23,98 @@ const MinisterDetail = ({ ministerCode, onBack }) => {
     fetchData();
   }, [ministerCode]);
 
-  if (loading) return <div className="loading">불러오는 중...</div>;
-  if (error) return <div className="error">{error}</div>;
+  if (loading) return <div className="text-center py-12 text-on-surface-variant font-medium">데이터를 불러오는 중입니다...</div>;
+  if (error) return <div className="text-center py-12 text-error font-medium">{error}</div>;
   if (!data) return null;
 
   return (
-    <div style={{padding: '0 16px'}}>
+    <div className="space-y-8 animate-fade-in pb-10">
+      {/* Hero Profile Section */}
+      <section className="relative group mx-[-16px] sm:mx-0 mt-[-16px] sm:mt-0">
+        <div className="w-full h-[280px] sm:h-[340px] rounded-b-[2.5rem] sm:rounded-3xl overflow-hidden relative">
+           {/* Background layer */}
+           <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary-container">
+             {data.background_image && (
+               <img src={`${API_BASE}${data.background_image}`} alt="배경" className="w-full h-full object-cover" />
+             )}
+           </div>
+           {/* Gradient overlay for text readability */}
+           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+           {/* Profile photo overlay */}
+           {data.custom_image ? (
+             <img src={`${API_BASE}${data.custom_image}`} alt={data.MinisterName} className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-overlay" />
+           ) : !data.background_image && (
+             <div className="absolute inset-0 flex items-center justify-center">
+               <span className="text-9xl font-bold text-white/10">{data.MinisterName?.trim()?.charAt(0)}</span>
+             </div>
+           )}
+        </div>
+        <div className="absolute -bottom-10 sm:-bottom-8 left-6 right-6 bg-white/90 backdrop-blur-2xl p-6 sm:p-8 rounded-3xl shadow-[0_20px_40px_rgba(10,37,64,0.08)] border border-white/50">
+          <p className="font-['Plus_Jakarta_Sans',_'Pretendard'] text-secondary font-bold uppercase tracking-widest text-[11px] mb-1">{data.DUTYNAME || '목임'}</p>
+          <h2 className="font-['Manrope',_'Pretendard'] font-extrabold text-3xl text-primary-container leading-tight">{data.MinisterName?.trim()}</h2>
+          
+          {data.status_message && (
+            <p className="mt-2 text-on-surface-variant font-medium text-sm italic">"{data.status_message}"</p>
+          )}
 
-      <div className="profile-header">
-        <div className="profile-avatar" style={{backgroundColor: '#C7C7CC'}}>
-          <span className="initials" style={{fontSize: '32px'}}>{data.MinisterName?.trim()?.charAt(0) || '?'}</span>
-        </div>
-        <div className="profile-name">{data.MinisterName?.trim()}</div>
-        <div className="profile-subtitle">{data.NOHNAME} · {data.CHRNAME}</div>
-        {data.DUTYNAME && <span className="badge" style={{marginTop: '4px'}}>{data.DUTYNAME}</span>}
-      </div>
-
-      <div className="card">
-        <div className="info-row">
-          <span className="info-label">휴대전화</span>
-          {data.TEL_MOBILE ? <a href={`tel:${data.TEL_MOBILE}`} className="info-link">{data.TEL_MOBILE}</a> : <span className="info-text">-</span>}
-        </div>
-        <div className="info-row">
-          <span className="info-label">교회전화</span>
-          {data.TEL_CHURCH ? <a href={`tel:${data.TEL_CHURCH}`} className="info-link">{data.TEL_CHURCH}</a> : <span className="info-text">-</span>}
-        </div>
-        <div className="info-row">
-          <span className="info-label">이메일</span>
-          {data.EMAIL ? <a href={`mailto:${data.EMAIL}`} className="info-link">{data.EMAIL}</a> : <span className="info-text">-</span>}
-        </div>
-      </div>
-
-      <div className="card" style={{marginTop: '16px'}}>
-        <div className="info-row">
-          <span className="info-label">목회자코드</span>
-          <span className="info-text" style={{fontFamily: 'monospace', letterSpacing: '0.5px'}}>{data.MinisterCode}</span>
-        </div>
-        <div className="info-row">
-          <span className="info-label">소속교회</span>
-          <span className="info-text">{data.CHRNAME || '-'}</span>
-        </div>
-        <div className="info-row">
-          <span className="info-label">노회</span>
-          <span className="info-text">{data.NOHNAME || '-'}</span>
-        </div>
-        {data.JUSO && (
-          <div className="info-row" style={{flexDirection: 'column', alignItems: 'flex-start', gap: '4px'}}>
-            <span className="info-label">소재지</span>
-            <span className="info-text">{data.JUSO}</span>
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-surface-variant/40 text-on-surface-variant">
+            <span className="material-symbols-outlined text-[18px]">church</span>
+            <span className="text-sm font-medium">{data.CHRNAME || data.NOHNAME}</span>
           </div>
-        )}
-      </div>
+        </div>
+      </section>
+
+      <div className="h-6"></div> {/* Added spacer due to taller absolute box */}
+
+      {/* Quick Contact Actions */}
+      <section className="grid grid-cols-3 gap-3 pt-12">
+        <a href={data.TEL_MOBILE ? `tel:${data.TEL_MOBILE}` : '#'} className={`flex flex-col items-center justify-center py-4 px-2 bg-white rounded-2xl shadow-sm border border-surface-variant/50 transition-all ${data.TEL_MOBILE ? 'active:scale-95 group hover:border-secondary/30' : 'opacity-40 cursor-not-allowed'}`}>
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-colors ${data.TEL_MOBILE ? 'bg-primary-container/5 text-primary group-hover:bg-secondary group-hover:text-white' : 'bg-surface-variant text-outline'}`}>
+            <span className="material-symbols-outlined">call</span>
+          </div>
+          <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] font-bold text-[11px] tracking-wide uppercase text-on-surface">휴대폰</span>
+        </a>
+        <a href={data.TEL_CHURCH ? `tel:${data.TEL_CHURCH}` : '#'} className={`flex flex-col items-center justify-center py-4 px-2 bg-white rounded-2xl shadow-sm border border-surface-variant/50 transition-all ${data.TEL_CHURCH ? 'active:scale-95 group hover:border-secondary/30' : 'opacity-40 cursor-not-allowed'}`}>
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-colors ${data.TEL_CHURCH ? 'bg-primary-container/5 text-primary group-hover:bg-secondary group-hover:text-white' : 'bg-surface-variant text-outline'}`}>
+            <span className="material-symbols-outlined">deskphone</span>
+          </div>
+          <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] font-bold text-[11px] tracking-wide uppercase text-on-surface">교회전화</span>
+        </a>
+        <a href={data.EMAIL ? `mailto:${data.EMAIL}` : '#'} className={`flex flex-col items-center justify-center py-4 px-2 bg-white rounded-2xl shadow-sm border border-surface-variant/50 transition-all ${data.EMAIL ? 'active:scale-95 group hover:border-secondary/30' : 'opacity-40 cursor-not-allowed'}`}>
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-colors ${data.EMAIL ? 'bg-primary-container/5 text-primary group-hover:bg-secondary group-hover:text-white' : 'bg-surface-variant text-outline'}`}>
+            <span className="material-symbols-outlined">mail</span>
+          </div>
+          <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] font-bold text-[11px] tracking-wide uppercase text-on-surface">이메일</span>
+        </a>
+      </section>
+
+      {/* Bento Grid: Info */}
+      <section className="bg-white rounded-[2rem] p-6 sm:p-8 shadow-sm border border-surface-variant/50">
+        <h3 className="font-['Manrope',_'Pretendard'] font-bold text-xl text-primary mb-6 flex items-center gap-3">
+          <span className="material-symbols-outlined text-secondary">assignment_ind</span>
+          상세 정보
+        </h3>
+        <div className="space-y-5">
+          <div className="flex flex-col">
+            <span className="text-[11px] font-bold text-outline uppercase tracking-wider mb-1">소속 노회</span>
+            <span className="text-on-surface font-medium text-base">{data.NOHNAME || '-'}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[11px] font-bold text-outline uppercase tracking-wider mb-1">시무 교회</span>
+            <span className="text-on-surface font-medium text-base">{data.CHRNAME || '-'}</span>
+          </div>
+          {data.JUSO && (
+            <div className="flex flex-col">
+              <span className="text-[11px] font-bold text-outline uppercase tracking-wider mb-1">소재지</span>
+              <span className="text-on-surface font-medium text-sm leading-relaxed">{data.JUSO}</span>
+            </div>
+          )}
+          <div className="flex flex-col pt-4 border-t border-surface-variant/40 mt-2">
+            <span className="text-[11px] font-bold text-outline uppercase tracking-wider mb-1">고유 코드</span>
+            <span className="text-on-surface-variant font-mono text-sm bg-surface-container py-1 px-2 rounded w-fit">{data.MinisterCode}</span>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-error-container": "#93000a",
+              "on-secondary-container": "#fefcff",
+              "primary-fixed-dim": "#b0c8eb",
+              "on-error": "#ffffff",
+              "tertiary": "#1a0b00",
+              "surface-variant": "#e2e2e7",
+              "primary-fixed": "#d2e4ff",
+              "inverse-surface": "#2e3034",
+              "on-tertiary-container": "#ae835a",
+              "tertiary-fixed-dim": "#eebd90",
+              "surface-tint": "#49607e",
+              "on-tertiary": "#ffffff",
+              "on-primary-container": "#768dad",
+              "background": "#f9f9fe",
+              "secondary": "#0058bc",
+              "on-surface": "#1a1c1f",
+              "on-secondary": "#ffffff",
+              "on-surface-variant": "#43474d",
+              "surface-container-low": "#f3f3f8",
+              "secondary-fixed-dim": "#adc6ff",
+              "secondary-fixed": "#d8e2ff",
+              "surface-container-high": "#e8e8ed",
+              "on-tertiary-fixed-variant": "#613f1c",
+              "surface-container-highest": "#e2e2e7",
+              "on-primary-fixed-variant": "#314865",
+              "surface": "#f9f9fe",
+              "error-container": "#ffdad6",
+              "error": "#ba1a1a",
+              "on-secondary-fixed-variant": "#004493",
+              "primary": "#000f22",
+              "tertiary-fixed": "#ffdcbe",
+              "inverse-on-surface": "#f0f0f5",
+              "primary-container": "#0a2540",
+              "outline-variant": "#c4c6ce",
+              "on-primary-fixed": "#001c37",
+              "on-primary": "#ffffff",
+              "surface-dim": "#d9dade",
+              "on-secondary-fixed": "#001a41",
+              "on-background": "#1a1c1f",
+              "tertiary-container": "#381d00",
+              "surface-container-lowest": "#ffffff",
+              "surface-bright": "#f9f9fe",
+              "secondary-container": "#0070eb",
+              "on-tertiary-fixed": "#2d1600",
+              "outline": "#74777e",
+              "inverse-primary": "#b0c8eb",
+              "surface-container": "#ededf2"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Plus Jakarta Sans"],
+              "label": ["Plus Jakarta Sans"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+      }
+      h1, h2, h3 {
+        font-family: 'Manrope', sans-serif;
+      }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl shadow-[0_20px_40px_rgba(10,37,64,0.06)] flex justify-between items-center px-6 py-4">
+<div class="flex items-center gap-4">
+<button class="active:scale-95 transition-transform duration-200 text-slate-900">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-['Manrope'] font-bold text-lg tracking-tight text-slate-900">증명서 신청</h1>
+</div>
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-container/10">
+<img alt="User Profile" data-alt="Close-up portrait of a smiling woman in professional attire with soft natural lighting and a clean background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_TVvsg21gEuQG1xo4TVnCiwcBBcg8UpLXNDwJNFoCYWYSc-dyxYetV0fVjVMKQX-FJ8uXY91F-fcUnCGzyXZ33KFGQdOdids0GKTzV2h_mHxRtjRv77X0_AKC4-_ZqWH_c6rzwNsiPyrPcZ2ty3agZDnk5aLWodPBbQmlMriJauz8EuJ1UaciF70Xgj8NmWmCOipGnQ70uz36eLxkLNVUBjJN9N4N-SxBkaAklrBPvv35XWeegsfV6AXV1o-BF8K2SP3GqlZ6yPmd"/>
+</div>
+</header>
+<main class="pt-24 px-6 max-w-2xl mx-auto">
+<!-- Editorial Header -->
+<section class="mb-10">
+<span class="text-secondary font-semibold tracking-widest text-[10px] uppercase mb-2 block">Services</span>
+<h2 class="text-4xl font-extrabold text-primary leading-tight mb-4">Official Documents</h2>
+<p class="text-on-surface-variant text-sm leading-relaxed max-w-xs">Select and request official church certifications for your ministry and membership needs.</p>
+</section>
+<!-- Search Bar -->
+<div class="relative mb-8">
+<div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline" data-icon="search">search</span>
+</div>
+<input class="w-full bg-surface-container-high border-none rounded-2xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-secondary-container/20 text-on-surface placeholder:text-outline transition-all" placeholder="Search certificates..." type="text"/>
+</div>
+<!-- Certificate Grid -->
+<div class="space-y-6">
+<!-- Card 1: Certificate of Ministry -->
+<div class="group bg-surface-container-lowest rounded-lg p-6 shadow-[0_20px_40px_rgba(10,37,64,0.04)] transition-all hover:shadow-[0_30px_60px_rgba(10,37,64,0.08)]">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-primary-container rounded-2xl text-white">
+<span class="material-symbols-outlined" data-icon="auto_awesome">auto_awesome</span>
+</div>
+<span class="text-[10px] font-bold text-outline-variant bg-surface-container-low px-2 py-1 rounded-full">STANDARD</span>
+</div>
+<h3 class="text-xl font-bold text-primary mb-2">Certificate of Ministry</h3>
+<p class="text-on-surface-variant text-sm mb-6 leading-relaxed">Official verification of your active service and leadership roles within the church community.</p>
+<button class="w-full py-3 bg-gradient-to-r from-secondary to-secondary-container text-white rounded-full font-bold text-sm shadow-lg shadow-secondary/20 active:scale-[0.98] transition-all">
+                    Apply
+                </button>
+</div>
+<!-- Card 2: Ordination Certificate -->
+<div class="group bg-surface-container-lowest rounded-lg p-6 shadow-[0_20px_40px_rgba(10,37,64,0.04)] transition-all hover:shadow-[0_30px_60px_rgba(10,37,64,0.08)]">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-secondary-container rounded-2xl text-white">
+<span class="material-symbols-outlined" data-icon="workspace_premium">workspace_premium</span>
+</div>
+<span class="text-[10px] font-bold text-on-tertiary-container bg-tertiary-fixed-dim/20 px-2 py-1 rounded-full uppercase">Verified</span>
+</div>
+<h3 class="text-xl font-bold text-primary mb-2">Ordination Certificate</h3>
+<p class="text-on-surface-variant text-sm mb-6 leading-relaxed">Formal documentation of your ecclesiastical authority and ministerial credentials.</p>
+<button class="w-full py-3 bg-gradient-to-r from-secondary to-secondary-container text-white rounded-full font-bold text-sm shadow-lg shadow-secondary/20 active:scale-[0.98] transition-all">
+                    Apply
+                </button>
+</div>
+<!-- Card 3: Experience Certificate -->
+<div class="group bg-surface-container-lowest rounded-lg p-6 shadow-[0_20px_40px_rgba(10,37,64,0.04)] transition-all hover:shadow-[0_30px_60px_rgba(10,37,64,0.08)]">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-surface-container-high rounded-2xl text-primary-container">
+<span class="material-symbols-outlined" data-icon="history_edu">history_edu</span>
+</div>
+</div>
+<h3 class="text-xl font-bold text-primary mb-2">Experience Certificate</h3>
+<p class="text-on-surface-variant text-sm mb-6 leading-relaxed">A detailed summary of your volunteering history, tenure, and contributions to the mission.</p>
+<button class="w-full py-3 bg-gradient-to-r from-secondary to-secondary-container text-white rounded-full font-bold text-sm shadow-lg shadow-secondary/20 active:scale-[0.98] transition-all">
+                    Apply
+                </button>
+</div>
+<!-- Card 4: Membership Verification -->
+<div class="group bg-surface-container-lowest rounded-lg p-6 shadow-[0_20px_40px_rgba(10,37,64,0.04)] transition-all hover:shadow-[0_30px_60px_rgba(10,37,64,0.08)]">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-surface-container-high rounded-2xl text-primary-container">
+<span class="material-symbols-outlined" data-icon="verified_user">verified_user</span>
+</div>
+</div>
+<h3 class="text-xl font-bold text-primary mb-2">Membership Verification</h3>
+<p class="text-on-surface-variant text-sm mb-6 leading-relaxed">Proof of active membership and standing within the local church body for administrative use.</p>
+<button class="w-full py-3 bg-gradient-to-r from-secondary to-secondary-container text-white rounded-full font-bold text-sm shadow-lg shadow-secondary/20 active:scale-[0.98] transition-all">
+                    Apply
+                </button>
+</div>
+</div>
+<!-- Support Section -->
+<div class="mt-12 p-8 rounded-lg bg-primary-container text-white relative overflow-hidden">
+<div class="relative z-10">
+<h4 class="text-xl font-bold mb-2">Need help?</h4>
+<p class="text-on-primary-container text-sm mb-4">Can't find the specific certificate you need? Contact our administrative office.</p>
+<button class="text-xs font-bold border border-white/20 px-4 py-2 rounded-full hover:bg-white/10 transition-colors">
+                    Contact Support
+                </button>
+</div>
+<!-- Decorative gradient element -->
+<div class="absolute -right-10 -bottom-10 w-40 h-40 bg-secondary-container/30 rounded-full blur-3xl"></div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-8 pb-8 pt-4 bg-white/80 backdrop-blur-2xl">
+<div class="fixed bottom-6 left-6 right-6 h-16 bg-white/90 rounded-full shadow-[0_20px_40px_rgba(10,37,64,0.06)] flex justify-around items-center px-6">
+<!-- Home -->
+<a class="flex flex-col items-center justify-center text-slate-400 group active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="home">home</span>
+<span class="font-['Plus_Jakarta_Sans'] text-[10px] font-medium tracking-wide">Home</span>
+</a>
+<!-- Directory (Active for this scope) -->
+<a class="flex flex-col items-center justify-center text-[#0070eb] relative after:content-[''] after:w-1 after:h-1 after:bg-[#0070eb] after:rounded-full after:mt-1 active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="description">description</span>
+<span class="font-['Plus_Jakarta_Sans'] text-[10px] font-medium tracking-wide">Documents</span>
+</a>
+<!-- Documents -->
+<a class="flex flex-col items-center justify-center text-slate-400 group active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="group">group</span>
+<span class="font-['Plus_Jakarta_Sans'] text-[10px] font-medium tracking-wide">Directory</span>
+</a>
+<!-- Profile -->
+<a class="flex flex-col items-center justify-center text-slate-400 group active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="person">person</span>
+<span class="font-['Plus_Jakarta_Sans'] text-[10px] font-medium tracking-wide">Profile</span>
+</a>
+</div>
+</nav>
+</body></html>

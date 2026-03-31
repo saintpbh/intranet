@@ -49,7 +49,7 @@ const AdminDashboard = () => {
               <span className="badge" style={{marginLeft: '8px', fontSize: '11px',
                 backgroundColor: req.status === 'PENDING' ? '#FF9500' : req.status === 'APPROVED' ? '#34C759' : '#FF3B30',
                 color: 'white', padding: '2px 8px', borderRadius: '10px'}}>
-                {req.status}
+                {req.status === 'PENDING' ? '대기 중' : req.status === 'APPROVED' ? '승인됨' : req.status === 'REJECTED' ? '반려됨' : req.status}
               </span>
             </div>
             <div style={{fontSize: '14px', color: 'var(--text-secondary)'}}>

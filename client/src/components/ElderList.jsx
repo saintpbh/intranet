@@ -21,36 +21,53 @@ const ElderList = ({ searchTerm, onSelect }) => {
 
   if (!searchTerm || searchTerm.trim() === '') {
     return (
-      <div className="empty-state">
-        <img src="/assets/banner_v2.png" alt="새 역사 70년" className="empty-state-banner" />
-        <p>이름, 노회명, 교회명으로 검색해 주세요.</p>
+      <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+        <span className="material-symbols-outlined text-6xl text-outline-variant/50 mb-4" style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}>person_search</span>
+        <p className="text-on-surface-variant font-medium">이름, 노회명, 교회명으로 검색해 주세요.</p>
       </div>
     );
   }
-  if (loading) return <div className="loading">불러오는 중...</div>;
-  if (error) return <div className="error">{error}</div>;
+  
+  if (loading) return <div className="text-center py-12 text-on-surface-variant font-medium">검색 중...</div>;
+  if (error) return <div className="text-center py-12 text-error font-medium">{error}</div>;
   if (data.length === 0) return (
-    <div className="no-results">
-      <img src="/assets/banner_v2.png" alt="새 역사 70년" className="empty-state-banner" style={{opacity: 0.5, maxWidth: '200px', marginBottom: '16px'}} />
-      <p>검색 결과가 없습니다.</p>
+    <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+      <span className="material-symbols-outlined text-6xl text-outline-variant/50 mb-4" style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}>search_off</span>
+      <p className="text-on-surface-variant font-medium">검색 결과가 없습니다.</p>
     </div>
   );
 
   return (
-    <div className="list-container">
-      <div className="result-count">{data.length}건의 검색 결과</div>
-      <div className="grouped-list">
+    <div className="p-4 sm:p-6 bg-surface-container-lowest">
+      <div className="flex items-end justify-between mb-6">
+        <div>
+          <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] text-[10px] uppercase tracking-[0.2em] text-secondary font-bold mb-1 block">직분자</span>
+          <h3 className="font-['Manrope',_'Pretendard'] font-bold text-2xl text-primary">장로 <span className="text-sm font-medium text-outline ml-2">{data.length}명</span></h3>
+        </div>
+      </div>
+      
+      <div className="divide-y divide-surface-container-high border-t border-surface-container-high">
         {data.map((item, idx) => {
-          const details = [item.NohName, item.ChrName].filter(Boolean);
           return (
-            <div key={idx} className="result-row" onClick={() => onSelect(item.PriestCode)}>
-              <div style={{flex: 1, minWidth: 0}}>
-                <div className="result-name">{item.PriestName?.trim()}</div>
-                {details.length > 0 && <div className="result-subtitle">{details.join(' · ')}</div>}
+            <div 
+              key={idx} 
+              onClick={() => onSelect(item.PriestCode)}
+              className="p-4 flex items-center justify-between group cursor-pointer hover:bg-surface-container-lowest/50 active:bg-surface-container-low transition-colors"
+            >
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center text-primary/40 font-bold border border-outline-variant/20 flex-shrink-0">
+                  {item.PriestName?.charAt(0) || 'E'}
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-bold text-primary group-hover:text-secondary transition-colors text-base truncate">
+                    {item.PriestName?.trim()}
+                  </h4>
+                  <p className="text-xs text-on-surface-variant font-medium truncate mt-0.5">
+                    {[item.ChrName, item.NohName].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
               </div>
-              <svg className="chevron" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 1L6 6L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <span className="material-symbols-outlined text-outline-variant/50 group-hover:text-secondary group-hover:translate-x-1 transition-all">chevron_right</span>
             </div>
           );
         })}
@@ -58,4 +75,5 @@ const ElderList = ({ searchTerm, onSelect }) => {
     </div>
   );
 };
+
 export default ElderList;
