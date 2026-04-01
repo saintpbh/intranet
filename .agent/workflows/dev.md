@@ -8,4 +8,4 @@ description: Start development for both client and server
 
 // turbo
 2. Start the server:
-   `cd server; node index.js`
+   `cd server; python -m uvicorn main:app --host 0.0.0.0 --port 5000 --reload`
