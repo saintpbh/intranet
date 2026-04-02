@@ -1,0 +1,498 @@
+[
+  {
+    "chr_code": "100068",
+    "name": "혜화",
+    "reason": "좌표 변환 실패",
+    "raw_address": "서울 마포구 동교동 홍익오피스텔 1013(폐교)",
+    "raw_juso": "",
+    "cleaned_address": "서울 마포구 동교동 홍익오피스텔 1013"
+  },
+  {
+    "chr_code": "100072",
+    "name": "혜성중앙",
+    "reason": "좌표 변환 실패",
+    "raw_address": "서울시 용산구 한강로2가 63-125(폐교회)",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "서울시 용산구 한강로2가 63-125"
+  },
+  {
+    "chr_code": "100156",
+    "name": "목민",
+    "reason": "좌표 변환 실패",
+    "raw_address": "서울시 성북구 길음1동 565-5(폐교회)",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "서울시 성북구 길음1동 565-5"
+  },
+  {
+    "chr_code": "100222",
+    "name": "성림",
+    "reason": "좌표 변환 실패",
+    "raw_address": "서울시 강남구 일원본동 11단지 목련타운상가(폐교회)",
+    "raw_juso": "",
+    "cleaned_address": "서울시 강남구 일원본동 11단지 목련타운상가"
+  },
+  {
+    "chr_code": "100232",
+    "name": "강남은광",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경기도 광주시 오포읍 능평로 30",
+    "raw_juso": "26 1동 302호 (휘닉스그린빌)",
+    "cleaned_address": "경기도 광주시 오포읍 능평로 30"
+  },
+  {
+    "chr_code": "100238",
+    "name": "천호동",
+    "reason": "좌표 변환 실패",
+    "raw_address": "서울특별시 강동구 구천면로23길 40",
+    "raw_juso": "(천호동 424-1)",
+    "cleaned_address": "서울특별시 강동구 구천면로23길 40"
+  },
+  {
+    "chr_code": "100254",
+    "name": "남서울",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경기 용인시 수지2지구 풍덕천동 193-12",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "경기 용인시 수지2지구 풍덕천동 193-12"
+  },
+  {
+    "chr_code": "100290",
+    "name": "열린우리",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경기도 광주시 오포읍 태재로 41-4",
+    "raw_juso": "",
+    "cleaned_address": "경기도 광주시 오포읍 태재로 41-4"
+  },
+  {
+    "chr_code": "100307",
+    "name": "나눔의",
+    "reason": "좌표 변환 실패",
+    "raw_address": "수원시 팔달구 매탄1동 주공4단지A.402-203호(폐교회)",
+    "raw_juso": "",
+    "cleaned_address": "수원시 팔달구 매탄1동 주공4단지A.402-"
+  },
+  {
+    "chr_code": "100400",
+    "name": "새역사",
+    "reason": "좌표 변환 실패",
+    "raw_address": "인천광역시 남동구 백범로180번길 371-11",
+    "raw_juso": "",
+    "cleaned_address": "인천광역시 남동구 백범로180번길 371-11"
+  },
+  {
+    "chr_code": "100424",
+    "name": "새아침",
+    "reason": "좌표 변환 실패",
+    "raw_address": "부천시 소사구 소사본 3동",
+    "raw_juso": "400-3 동우프라자 308호",
+    "cleaned_address": "부천시 소사구 소사본 3동"
+  },
+  {
+    "chr_code": "100426",
+    "name": "로뎀",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경기 시흥시 정왕동 화성A 111-904(폐교회)",
+    "raw_juso": "",
+    "cleaned_address": "경기 시흥시 정왕동 화성A 111-904"
+  },
+  {
+    "chr_code": "100464",
+    "name": "군포복된",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경기도 군포시 당동 227-13(폐교회)",
+    "raw_juso": "",
+    "cleaned_address": "경기도 군포시 당동 227-13"
+  },
+  {
+    "chr_code": "100568",
+    "name": "호산나",
+    "reason": "좌표 변환 실패",
+    "raw_address": "강원 춘천시 신북읍 용산리 용산1리 2반",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "강원 춘천시 신북읍 용산리 용산1리 2반"
+  },
+  {
+    "chr_code": "100589",
+    "name": "크리스탈",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경기도 고양시 일산구 주엽동 48번지 강선마을 종교부지",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "경기도 고양시 일산구 주엽동 48번지 강선마을 종교부지"
+  },
+  {
+    "chr_code": "100627",
+    "name": "한일",
+    "reason": "좌표 변환 실패",
+    "raw_address": "충북 청주시 흥덕구 분평동 36-201(폐교회)",
+    "raw_juso": "",
+    "cleaned_address": "충북 청주시 흥덕구 분평동 36-201"
+  },
+  {
+    "chr_code": "100628",
+    "name": "청주새삶",
+    "reason": "좌표 변환 실패",
+    "raw_address": "충청북도 청주시 흥덕구  수곡로37번길 9",
+    "raw_juso": "청주새삶교회",
+    "cleaned_address": "충청북도 청주시 흥덕구  수곡로37번길 9"
+  },
+  {
+    "chr_code": "100658",
+    "name": "향북",
+    "reason": "좌표 변환 실패",
+    "raw_address": "충청북도 청주시 흥덕구 외북로15번길 3 (외북동)",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "충청북도 청주시 흥덕구 외북로15번길 3"
+  },
+  {
+    "chr_code": "100659",
+    "name": "연합",
+    "reason": "좌표 변환 실패",
+    "raw_address": "충북 청주시 상당구 내덕1동 725-55",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "충북 청주시 상당구 내덕1동 725-55"
+  },
+  {
+    "chr_code": "100672",
+    "name": "만나",
+    "reason": "좌표 변환 실패",
+    "raw_address": "충북 청원군 오창면 양청리 688",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "충북 청원군 오창면 양청리 688"
+  },
+  {
+    "chr_code": "100775",
+    "name": "서천농아인(폐교)",
+    "reason": "좌표 변환 실패",
+    "raw_address": "충남 서천구 서천읍 군사리 473",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "충남 서천구 서천읍 군사리 473"
+  },
+  {
+    "chr_code": "100834",
+    "name": "신흥",
+    "reason": "좌표 변환 실패",
+    "raw_address": "충남 논산시 강경읍 중앙동 172",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "충남 논산시 강경읍 중앙동 172"
+  },
+  {
+    "chr_code": "100851",
+    "name": "온해",
+    "reason": "좌표 변환 실패",
+    "raw_address": "충청남도 부여군 내산면 온해리 40-46",
+    "raw_juso": "",
+    "cleaned_address": "충청남도 부여군 내산면 온해리 40-46"
+  },
+  {
+    "chr_code": "100894",
+    "name": "성지",
+    "reason": "좌표 변환 실패",
+    "raw_address": "전북 전주시 완산구 중노송동 2가",
+    "raw_juso": "717",
+    "cleaned_address": "전북 전주시 완산구 중노송동 2가"
+  },
+  {
+    "chr_code": "100923",
+    "name": "수정",
+    "reason": "좌표 변환 실패",
+    "raw_address": "전북 전주시 완산구 효자동1가 251-5",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "전북 전주시 완산구 효자동1가 251-5"
+  },
+  {
+    "chr_code": "100963",
+    "name": "혜성",
+    "reason": "좌표 변환 실패",
+    "raw_address": "전북 전주시 덕진구 서노송동 686-4",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "전북 전주시 덕진구 서노송동 686-4"
+  },
+  {
+    "chr_code": "101149",
+    "name": "신원",
+    "reason": "좌표 변환 실패",
+    "raw_address": "전북 익산시 어양동 주공4차 402-404",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "전북 익산시 어양동 주공4차 402-404"
+  },
+  {
+    "chr_code": "101250",
+    "name": "오천",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경상북도 군위군 효령면 효우로 287",
+    "raw_juso": "",
+    "cleaned_address": "경상북도 군위군 효령면 효우로 287"
+  },
+  {
+    "chr_code": "101259",
+    "name": "안좌두리",
+    "reason": "좌표 변환 실패",
+    "raw_address": "전남 신안군 안좌면 두리",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "전남 신안군 안좌면 두리"
+  },
+  {
+    "chr_code": "101383",
+    "name": "오광제일",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경북 상주시 공성면 오광1리",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "경북 상주시 공성면 오광1리"
+  },
+  {
+    "chr_code": "101438",
+    "name": "여수한샘",
+    "reason": "좌표 변환 실패",
+    "raw_address": "전남 여천군 돌산읍 우두리 1044-8",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "전남 여천군 돌산읍 우두리 1044-8"
+  },
+  {
+    "chr_code": "101461",
+    "name": "한무리",
+    "reason": "좌표 변환 실패",
+    "raw_address": "전남 목포시 산정동 신안비치A.101-507",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "전남 목포시 산정동 신안비치A.101-507"
+  },
+  {
+    "chr_code": "101493",
+    "name": "새소망",
+    "reason": "좌표 변환 실패",
+    "raw_address": "광주시 북구 일곡동 일곡택지개발지구  849-8 진도A. 상가2층",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "광주시 북구 일곡동 일곡택지개발지구  849-8 진도A. 상가"
+  },
+  {
+    "chr_code": "101565",
+    "name": "삭금중앙",
+    "reason": "좌표 변환 실패",
+    "raw_address": "전남 장흥군 회진면 삭금리",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "전남 장흥군 회진면 삭금리"
+  },
+  {
+    "chr_code": "101582",
+    "name": "숭인",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경기도 안성시 숭인동 동신아파트상가 202호",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "경기도 안성시 숭인동 동신아파트상가"
+  },
+  {
+    "chr_code": "101592",
+    "name": "옥합선교",
+    "reason": "좌표 변환 실패",
+    "raw_address": "전북 군산시 지곡동 동신아파트 105동 804호",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "전북 군산시 지곡동 동신아파트 105동"
+  },
+  {
+    "chr_code": "101622",
+    "name": "영동",
+    "reason": "좌표 변환 실패",
+    "raw_address": "강원도 속초시 교동 120-10",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "강원도 속초시 교동 120-10"
+  },
+  {
+    "chr_code": "101624",
+    "name": "가나다",
+    "reason": "좌표 변환 실패",
+    "raw_address": "서울시 마포구 거성빌딩 '",
+    "raw_juso": "",
+    "cleaned_address": "서울시 마포구 거성빌딩 '"
+  },
+  {
+    "chr_code": "101625",
+    "name": "가나다1",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경기도 고양시 고양덕양우체국 사서함",
+    "raw_juso": "ㅓㅓ",
+    "cleaned_address": "경기도 고양시 고양덕양우체국 사서함"
+  },
+  {
+    "chr_code": "101642",
+    "name": "광주반석",
+    "reason": "좌표 변환 실패",
+    "raw_address": "광주시 북구 연제동 광명아파트 201동 1306호",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "광주시 북구 연제동 광명아파트 201동"
+  },
+  {
+    "chr_code": "101656",
+    "name": "생명수",
+    "reason": "좌표 변환 실패",
+    "raw_address": "서울특별시 노원구 공능동 362-43 공릉파크빌",
+    "raw_juso": "A동 201호",
+    "cleaned_address": "서울특별시 노원구 공능동 362-43 공릉파크빌"
+  },
+  {
+    "chr_code": "101663",
+    "name": "성림",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경기 오포군 추자리",
+    "raw_juso": "287-4",
+    "cleaned_address": "경기 오포군 추자리"
+  },
+  {
+    "chr_code": "101664",
+    "name": "성림",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경기도 광주시 오포읍 오포안로 383-18",
+    "raw_juso": "",
+    "cleaned_address": "경기도 광주시 오포읍 오포안로 383-18"
+  },
+  {
+    "chr_code": "101672",
+    "name": "새날을여는",
+    "reason": "좌표 변환 실패",
+    "raw_address": "서울 강서구 내발산 1동 마곡수명산파크 304-802호",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "서울 강서구 내발산 1동 마곡수명산파크 304-"
+  },
+  {
+    "chr_code": "101685",
+    "name": "세움",
+    "reason": "좌표 변환 실패",
+    "raw_address": "전북특별자치도 전주지 완산구 서신천변11길 22",
+    "raw_juso": "107동 701호",
+    "cleaned_address": "전북특별자치도 전주지 완산구 서신천변11길 22"
+  },
+  {
+    "chr_code": "101698",
+    "name": "당나루",
+    "reason": "좌표 변환 실패",
+    "raw_address": "충남 당진군 당진읍 북문1리 473-1 금호빌라 2층",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "충남 당진군 당진읍 북문1리 473-1 금호빌라"
+  },
+  {
+    "chr_code": "101726",
+    "name": "찬양하는",
+    "reason": "좌표 변환 실패",
+    "raw_address": "전북 군산시 나포면 나포리 문화마을상가1층",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "전북 군산시 나포면 나포리 문화마을상가"
+  },
+  {
+    "chr_code": "101740",
+    "name": "광암",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경남 마산시 내서읍 중리현대아파트 106-702",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "경남 마산시 내서읍 중리현대아파트 106-702"
+  },
+  {
+    "chr_code": "101746",
+    "name": "대천항",
+    "reason": "좌표 변환 실패",
+    "raw_address": "충남 보령시 신흑동 어항",
+    "raw_juso": "950",
+    "cleaned_address": "충남 보령시 신흑동 어항"
+  },
+  {
+    "chr_code": "101755",
+    "name": "예향",
+    "reason": "좌표 변환 실패",
+    "raw_address": "인천광역시 부평구 십정로25번길 13-1",
+    "raw_juso": "",
+    "cleaned_address": "인천광역시 부평구 십정로25번길 13-1"
+  },
+  {
+    "chr_code": "101760",
+    "name": "좋은나무",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경기도 안산시 강록구 사동 1177-5",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "경기도 안산시 강록구 사동 1177-5"
+  },
+  {
+    "chr_code": "101766",
+    "name": "목민",
+    "reason": "좌표 변환 실패",
+    "raw_address": "전남 목포시 용해동 동아아파트 5-1407",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "전남 목포시 용해동 동아아파트 5-1407"
+  },
+  {
+    "chr_code": "101769",
+    "name": "봉의",
+    "reason": "좌표 변환 실패",
+    "raw_address": "강원도 춘천시 석사동 삼익2차A. 상가내",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "강원도 춘천시 석사동 삼익2차A. 상가내"
+  },
+  {
+    "chr_code": "101779",
+    "name": "동천안",
+    "reason": "좌표 변환 실패",
+    "raw_address": "충청남도 천안시 목천읍 운전리 21-1",
+    "raw_juso": "",
+    "cleaned_address": "충청남도 천안시 목천읍 운전리 21-1"
+  },
+  {
+    "chr_code": "101849",
+    "name": "마중물",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경기 수원시 장안구 정자동 동신A.205동 1101호",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "경기 수원시 장안구 정자동 동신A.205동"
+  },
+  {
+    "chr_code": "101870",
+    "name": "꿈이있는(폐교회)",
+    "reason": "좌표 변환 실패",
+    "raw_address": "전북 전주시 호성동 동신A 상가3층",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "전북 전주시 호성동 동신A 상가"
+  },
+  {
+    "chr_code": "101899",
+    "name": "예수제자",
+    "reason": "좌표 변환 실패",
+    "raw_address": "(폐교회)",
+    "raw_juso": "은하A 상가2층",
+    "cleaned_address": "은하A 상가"
+  },
+  {
+    "chr_code": "101946",
+    "name": "벧엘",
+    "reason": "좌표 변환 실패",
+    "raw_address": "인천광역시 미추홀구 서곶로314번길 13-1",
+    "raw_juso": "(심곡동, 효마을타운) 119동 101호",
+    "cleaned_address": "인천광역시 미추홀구 서곶로314번길 13-1"
+  },
+  {
+    "chr_code": "101964",
+    "name": "선한목자",
+    "reason": "좌표 변환 실패",
+    "raw_address": "충남 서천군 서천읍 856-13 3층",
+    "raw_juso": "(폐교회)",
+    "cleaned_address": "충남 서천군 서천읍 856-13"
+  },
+  {
+    "chr_code": "102095",
+    "name": "주향",
+    "reason": "좌표 변환 실패",
+    "raw_address": "서울틀별시 성북국 장위로 31길 17-22",
+    "raw_juso": "희망어린이집 1층",
+    "cleaned_address": "서울틀별시 성북국 장위로 31길 17-22"
+  },
+  {
+    "chr_code": "102133",
+    "name": "주의",
+    "reason": "좌표 변환 실패",
+    "raw_address": "경기도 파주시 파주읍 봉서산로 65번길, 6-11",
+    "raw_juso": "",
+    "cleaned_address": "경기도 파주시 파주읍 봉서산로 65번길"
+  },
+  {
+    "chr_code": "102148",
+    "name": "새생명오아시스",
+    "reason": "좌표 변환 실패",
+    "raw_address": "전주시 완산구 남노송동 관선 2길 10-1",
+    "raw_juso": "",
+    "cleaned_address": "전주시 완산구 남노송동 관선 2길 10-1"
+  }
+]

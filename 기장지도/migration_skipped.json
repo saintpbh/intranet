@@ -1,0 +1,79 @@
+[
+  {
+    "chr_code": "100249",
+    "name": "초강",
+    "reason": "주소 없음",
+    "raw_address": "",
+    "raw_juso": ""
+  },
+  {
+    "chr_code": "100427",
+    "name": "영광",
+    "reason": "주소 없음",
+    "raw_address": "",
+    "raw_juso": ""
+  },
+  {
+    "chr_code": "101170",
+    "name": "정금",
+    "reason": "주소 없음",
+    "raw_address": "",
+    "raw_juso": ""
+  },
+  {
+    "chr_code": "101617",
+    "name": "새만민",
+    "reason": "주소 없음",
+    "raw_address": "강서구(폐교회)",
+    "raw_juso": ""
+  },
+  {
+    "chr_code": "101619",
+    "name": "송파중앙",
+    "reason": "주소 없음",
+    "raw_address": "송파구(폐교회)",
+    "raw_juso": ""
+  },
+  {
+    "chr_code": "101680",
+    "name": "목포두레",
+    "reason": "주소 없음",
+    "raw_address": "",
+    "raw_juso": ""
+  },
+  {
+    "chr_code": "101776",
+    "name": "천안청포(이름만유지)",
+    "reason": "주소 없음",
+    "raw_address": "",
+    "raw_juso": ""
+  },
+  {
+    "chr_code": "101807",
+    "name": "광주외국",
+    "reason": "주소 없음",
+    "raw_address": "",
+    "raw_juso": ""
+  },
+  {
+    "chr_code": "101889",
+    "name": "감사비전(주소없음)",
+    "reason": "주소 없음",
+    "raw_address": "",
+    "raw_juso": ""
+  },
+  {
+    "chr_code": "101922",
+    "name": "광주새소망",
+    "reason": "주소 없음",
+    "raw_address": "",
+    "raw_juso": ""
+  },
+  {
+    "chr_code": "102156",
+    "name": "광주산정",
+    "reason": "주소 없음",
+    "raw_address": "",
+    "raw_juso": ""
+  }
+]

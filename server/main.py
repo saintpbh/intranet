@@ -2638,6 +2638,31 @@ async def upload_document_pdf(file: UploadFile = File(...)):
 
 @app.get("/api/documents/download/{filename}")
 def download_document(filename: str):
+    import datetime
+    
+    # Check 24-hour validity for cert_requests
+    try:
+        with get_db() as conn:
+            c = conn.cursor()
+            c.execute("SELECT status, updated_at FROM cert_requests WHERE pdf_filename = ?", (filename,))
+            cert = c.fetchone()
+            if cert and cert['status'] == 'ISSUED' and cert['updated_at']:
+                try:
+                    updated_str = cert['updated_at']
+                    if 'T' in updated_str:
+                        updated_at = datetime.datetime.fromisoformat(updated_str.replace('Z', '+00:00'))
+                        now = datetime.datetime.now(datetime.timezone.utc)
+                    else:
+                        updated_at = datetime.datetime.strptime(updated_str, "%Y-%m-%d %H:%M:%S")
+                        now = datetime.datetime.now()
+                    
+                    if (now - updated_at).total_seconds() > 24 * 3600:
+                        return {"error": "다운로드 유효 기간(24시간)이 만료되었습니다. 재신청해 주시기 바랍니다."}
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
     filepath = os.path.join(UPLOAD_DIR, filename)
     if os.path.exists(filepath):
         return FileResponse(filepath, media_type="application/pdf", filename=filename)

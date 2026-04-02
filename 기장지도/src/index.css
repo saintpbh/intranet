@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+@theme {
+  --color-eh-surface: #f8fafc;
+  --color-eh-surface-container-low: #ffffff;
+  --color-eh-surface-container: #f1f5f9;
+  --color-eh-surface-container-high: #e2e8f0;
+  --color-eh-surface-container-highest: #cbd5e1;
+  
+  /* Brand Theme Colors */
+  --color-eh-primary: #2B3990; /* Faith Blue */
+  --color-eh-primary-dim: #3243a8; 
+  --color-eh-secondary: #00A5D9; /* Hope Cyan */
+  --color-grace-purple: #662483; /* Grace Purple */
+  
+  /* Text and Outlines */
+  --color-eh-on-surface: #0f172a;
+  --color-eh-on-surface-variant: #475569;
+  --color-eh-outline-variant: #e2e8f0;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-eh-surface, #f8fafc);
+  color: var(--color-eh-on-surface, #0f172a);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Custom scrollbar to match dark theme */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--color-eh-surface-container-highest);
+  border-radius: 10px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.3); }
+}
+
+/* Animate-in utilities for Tailwind v4 */
+.animate-in {
+  animation-duration: 300ms;
+  animation-fill-mode: both;
+}
+.fade-in { animation-name: fadeIn; }
+.slide-in-from-top { animation-name: slideInFromTop; }
+.slide-in-from-top-2 { animation-name: slideInFromTop2; }
+.slide-in-from-bottom { animation-name: slideInFromBottom; }
+.slide-in-from-left { animation-name: slideInFromLeft; }
+.zoom-in-95 { animation-name: zoomIn95; }
+
+@keyframes slideInFromTop {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+@keyframes slideInFromTop2 {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInFromBottom {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes slideInFromLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+@keyframes zoomIn95 {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Range slider accent for nearby radius */
+input[type="range"] {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(72,71,74,0.4);
+  appearance: none;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #00eefc;
+  box-shadow: 0 0 8px rgba(0,238,252,0.5);
+  cursor: pointer;
+}
+
