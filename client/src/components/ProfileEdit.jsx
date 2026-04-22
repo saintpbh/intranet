@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import API_BASE from '../api';
+import ApiImage from './ApiImage';
 
 const ProfileEdit = ({ user, onBack, onSaved }) => {
   const [loading, setLoading] = useState(false);
@@ -159,7 +160,7 @@ const ProfileEdit = ({ user, onBack, onSaved }) => {
           {/* Background Preview Card */}
           <div className="relative rounded-3xl overflow-hidden shadow-lg h-48 bg-gradient-to-br from-primary to-primary-container group">
             {bgPreviewUrl ? (
-              <img src={bgPreviewUrl} alt="배경" className="w-full h-full object-cover" />
+              <ApiImage src={bgPreviewUrl} alt="배경" className="w-full h-full object-cover" />
             ) : (
               <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
             )}
@@ -176,7 +177,7 @@ const ProfileEdit = ({ user, onBack, onSaved }) => {
               <div className="relative group/profile cursor-pointer pointer-events-auto" onClick={() => fileInputRef.current?.click()}>
                 <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-white shadow-lg bg-surface-variant flex items-center justify-center">
                   {previewUrl ? (
-                    <img src={previewUrl} alt="Profile" className="w-full h-full object-cover" />
+                    <ApiImage src={previewUrl} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-3xl font-bold text-outline">{user?.name?.charAt(0) || '?'}</span>
                   )}

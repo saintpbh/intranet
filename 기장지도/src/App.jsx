@@ -98,6 +98,7 @@ function App() {
     e.preventDefault();
     setSearchQuery(searchInput.trim());
     setNearbyMode(false);
+    setSelectedChurch(null); // 새로운 검색 시 기존 켜져 있던 상세창 닫기
     if (searchInput.trim()) {
       setShowSidebar(true);
     }
@@ -109,6 +110,7 @@ function App() {
     setShowSidebar(false);
     setNearbyMode(false);
     setSearchResults([]);
+    setSelectedChurch(null); // 검색 초기화 시 상세창도 함께 닫기
     
     // Reset map viewport to default when search is cleared
     if (mapRef.current && window.naver?.maps) {
@@ -125,6 +127,11 @@ function App() {
       return;
     }
 
+    if (!navigator.geolocation) {
+      alert("현재 브라우저 환경에서는 위치 정보를 지원하지 않습니다.\n(보안 연결(HTTPS) 환경이나 지원되는 브라우저에서 사용해주세요.)");
+      return;
+    }
+
     setLocatingUser(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -137,7 +144,7 @@ function App() {
         setLocatingUser(false);
       },
       () => {
-        alert("위치 정보를 가져올 수 없습니다. 위치 권한을 확인해주세요.");
+        alert("위치 정보를 가져올 수 없습니다. 장치의 위치(GPS) 권한을 확인해주세요.");
         setLocatingUser(false);
       },
       { enableHighAccuracy: true, timeout: 10000 }
@@ -196,6 +203,7 @@ function App() {
       {/* Background Map */}
       <div className="absolute inset-0">
         <MapContainer 
+          selectedChurch={selectedChurch}
           onSelectChurch={setSelectedChurch} 
           searchQuery={searchQuery}
           onViewportChange={(level, count) => {
@@ -370,6 +378,12 @@ function App() {
                   setFavorites(getFavorites());
                 });
               }}
+              onTitleClick={() => {
+                if (mapRef.current && window.naver?.maps) {
+                  const pos = new window.naver.maps.LatLng(selectedChurch.lat, selectedChurch.lng);
+                  mapRef.current.morph(pos, 16, { duration: 400, easing: 'easeOutCubic' });
+                }
+              }}
             />
           </div>
         </div>
@@ -484,7 +498,7 @@ function App() {
       {/* Scroll/Zoom Hint - hidden in directions mode */}
       {!isDirectionsMode && !selectedChurch && viewLevel !== 'ALL' && !searchQuery && !nearbyMode && (
         <div className="absolute bottom-[28px] left-0 w-full flex justify-center z-10 pointer-events-none">
-          <div className="pointer-events-auto cursor-pointer animate-bounce" style={{ background: 'rgba(38,37,40,0.85)', backdropFilter: 'blur(20px)', padding: '12px 24px', borderRadius: '999px', border: '1px solid rgba(72,71,74,0.2)', boxShadow: '0 8px 40px rgba(149,170,255,0.1)' }}>
+          <div className="pointer-events-auto cursor-pointer" style={{ background: 'rgba(38,37,40,0.85)', backdropFilter: 'blur(20px)', padding: '12px 24px', borderRadius: '999px', border: '1px solid rgba(72,71,74,0.2)', boxShadow: '0 8px 40px rgba(149,170,255,0.1)' }}>
             <div className="flex items-center gap-2.5">
               <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(55,102,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Search size={14} style={{ color: '#95aaff' }} />

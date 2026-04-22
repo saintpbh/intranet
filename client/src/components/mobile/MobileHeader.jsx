@@ -1,4 +1,5 @@
 import { useAuth } from '../../AuthContext';
+import ApiImage from '../ApiImage';
 
 const MobileHeader = ({ title, showBack = false, onBack }) => {
   const { user } = useAuth();
@@ -12,7 +13,7 @@ const MobileHeader = ({ title, showBack = false, onBack }) => {
           </button>
         )}
         {!showBack && (
-          <img src="/assets/admin_logo.png" alt="Logo" className="h-6 w-auto" />
+          <ApiImage src="/assets/admin_logo.png" alt="Logo" className="h-6 w-auto" />
         )}
         {title && <h1 className="font-['Manrope',_'Pretendard'] font-bold text-lg tracking-tight text-primary-container">{title}</h1>}
       </div>

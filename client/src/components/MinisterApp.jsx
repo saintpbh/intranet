@@ -4,6 +4,7 @@ import MinisterList from './MinisterList';
 import MinisterDetail from './MinisterDetail';
 import ChurchDetail from './ChurchDetail';
 import { Link } from 'react-router-dom';
+import ApiImage from './ApiImage';
 
 const MinisterApp = () => {
   const [activeTab, setActiveTab] = useState('ministers');
@@ -27,7 +28,7 @@ const MinisterApp = () => {
     <div className="app-container">
       <header className="app-header">
         <div className="header-bar">
-          <img src="/assets/admin_logo.png" alt="한국기독교장로회총회" className="header-logo" />
+          <ApiImage src="/assets/admin_logo.png" alt="한국기독교장로회총회" className="header-logo" />
           <div className="header-title-group">
             <h1>주소록</h1>
             <span className="header-badge">목회자</span>

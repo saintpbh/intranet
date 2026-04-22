@@ -146,6 +146,28 @@ const DocumentsPage = () => {
           </p>
         </section>
 
+        {/* Login Required Guard */}
+        {!user ? (
+          <section className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
+            <div className="w-20 h-20 rounded-full bg-primary/5 flex items-center justify-center mb-6">
+              <span className="material-symbols-outlined text-[40px] text-primary/40" style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}>lock</span>
+            </div>
+            <h3 className="font-['Manrope',_'Pretendard'] font-bold text-xl text-primary mb-2">로그인이 필요합니다</h3>
+            <p className="text-on-surface-variant text-sm leading-relaxed mb-6 max-w-xs">
+              증명서 발급 서비스는 로그인 후 사용하실 수 있습니다.<br />
+              하단 <strong>내 정보</strong> 탭에서 로그인해 주세요.
+            </p>
+            <button
+              onClick={() => navigate('/myinfo')}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white font-bold rounded-2xl shadow-md shadow-primary/20 active:scale-95 transition-all text-[14px]"
+            >
+              <span className="material-symbols-outlined text-[18px]">login</span>
+              로그인 하러 가기
+            </button>
+          </section>
+        ) : (
+        <>
+
         {/* Realtime History Section */}
         <section>
           <h3 className="font-['Manrope',_'Pretendard'] font-bold text-primary mb-4 flex items-center gap-2">
@@ -381,6 +403,8 @@ const DocumentsPage = () => {
           <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-secondary-container/30 rounded-full blur-3xl"></div>
         </div>
         */}
+        </>
+        )}
       </main>
     </div>
   );

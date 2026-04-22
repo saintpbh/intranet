@@ -1,5 +1,6 @@
 import API_BASE from '../api';
 import { useState, useEffect } from 'react';
+import ApiImage from './ApiImage';
 
 const AddressBookList = ({ searchTerm, onSelect }) => {
   const [data, setData] = useState([]);
@@ -22,7 +23,7 @@ const AddressBookList = ({ searchTerm, onSelect }) => {
   if (!searchTerm || searchTerm.trim() === '') {
     return (
       <div className="empty-state">
-        <img src="/assets/banner_v2.png" alt="새 역사 70년" className="empty-state-banner" />
+        <ApiImage src="/assets/banner_v2.png" alt="새 역사 70년" className="empty-state-banner" />
         <p>이름, 노회명, 교회명으로 검색해 주세요.</p>
       </div>
     );
@@ -31,7 +32,7 @@ const AddressBookList = ({ searchTerm, onSelect }) => {
   if (error) return <div className="error">{error}</div>;
   if (data.length === 0) return (
     <div className="no-results">
-      <img src="/assets/banner_v2.png" alt="새 역사 70년" className="empty-state-banner" style={{opacity: 0.5, maxWidth: '200px', marginBottom: '16px'}} />
+      <ApiImage src="/assets/banner_v2.png" alt="새 역사 70년" className="empty-state-banner" style={{opacity: 0.5, maxWidth: '200px', marginBottom: '16px'}} />
       <p>검색 결과가 없습니다.</p>
     </div>
   );

@@ -65,7 +65,7 @@ export default function SearchSidebar({ results = [], onSelectChurch, onClose, u
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-gray-900 text-sm truncate">{church.name}</span>
+                        <span className="font-bold text-gray-900 text-sm truncate">{church.name.endsWith('교회') ? church.name : church.name + '교회'}</span>
                         {dist !== null && (
                           <span className="text-[11px] font-bold text-[#00A5D9] shrink-0">{dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}</span>
                         )}
@@ -132,7 +132,7 @@ function MobileBottomSheet({ results, onSelectChurch, onClose, userLocation, tit
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-gray-900 text-[13px] truncate">{church.name}</span>
+                      <span className="font-bold text-gray-900 text-[13px] truncate">{church.name.endsWith('교회') ? church.name : church.name + '교회'}</span>
                       {dist !== null && (
                         <span className="text-[10px] font-bold text-[#00A5D9] shrink-0">{dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}</span>
                       )}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import API_BASE from '../api';
 import ProfileEdit from './ProfileEdit';
+import ApiImage from './ApiImage';
 
 const MyProfile = ({ user, onBack }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -56,14 +57,14 @@ const MyProfile = ({ user, onBack }) => {
         {/* Profile Header Card */}
         <section className="rounded-3xl shadow-lg text-center relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary-container">
-            {bgImageUrl && <img src={bgImageUrl} alt="배경" className="w-full h-full object-cover" />}
+            {bgImageUrl && <ApiImage src={bgImageUrl} alt="배경" className="w-full h-full object-cover" />}
           </div>
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
           
           <div className="relative z-10 p-8">
             <div className="w-20 h-20 rounded-full bg-white/20 border-2 border-white/30 backdrop-blur-md mx-auto flex items-center justify-center text-3xl font-bold text-white shadow-inner mb-4 overflow-hidden">
                {profileImageUrl ? (
-                 <img src={profileImageUrl} alt={user.name} className="w-full h-full object-cover" />
+                 <ApiImage src={profileImageUrl} alt={user.name} className="w-full h-full object-cover" />
                ) : (
                  user.name?.charAt(0)
                )}

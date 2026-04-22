@@ -1,5 +1,6 @@
 import API_BASE from '../api';
 import { useState, useEffect } from 'react';
+import ApiImage from './ApiImage';
 
 const MinisterDetail = ({ ministerCode, onBack }) => {
   const [data, setData] = useState(null);
@@ -35,14 +36,14 @@ const MinisterDetail = ({ ministerCode, onBack }) => {
            {/* Background layer */}
            <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary-container">
              {data.background_image && (
-               <img src={`${API_BASE}${data.background_image}`} alt="배경" className="w-full h-full object-cover" />
+               <ApiImage src={`${API_BASE}${data.background_image}`} alt="배경" className="w-full h-full object-cover" />
              )}
            </div>
            {/* Gradient overlay for text readability */}
            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
            {/* Profile photo overlay */}
            {data.custom_image ? (
-             <img src={`${API_BASE}${data.custom_image}`} alt={data.MinisterName} className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-overlay" />
+             <ApiImage src={`${API_BASE}${data.custom_image}`} alt={data.MinisterName} className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-overlay" />
            ) : !data.background_image && (
              <div className="absolute inset-0 flex items-center justify-center">
                <span className="text-9xl font-bold text-white/10">{data.MinisterName?.trim()?.charAt(0)}</span>
@@ -66,26 +67,49 @@ const MinisterDetail = ({ ministerCode, onBack }) => {
 
       <div className="h-6"></div> {/* Added spacer due to taller absolute box */}
 
-      {/* Quick Contact Actions */}
-      <section className="grid grid-cols-3 gap-3 pt-12">
-        <a href={data.TEL_MOBILE ? `tel:${data.TEL_MOBILE}` : '#'} className={`flex flex-col items-center justify-center py-4 px-2 bg-white rounded-2xl shadow-sm border border-surface-variant/50 transition-all ${data.TEL_MOBILE ? 'active:scale-95 group hover:border-secondary/30' : 'opacity-40 cursor-not-allowed'}`}>
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-colors ${data.TEL_MOBILE ? 'bg-primary-container/5 text-primary group-hover:bg-secondary group-hover:text-white' : 'bg-surface-variant text-outline'}`}>
-            <span className="material-symbols-outlined">call</span>
+      {/* Contact Info */}
+      <section className="flex flex-col gap-3 pt-12">
+        {data.TEL_MOBILE && (
+          <a href={`tel:${data.TEL_MOBILE}`} className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-surface-variant/50 transition-all active:scale-[0.98] group hover:border-secondary/30">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 bg-primary-container/5 text-primary group-hover:bg-secondary group-hover:text-white transition-colors">
+              <span className="material-symbols-outlined text-[22px]">call</span>
+            </div>
+            <div className="flex flex-col overflow-hidden">
+              <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] text-[11px] font-bold text-outline uppercase tracking-wider mb-0.5">휴대폰</span>
+              <span className="text-on-surface font-medium text-[15px] truncate">{data.TEL_MOBILE}</span>
+            </div>
+          </a>
+        )}
+        
+        {data.TEL_CHURCH && (
+          <a href={`tel:${data.TEL_CHURCH}`} className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-surface-variant/50 transition-all active:scale-[0.98] group hover:border-secondary/30">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 bg-primary-container/5 text-primary group-hover:bg-secondary group-hover:text-white transition-colors">
+              <span className="material-symbols-outlined text-[22px]">deskphone</span>
+            </div>
+            <div className="flex flex-col overflow-hidden">
+              <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] text-[11px] font-bold text-outline uppercase tracking-wider mb-0.5">교회전화</span>
+              <span className="text-on-surface font-medium text-[15px] truncate">{data.TEL_CHURCH}</span>
+            </div>
+          </a>
+        )}
+        
+        {data.EMAIL && (
+          <a href={`mailto:${data.EMAIL}`} className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-surface-variant/50 transition-all active:scale-[0.98] group hover:border-secondary/30">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 bg-primary-container/5 text-primary group-hover:bg-secondary group-hover:text-white transition-colors">
+              <span className="material-symbols-outlined text-[22px]">mail</span>
+            </div>
+            <div className="flex flex-col overflow-hidden">
+              <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] text-[11px] font-bold text-outline uppercase tracking-wider mb-0.5">이메일</span>
+              <span className="text-on-surface font-medium text-[15px] truncate">{data.EMAIL}</span>
+            </div>
+          </a>
+        )}
+
+        {(!data.TEL_MOBILE && !data.TEL_CHURCH && !data.EMAIL) && (
+          <div className="flex items-center justify-center p-6 bg-surface-container-lowest rounded-2xl border border-dashed border-surface-variant/60">
+            <span className="text-sm font-medium text-outline">등록된 연락처가 없습니다</span>
           </div>
-          <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] font-bold text-[11px] tracking-wide uppercase text-on-surface">휴대폰</span>
-        </a>
-        <a href={data.TEL_CHURCH ? `tel:${data.TEL_CHURCH}` : '#'} className={`flex flex-col items-center justify-center py-4 px-2 bg-white rounded-2xl shadow-sm border border-surface-variant/50 transition-all ${data.TEL_CHURCH ? 'active:scale-95 group hover:border-secondary/30' : 'opacity-40 cursor-not-allowed'}`}>
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-colors ${data.TEL_CHURCH ? 'bg-primary-container/5 text-primary group-hover:bg-secondary group-hover:text-white' : 'bg-surface-variant text-outline'}`}>
-            <span className="material-symbols-outlined">deskphone</span>
-          </div>
-          <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] font-bold text-[11px] tracking-wide uppercase text-on-surface">교회전화</span>
-        </a>
-        <a href={data.EMAIL ? `mailto:${data.EMAIL}` : '#'} className={`flex flex-col items-center justify-center py-4 px-2 bg-white rounded-2xl shadow-sm border border-surface-variant/50 transition-all ${data.EMAIL ? 'active:scale-95 group hover:border-secondary/30' : 'opacity-40 cursor-not-allowed'}`}>
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-colors ${data.EMAIL ? 'bg-primary-container/5 text-primary group-hover:bg-secondary group-hover:text-white' : 'bg-surface-variant text-outline'}`}>
-            <span className="material-symbols-outlined">mail</span>
-          </div>
-          <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] font-bold text-[11px] tracking-wide uppercase text-on-surface">이메일</span>
-        </a>
+        )}
       </section>
 
       {/* Bento Grid: Info */}

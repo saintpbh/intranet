@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import API_BASE from '../api';
 import { useAuth } from '../AuthContext';
 import { useBackButton } from '../useBackButton';
+import ApiImage from './ApiImage';
 
 const isNew = (dateStr) => {
   if (!dateStr) return false;
@@ -60,7 +61,7 @@ const PresbyterPage = () => {
     <div className="app-container">
       <header className="app-header">
         <div className="header-bar">
-          <img src="/assets/admin_logo.png" alt="한국기독교장로회총회" className="header-logo" />
+          <ApiImage src="/assets/admin_logo.png" alt="한국기독교장로회총회" className="header-logo" />
           <div className="header-title-group">
             <h1>{presbyName || '노회'}</h1>
           </div>

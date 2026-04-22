@@ -1,13 +1,14 @@
 import API_BASE from '../api';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import ApiImage from './ApiImage';
 
 const Home = () => {
   return (
     <div className="app-container">
       <header className="app-header">
         <div className="header-bar">
-          <img src="/assets/admin_logo.png" alt="한국기독교장로회총회" className="header-logo" />
+          <ApiImage src="/assets/admin_logo.png" alt="한국기독교장로회총회" className="header-logo" />
           <div className="header-title-group">
             <h1>주소록</h1>
           </div>

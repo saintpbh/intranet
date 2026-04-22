@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import BottomTabBar from './BottomTabBar';
+import PWAInstallPrompt from './PWAInstallPrompt';
 
 const TAB_PATHS = ['/', '/documents', '/directory', '/profile'];
 
@@ -51,11 +52,12 @@ const AppLayout = () => {
   }, [location.pathname]);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell pb-safe">
       <div className="app-content-area">
         <Outlet />
       </div>
       <BottomTabBar />
+      <PWAInstallPrompt />
     </div>
   );
 };

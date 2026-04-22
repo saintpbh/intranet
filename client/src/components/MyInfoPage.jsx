@@ -7,6 +7,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useBackButton } from '../useBackButton';
 import MobileHeader from './mobile/MobileHeader';
 import API_BASE from '../api';
+import ApiImage from './ApiImage';
 
 const MyInfoPage = () => {
   const { user, isLoggedIn, logout } = useAuth();
@@ -69,13 +70,13 @@ const MyInfoPage = () => {
         <div className="rounded-[2rem] text-white shadow-[0_20px_40px_rgba(10,37,64,0.15)] relative overflow-hidden">
           {/* Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary-container">
-            {bgImageUrl && <img src={bgImageUrl} alt="배경" className="w-full h-full object-cover" />}
+            {bgImageUrl && <ApiImage src={bgImageUrl} alt="배경" className="w-full h-full object-cover" />}
           </div>
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
           <div className="relative z-10 p-8 flex flex-col items-center text-center">
             <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center mb-4 border border-white/30 shadow-inner overflow-hidden">
               {profileImageUrl ? (
-                <img src={profileImageUrl} alt={user.name} className="w-full h-full object-cover" />
+                <ApiImage src={profileImageUrl} alt={user.name} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-4xl font-bold">{user.name?.charAt(0)}</span>
               )}

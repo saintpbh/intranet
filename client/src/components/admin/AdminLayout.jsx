@@ -6,6 +6,7 @@ import PresbyteryTab from './PresbyteryTab';
 import SichalTab from './SichalTab';
 import ChurchTab from './ChurchTab';
 import PersonalTab from './PersonalTab';
+import ApiImage from '../ApiImage';
 
 const adminTabs = [
   { id: 'assembly', label: '총회', icon: 'account_balance', desc: '최종 승인 · 발급' },
@@ -84,7 +85,7 @@ const AdminLayout = () => {
       }}>
         {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 40, padding: '0 8px' }}>
-          <img src="/assets/admin_logo.png" alt="한국기독교장로회총회" style={{ height: 36, width: 'auto', objectFit: 'contain' }} />
+          <ApiImage src="/assets/admin_logo.png" alt="한국기독교장로회총회" style={{ height: 36, width: 'auto', objectFit: 'contain' }} className="" />
         </div>
 
         {/* Nav Links */}

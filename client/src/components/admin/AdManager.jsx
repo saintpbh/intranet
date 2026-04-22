@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import API_BASE from '../../api';
+import ApiImage from '../ApiImage';
 
 const AdManager = () => {
   const [ads, setAds] = useState([]);
@@ -141,7 +142,7 @@ const AdManager = () => {
           </div>
           {form.image_url && (
             <div style={{ marginBottom: 16, borderRadius: 12, overflow: 'hidden', maxWidth: 400 }}>
-              <img src={`${API_BASE}${form.image_url}`} alt="미리보기" style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 12, maxHeight: 200, objectFit: 'cover' }} />
+              <ApiImage src={`${API_BASE}${form.image_url}`} alt="미리보기" style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 12, maxHeight: 200, objectFit: 'cover' }} />
             </div>
           )}
           <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
@@ -170,7 +171,7 @@ const AdManager = () => {
             <div key={ad.id} style={{ background: '#fff', borderRadius: 16, padding: 16, display: 'flex', gap: 16, alignItems: 'center', boxShadow: '0 10px 20px rgba(10,37,64,0.03)', transition: 'all 0.2s' }}>
               {/* Thumbnail */}
               <div style={{ width: 80, height: 52, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: '#f3f3f8' }}>
-                {ad.image_url && <img src={`${API_BASE}${ad.image_url}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                {ad.image_url && <ApiImage src={`${API_BASE}${ad.image_url}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
               </div>
               {/* Info */}
               <div style={{ flex: 1, minWidth: 0 }}>

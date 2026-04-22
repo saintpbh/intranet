@@ -1,5 +1,6 @@
 import API_BASE from '../api';
 import { useState, useEffect } from 'react';
+import ApiImage from './ApiImage';
 
 const MinisterList = ({ searchTerm, onSelect }) => {
   const [data, setData] = useState([]);
@@ -57,7 +58,7 @@ const MinisterList = ({ searchTerm, onSelect }) => {
               <div className="flex items-start gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-surface-container flex-shrink-0 flex items-center justify-center shadow-inner overflow-hidden border border-outline-variant/20 relative">
                    {item.custom_image ? (
-                     <img src={`${API_BASE}${item.custom_image}`} alt={item.MinisterName} className="w-full h-full object-cover" />
+                     <ApiImage src={`${API_BASE}${item.custom_image}`} alt={item.MinisterName} className="w-full h-full object-cover" />
                    ) : (
                      <span className="text-2xl font-bold text-primary opacity-40">{item.MinisterName?.charAt(0) || 'M'}</span>
                    )}

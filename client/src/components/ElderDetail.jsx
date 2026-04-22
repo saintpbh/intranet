@@ -49,26 +49,49 @@ const ElderDetail = ({ priestCode, onBack }) => {
         </div>
       </section>
 
-      {/* Quick Contact Actions */}
-      <section className="grid grid-cols-3 gap-3 pt-12">
-        <a href={data.Tel_Mobile ? `tel:${data.Tel_Mobile}` : '#'} className={`flex flex-col items-center justify-center py-4 px-2 bg-white rounded-2xl shadow-sm border border-surface-variant/50 transition-all ${data.Tel_Mobile ? 'active:scale-95 group hover:border-secondary/30' : 'opacity-40 cursor-not-allowed'}`}>
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-colors ${data.Tel_Mobile ? 'bg-primary-container/5 text-primary group-hover:bg-secondary group-hover:text-white' : 'bg-surface-variant text-outline'}`}>
-            <span className="material-symbols-outlined">call</span>
+      {/* Contact Info */}
+      <section className="flex flex-col gap-3 pt-12">
+        {data.Tel_Mobile && (
+          <a href={`tel:${data.Tel_Mobile}`} className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-surface-variant/50 transition-all active:scale-[0.98] group hover:border-secondary/30">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 bg-primary-container/5 text-primary group-hover:bg-secondary group-hover:text-white transition-colors">
+              <span className="material-symbols-outlined text-[22px]">call</span>
+            </div>
+            <div className="flex flex-col overflow-hidden">
+              <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] text-[11px] font-bold text-outline uppercase tracking-wider mb-0.5">휴대폰</span>
+              <span className="text-on-surface font-medium text-[15px] truncate">{data.Tel_Mobile}</span>
+            </div>
+          </a>
+        )}
+        
+        {data.Tel_Home && (
+          <a href={`tel:${data.Tel_Home}`} className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-surface-variant/50 transition-all active:scale-[0.98] group hover:border-secondary/30">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 bg-primary-container/5 text-primary group-hover:bg-secondary group-hover:text-white transition-colors">
+              <span className="material-symbols-outlined text-[22px]">home</span>
+            </div>
+            <div className="flex flex-col overflow-hidden">
+              <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] text-[11px] font-bold text-outline uppercase tracking-wider mb-0.5">자택전화</span>
+              <span className="text-on-surface font-medium text-[15px] truncate">{data.Tel_Home}</span>
+            </div>
+          </a>
+        )}
+        
+        {data.Email && (
+          <a href={`mailto:${data.Email}`} className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-surface-variant/50 transition-all active:scale-[0.98] group hover:border-secondary/30">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 bg-primary-container/5 text-primary group-hover:bg-secondary group-hover:text-white transition-colors">
+              <span className="material-symbols-outlined text-[22px]">mail</span>
+            </div>
+            <div className="flex flex-col overflow-hidden">
+              <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] text-[11px] font-bold text-outline uppercase tracking-wider mb-0.5">이메일</span>
+              <span className="text-on-surface font-medium text-[15px] truncate">{data.Email}</span>
+            </div>
+          </a>
+        )}
+
+        {(!data.Tel_Mobile && !data.Tel_Home && !data.Email) && (
+          <div className="flex items-center justify-center p-6 bg-surface-container-lowest rounded-2xl border border-dashed border-surface-variant/60">
+            <span className="text-sm font-medium text-outline">등록된 연락처가 없습니다</span>
           </div>
-          <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] font-bold text-[11px] tracking-wide uppercase text-on-surface">휴대폰</span>
-        </a>
-        <a href={data.Tel_Home ? `tel:${data.Tel_Home}` : '#'} className={`flex flex-col items-center justify-center py-4 px-2 bg-white rounded-2xl shadow-sm border border-surface-variant/50 transition-all ${data.Tel_Home ? 'active:scale-95 group hover:border-secondary/30' : 'opacity-40 cursor-not-allowed'}`}>
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-colors ${data.Tel_Home ? 'bg-primary-container/5 text-primary group-hover:bg-secondary group-hover:text-white' : 'bg-surface-variant text-outline'}`}>
-            <span className="material-symbols-outlined">home</span>
-          </div>
-          <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] font-bold text-[11px] tracking-wide uppercase text-on-surface">자택전화</span>
-        </a>
-        <a href={data.Email ? `mailto:${data.Email}` : '#'} className={`flex flex-col items-center justify-center py-4 px-2 bg-white rounded-2xl shadow-sm border border-surface-variant/50 transition-all ${data.Email ? 'active:scale-95 group hover:border-secondary/30' : 'opacity-40 cursor-not-allowed'}`}>
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-colors ${data.Email ? 'bg-primary-container/5 text-primary group-hover:bg-secondary group-hover:text-white' : 'bg-surface-variant text-outline'}`}>
-            <span className="material-symbols-outlined">mail</span>
-          </div>
-          <span className="font-['Plus_Jakarta_Sans',_'Pretendard'] font-bold text-[11px] tracking-wide uppercase text-on-surface">이메일</span>
-        </a>
+        )}
       </section>
 
       {/* Bento Grid: Info */}

@@ -33,7 +33,7 @@ const BottomTabBar = () => {
             <button
               key={tab.id}
               onClick={() => navigate(tab.path)}
-              className={`flex flex-col items-center justify-center active:scale-95 transition-transform duration-200 relative ${
+              className={`no-select no-tap-highlight flex flex-col items-center justify-center active:scale-95 transition-transform duration-200 relative ${
                 isActive 
                   ? 'text-[#0070eb] after:content-[""] after:w-1 after:h-1 after:bg-[#0070eb] after:rounded-full after:mt-1' 
                   : 'text-slate-400 group hover:text-slate-600 pb-2'

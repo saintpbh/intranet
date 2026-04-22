@@ -63,8 +63,20 @@ const SearchPage = () => {
               />
             </div>
 
-            {/* Custom Tabs */}
-            <div className="flex bg-surface-container-high rounded-xl p-1 shadow-inner">
+            {/* Liquid Animation Tabs */}
+            <div className="relative flex bg-surface-container-high rounded-[50px] p-1.5 shadow-[inset_0_2px_6px_rgba(0,0,0,0.06)] overflow-hidden">
+              {/* Blob Effect Marker */}
+              <div 
+                className="absolute top-1.5 bottom-1.5 w-[calc(33.333%-4px)] bg-white rounded-[50px] shadow-sm z-0"
+                style={{ 
+                  transform: `translateX(${
+                    ['ministers', 'elders', 'churches'].indexOf(activeTab) * 100
+                  }%)`,
+                  /* 변경: 0.3초의 빠르고 쫀득한 효과 */
+                  transition: 'transform 0.3s cubic-bezier(0.7, -0.6, 0.2, 1.6)'
+                }}
+              />
+              
               {[
                 { id: 'ministers', label: '목회자' },
                 { id: 'elders', label: '장로' },
@@ -73,10 +85,10 @@ const SearchPage = () => {
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
-                  className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200 ${
+                  className={`relative flex-1 py-2.5 text-sm rounded-[50px] transition-colors duration-300 z-10 ${
                     activeTab === tab.id 
-                      ? 'bg-white text-primary shadow-sm' 
-                      : 'text-on-surface-variant hover:bg-white/50'
+                      ? 'font-extrabold text-primary' 
+                      : 'font-bold text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
                   {tab.label}

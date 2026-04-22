@@ -1,36 +1,42 @@
-import { useState, useEffect } from 'react';
-import { X, MapPin, Phone, MessageSquare, Home, Video, ChevronRight, Navigation, Edit3, Image as ImageIcon, Link as LinkIcon, Clock, Plus, Trash2, Save, Star } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { X, MapPin, Phone, MessageSquare, Home, Video, ChevronRight, Navigation, Edit3, Image as ImageIcon, Link as LinkIcon, Clock, Plus, Trash2, Save, Star, Eye, Share2, Check } from 'lucide-react';
 import CommunicationBoard from './CommunicationBoard';
 import { supabase } from '../supabaseClient';
 import { isFavorite, toggleFavorite } from '../utils/favorites';
 
 // Hope Light Theme color tokens
+// Hope Light Theme color tokens
 const W = {
-  glass: 'var(--color-eh-surface-container-low)',
-  glassBorder: 'var(--color-eh-outline-variant)',
-  cardBg: 'var(--color-eh-surface-container)',
-  cardBorder: 'rgba(43, 57, 144, 0.08)',
-  text: 'var(--color-eh-on-surface)',
-  textSub: 'var(--color-eh-on-surface-variant)',
+  glass: 'rgba(255, 255, 255, 0.15)', // 지도가 훨씬 잘 보이도록 투명도 극대화, 블러 감소
+  glassBorder: 'rgba(255, 255, 255, 0.6)',
+  cardBg: '#ffffff', // 불투명 (깨끗한 흰색)
+  cardBorder: 'rgba(0, 0, 0, 0.06)', // 카드가 입체적으로 보이게 약간의 테두리 강조
+  text: '#1e293b', // 시안성 좋은 진한 텍스트
+  textSub: '#475569',
   textMuted: '#94a3b8',
-  accent: 'var(--color-eh-primary)',
-  accentLight: 'rgba(43, 57, 144, 0.08)',
-  accentBorder: 'rgba(43, 57, 144, 0.15)',
+  accent: '#2563eb', // 밝은 파란색
+  accentLight: 'rgba(37, 99, 235, 0.08)',
+  accentBorder: 'rgba(37, 99, 235, 0.15)',
   green: '#10b981',
-  cyan: 'var(--color-eh-secondary)',
-  purple: 'var(--color-grace-purple)',
-  shadow: '0 24px 64px rgba(43, 57, 144, 0.12), 0 0 0 1px rgba(43, 57, 144, 0.04)',
+  cyan: '#0ea5e9',
+  purple: '#8b5cf6',
+  shadow: '0 24px 64px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.6) inset', // 그림자 조금 더 살려서 창 구분
   inputBg: '#f8fafc',
-  inputBorder: '#cbd5e1',
+  inputBorder: '#e2e8f0',
 };
 
-export default function ChurchDetailSheet({ church: initialChurch, onClose, onOpenDirections, userLocation, onFavoritesChange }) {
+export default function ChurchDetailSheet({ church: initialChurch, onClose, onOpenDirections, userLocation, onFavoritesChange, onTitleClick }) {
   const [activeTab, setActiveTab] = useState('home');
   const [church, setChurch] = useState(initialChurch);
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [isFav, setIsFav] = useState(false);
+  const [showCopyToast, setShowCopyToast] = useState(false);
+  const [showPanorama, setShowPanorama] = useState(false);
+  const [panoramaStatus, setPanoramaStatus] = useState('loading'); // 'loading' | 'ready' | 'unavailable'
+  const panoramaContainerRef = useRef(null);
+  const panoramaInstanceRef = useRef(null);
   
   const [editForm, setEditForm] = useState({
     youtube_video_id: '',
@@ -51,6 +57,129 @@ export default function ChurchDetailSheet({ church: initialChurch, onClose, onOp
       });
     }
   }, [initialChurch]);
+
+  // Panorama 초기화 — DOM 준비 후 실행 보장
+  const panoramaResolvedRef = useRef(false);
+
+  useEffect(() => {
+    if (!showPanorama || !church) return;
+    setPanoramaStatus('loading');
+    panoramaResolvedRef.current = false;
+
+    let cancelled = false;
+    let timeoutId = null;
+    let rafId = null;
+
+    const markReady = () => {
+      if (cancelled || panoramaResolvedRef.current) return;
+      panoramaResolvedRef.current = true;
+      setPanoramaStatus('ready');
+    };
+
+    const markUnavailable = () => {
+      if (cancelled || panoramaResolvedRef.current) return;
+      panoramaResolvedRef.current = true;
+      setPanoramaStatus('unavailable');
+    };
+
+    // requestAnimationFrame으로 DOM paint 완료를 보장한 후 초기화
+    rafId = requestAnimationFrame(() => {
+      if (cancelled) return;
+
+      // 서브모듈 로드 대기 + container 유효성 확인
+      const tryInit = (attempts = 0) => {
+        if (cancelled) return;
+        
+        const container = panoramaContainerRef.current;
+        const apiReady = window.naver?.maps?.Panorama;
+        
+        if (!apiReady || !container) {
+          if (attempts < 30) {
+            timeoutId = setTimeout(() => tryInit(attempts + 1), 200);
+          } else {
+            markUnavailable();
+          }
+          return;
+        }
+
+        // container 크기 확인 — 0이면 아직 레이아웃 안 됨
+        if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+          if (attempts < 30) {
+            timeoutId = setTimeout(() => tryInit(attempts + 1), 200);
+          } else {
+            markUnavailable();
+          }
+          return;
+        }
+
+        const lat = parseFloat(church.lat);
+        const lng = parseFloat(church.lng);
+        if (isNaN(lat) || isNaN(lng)) {
+          markUnavailable();
+          return;
+        }
+
+        try {
+          const pano = new naver.maps.Panorama(container, {
+            position: new naver.maps.LatLng(lat, lng),
+            pov: { pan: 0, tilt: 0, fov: 100 },
+            flightSpot: true,
+            aroundControl: true,
+            zoomControl: true,
+          });
+          panoramaInstanceRef.current = pano;
+
+          // 이벤트 기반 상태 감지
+          naver.maps.Event.addListener(pano, 'init', () => markReady());
+          naver.maps.Event.addListener(pano, 'pano_changed', () => markReady());
+
+          // fallback: 8초 후 DOM 콘텐츠로 최종 판정
+          timeoutId = setTimeout(() => {
+            if (cancelled || panoramaResolvedRef.current) return;
+            try {
+              const panoId = pano.getPanoId?.();
+              const hasContent = container.querySelector('canvas, img');
+              if (panoId || hasContent) {
+                markReady();
+              } else {
+                markUnavailable();
+              }
+            } catch {
+              markUnavailable();
+            }
+          }, 8000);
+        } catch {
+          markUnavailable();
+        }
+      };
+
+      tryInit(0);
+    });
+
+    return () => {
+      cancelled = true;
+      panoramaResolvedRef.current = false;
+      if (timeoutId) clearTimeout(timeoutId);
+      if (rafId) cancelAnimationFrame(rafId);
+      if (panoramaInstanceRef.current) {
+        try { panoramaInstanceRef.current.destroy(); } catch {}
+        panoramaInstanceRef.current = null;
+      }
+    };
+  }, [showPanorama, church?.id]);
+
+  const handleOpenPanorama = useCallback(() => {
+    setShowPanorama(true);
+  }, []);
+
+  const handleClosePanorama = useCallback(() => {
+    setShowPanorama(false);
+    setPanoramaStatus('loading');
+    if (panoramaInstanceRef.current) {
+      try { panoramaInstanceRef.current.destroy(); } catch {}
+      panoramaInstanceRef.current = null;
+    }
+  }, []);
 
   if (!church) return null;
 
@@ -98,6 +227,13 @@ export default function ChurchDetailSheet({ church: initialChurch, onClose, onOp
     }
   };
 
+  const handleShareSuccess = () => {
+    setShowCopyToast(true);
+    setTimeout(() => {
+      setShowCopyToast(false);
+    }, 2500);
+  };
+
   const handleSave = async () => {
     try {
       const { data, error } = await supabase
@@ -123,7 +259,7 @@ export default function ChurchDetailSheet({ church: initialChurch, onClose, onOp
   const handleAddWorship = () => {
     setEditForm(prev => ({
       ...prev,
-      worship_times: [...prev.worship_times, { title: '주일예배 1부', time: '11:00 AM', location: '본당' }]
+      worship_times: [...(prev.worship_times || []), { title: '주일예배 1부', time: '11:00 AM', location: '본당' }]
     }));
   };
 
@@ -139,41 +275,123 @@ export default function ChurchDetailSheet({ church: initialChurch, onClose, onOp
   };
 
   return (
-    <div className="relative w-full max-w-[400px] max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-300 pointer-events-auto" style={{ background: W.glass, backdropFilter: 'blur(40px)', WebkitBackdropFilter: 'blur(40px)', borderRadius: '24px', boxShadow: W.shadow, border: `1px solid ${W.glassBorder}` }}>
+    <div className="relative w-full max-w-[400px] max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-300 pointer-events-auto" style={{ background: W.glass, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderRadius: '24px', boxShadow: W.shadow, border: `1px solid ${W.glassBorder}` }}>
       
-      {/* Header */}
-      <div className="relative pt-5 pb-4 px-5 shrink-0 overflow-hidden" style={{ borderBottom: `1px solid ${W.cardBorder}` }}>
-        <div className="absolute -left-10 -top-10 w-40 h-40 rounded-full blur-3xl pointer-events-none" style={{ background: W.accent, opacity: 0.06 }}></div>
+      {/* Header - 밝은 파란색 계열 바탕 */}
+      <div 
+        className="relative pt-6 pb-5 px-5 shrink-0 overflow-hidden cursor-pointer" 
+        style={{ background: 'linear-gradient(135deg, #1d4ed8, #3b82f6)', borderBottom: `1px solid rgba(255,255,255,0.1)` }}
+        onClick={onTitleClick}
+        title="클릭하여 지도에서 교회 위치 보기"
+      >
+        <div className="absolute right-0 top-0 w-64 h-64 rounded-full blur-3xl pointer-events-none" style={{ background: '#60a5fa', opacity: 0.3, transform: 'translate(30%, -30%)' }}></div>
+
+        {/* Copy Toast */}
+        <div 
+          className="absolute top-16 right-4 z-[60] px-3 py-2 rounded-xl flex items-center gap-2 shadow-xl transition-all duration-300 pointer-events-none"
+          style={{ 
+            background: 'rgba(34, 197, 94, 0.95)', 
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            opacity: showCopyToast ? 1 : 0, 
+            transform: showCopyToast ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.95)' 
+          }}
+        >
+          <Check size={14} style={{ color: '#fff' }} />
+          <span className="text-[12px] font-bold text-white">클립보드에 복사됨!</span>
+        </div>
 
         {/* Top buttons */}
-        <div className="absolute top-3 right-3 flex items-center gap-2 z-[50]">
+        <div className="absolute top-4 right-4 flex items-center gap-2 z-[50]">
+          <button 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const defaultName = (church.name || '').endsWith('교회') ? church.name : church.name + '교회';
+              const pastorStr = church.pastor_name ? `담임목사: ${church.pastor_name.replace(/목사\s*$/, '').trim()} 목사\n` : '';
+              const addressStr = church.address ? `주소: ${church.address}\n` : '';
+              const phoneStr = church.tel ? `전화번호: ${church.tel}\n` : '';
+              const searchTarget = church.address || defaultName;
+              const mapLink = `https://map.naver.com/p/search/${encodeURIComponent(searchTarget)}`;
+              const directionsStr = `길찾기(네이버지도): ${mapLink}`;
+              const textToShare = `[${defaultName}]\n${pastorStr}${addressStr}${phoneStr}${directionsStr}`;
+
+              const fallbackCopy = () => {
+                const textArea = document.createElement("textarea");
+                textArea.value = textToShare;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-999999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                  const successful = document.execCommand('copy');
+                  if (successful) {
+                    handleShareSuccess();
+                  } else {
+                    alert('복사에 실패했습니다. 다른 브라우저를 이용해주세요.');
+                  }
+                } catch (err) {
+                  alert('복사를 지원하지 않는 환경입니다.');
+                } finally {
+                  textArea.remove();
+                }
+              };
+
+              if (navigator.share && window.isSecureContext) {
+                navigator.share({ title: defaultName, text: textToShare }).catch((err) => {
+                  if (err.name !== 'AbortError') fallbackCopy();
+                });
+              } else if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(textToShare)
+                  .then(() => handleShareSuccess())
+                  .catch(() => fallbackCopy());
+              } else {
+                fallbackCopy();
+              }
+            }}
+            className="rounded-full transition-all flex items-center justify-center hover:scale-105"
+            style={{ 
+              background: showCopyToast ? 'rgba(34, 197, 94, 0.9)' : 'rgba(255, 255, 255, 0.15)', 
+              border: showCopyToast ? '1px solid rgba(34, 197, 94, 1)' : '1px solid rgba(255, 255, 255, 0.2)', 
+              width: '40px', height: '40px', backdropFilter: 'blur(10px)',
+              transform: showCopyToast ? 'scale(1.1)' : 'scale(1)',
+            }}
+          >
+            {showCopyToast ? (
+              <Check size={18} style={{ color: '#fff' }} className="animate-in zoom-in" />
+            ) : (
+              <Share2 size={16} style={{ color: '#fff' }} />
+            )}
+          </button>
+          
           <button 
             onClick={handleToggleFavorite}
             className="rounded-full transition-all flex items-center justify-center"
             style={{ 
-              background: isFav ? 'rgba(255,196,0,0.12)' : 'rgba(0,0,0,0.04)',
-              border: isFav ? '1px solid rgba(255,196,0,0.3)' : `1px solid ${W.inputBorder}`,
-              width: '44px', height: '44px',
+              background: isFav ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.15)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              width: '40px', height: '40px',
             }}
           >
-            <Star size={20} style={{ color: isFav ? '#e5a800' : '#bbb' }} fill={isFav ? '#ffc400' : 'none'} />
+            <Star size={18} style={{ color: isFav ? '#ffd700' : 'rgba(255,255,255,0.7)' }} fill={isFav ? '#ffd700' : 'none'} />
           </button>
           <button 
             onClick={onClose} 
-            className="rounded-full transition-all flex items-center justify-center hover:bg-black/5"
-            style={{ background: 'rgba(0,0,0,0.04)', border: `1px solid ${W.inputBorder}`, width: '44px', height: '44px' }}
+            className="rounded-full transition-all flex items-center justify-center hover:bg-white/20"
+            style={{ background: 'rgba(255, 255, 255, 0.15)', border: '1px solid rgba(255, 255, 255, 0.2)', width: '40px', height: '40px', backdropFilter: 'blur(10px)' }}
           >
-            <X size={22} style={{ color: '#666' }} />
+            <X size={20} style={{ color: '#fff' }} />
           </button>
         </div>
         
-        <div className="flex flex-col gap-0.5 mt-1 relative z-10 pr-24">
-          <p className="font-bold text-[12px] tracking-wider uppercase" style={{ color: W.accent }}>{church.noh_name || church.noh}</p>
+        <div className="flex flex-col gap-1 mt-2 relative z-10 pr-24">
+          <p className="font-bold text-[12px] tracking-wider uppercase" style={{ color: 'rgba(255,255,255,0.85)' }}>{church.noh_name || church.noh}</p>
           <div className="flex items-end gap-2.5 flex-wrap">
-            <h2 className="text-[24px] font-extrabold tracking-tight leading-tight" style={{ color: W.text }}>{church.name}</h2>
+            <h2 className="text-[26px] font-extrabold tracking-tight leading-tight" style={{ color: '#ffffff' }}>{church.name.endsWith('교회') ? church.name : church.name + '교회'}</h2>
             {church.pastor_name && (
-              <span className="text-[14px] font-bold mb-[3px]" style={{ color: W.textSub }}>
-                담임목사: {church.pastor_name.replace(/목사\s*$/, '').trim()} 목사
+              <span className="text-[14px] font-semibold mb-[4px]" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                {church.pastor_name.replace(/목사\s*$/, '').trim()} 목사
               </span>
             )}
           </div>
@@ -181,8 +399,8 @@ export default function ChurchDetailSheet({ church: initialChurch, onClose, onOp
       </div>
 
       {/* Tab Navigation */}
-      <div className="px-4 py-2.5 shrink-0 flex justify-between items-center gap-2" style={{ borderBottom: `1px solid ${W.cardBorder}` }}>
-        <div className="flex p-1 rounded-2xl flex-1" style={{ background: 'rgba(0,0,0,0.03)', border: `1px solid ${W.inputBorder}` }}>
+      <div className="px-5 py-3 shrink-0 flex justify-between items-center gap-3 backdrop-blur-md" style={{ borderBottom: `1px solid ${W.cardBorder}`, background: 'rgba(255,255,255,0.4)' }}>
+        <div className="flex p-1 rounded-[14px] flex-1 shadow-sm" style={{ background: 'rgba(0,0,0,0.04)', border: `1px solid ${W.cardBorder}` }}>
           {[
             { key: 'home', icon: Home, label: '교회 정보' },
             { key: 'inquiry', icon: MessageSquare, label: '비밀 문의' },
@@ -190,15 +408,15 @@ export default function ChurchDetailSheet({ church: initialChurch, onClose, onOp
             <button 
               key={tab.key}
               onClick={() => setActiveTab(tab.key)} 
-              className="flex-1 py-1.5 text-[12px] font-bold flex items-center justify-center gap-1.5 rounded-xl transition-all duration-200"
-              style={activeTab === tab.key ? { background: 'white', color: W.accent, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' } : { color: W.textMuted }}
+              className="flex-1 py-1.5 text-[13px] font-bold flex items-center justify-center gap-1.5 rounded-xl transition-all duration-300"
+              style={activeTab === tab.key ? { background: '#ffffff', color: W.accent, boxShadow: '0 2px 8px rgba(0,0,0,0.06)'  } : { color: W.textSub }}
             >
               <tab.icon size={14}/> {tab.label}
             </button>
           ))}
         </div>
-        <button onClick={handleEditClick} className="p-2.5 rounded-xl transition-colors" style={{ background: isEditing ? W.accentLight : 'rgba(0,0,0,0.03)', border: `1px solid ${isEditing ? W.accentBorder : W.inputBorder}`, color: isEditing ? W.accent : W.textMuted }}>
-          <Edit3 size={16} />
+        <button onClick={handleEditClick} className="p-2 rounded-[14px] transition-all hover:opacity-80" style={{ background: isEditing ? W.accent : '#ffffff', border: `1px solid ${W.cardBorder}`, color: isEditing ? '#ffffff' : W.textSub, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          <Edit3 size={18} />
         </button>
       </div>
 
@@ -278,9 +496,18 @@ export default function ChurchDetailSheet({ church: initialChurch, onClose, onOp
                </div>
             </div>
 
-            <button onClick={handleSave} className="w-full font-extrabold py-3 rounded-2xl flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all text-white" style={{ background: `linear-gradient(135deg, ${W.accent}, #6b8cff)`, boxShadow: '0 4px 16px rgba(55,102,255,0.25)' }}>
-              <Save size={18} /> 변경사항 저장하기
-            </button>
+            <div className="flex flex-col gap-2 mt-2">
+              <button onClick={handleSave} className="w-full font-extrabold py-3 rounded-2xl flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all text-white" style={{ background: `linear-gradient(135deg, ${W.accent}, #6b8cff)`, boxShadow: '0 4px 16px rgba(55,102,255,0.25)' }}>
+                <Save size={18} /> 변경사항 저장하기
+              </button>
+              <button 
+                onClick={() => setIsEditing(false)} 
+                className="w-full font-bold py-3 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-[0.98]" 
+                style={{ background: 'rgba(0,0,0,0.03)', color: W.textSub, border: '1px solid rgba(0,0,0,0.05)' }}
+              >
+                닫기 / 홈으로 돌아가기
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -291,7 +518,7 @@ export default function ChurchDetailSheet({ church: initialChurch, onClose, onOp
                   <h3 className="font-extrabold flex items-center gap-2 text-[16px]" style={{ color: W.text }}>
                     <Video size={18} style={{ color: W.accent }} /> 환영합니다
                   </h3>
-                  <div className="w-full aspect-video rounded-2xl overflow-hidden relative" style={{ background: 'rgba(0,0,0,0.03)', border: `1px solid ${W.cardBorder}` }}>
+                  <div className="w-full aspect-video rounded-2xl overflow-hidden relative" style={{ background: '#ffffff', border: `1px solid ${W.cardBorder}` }}>
                     {church.youtube_video_id ? (
                       <iframe className="absolute top-0 left-0 w-full h-full" src={`https://www.youtube.com/embed/${church.youtube_video_id}`} title="YouTube" allowFullScreen />
                     ) : church.main_photo_url ? (
@@ -321,7 +548,7 @@ export default function ChurchDetailSheet({ church: initialChurch, onClose, onOp
                 </div>
 
                 <div className="p-4 rounded-2xl leading-relaxed whitespace-pre-wrap text-[14px]" style={{ background: W.cardBg, border: `1px solid ${W.cardBorder}`, color: W.textSub }}>
-                  {church.intro_text || <span className="italic">{"한국기독교장로회 " + church.name + "에 오신 것을 환영합니다. 함께 예배드리며 은혜 나누기를 소망합니다."}</span>}
+                  {church.intro_text || <span className="italic">{"한국기독교장로회 " + (church.name.endsWith('교회') ? church.name : church.name + '교회') + "에 오신 것을 환영합니다. 함께 예배드리며 은혜 나누기를 소망합니다."}</span>}
                 </div>
 
                 <div className="flex flex-col gap-3 mt-2">
@@ -345,7 +572,7 @@ export default function ChurchDetailSheet({ church: initialChurch, onClose, onOp
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-2xl p-5 text-center" style={{ background: 'rgba(0,0,0,0.02)', border: `1px dashed ${W.inputBorder}` }}>
+                    <div className="rounded-2xl p-5 text-center" style={{ background: W.cardBg, border: `1px solid ${W.cardBorder}` }}>
                       <p className="text-[13px] font-medium" style={{ color: W.textMuted }}>등록된 예배 시간이 없습니다.</p>
                       <button onClick={handleEditClick} className="mt-2 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors border" style={{ borderColor: W.accentBorder, color: W.accent, background: W.accentLight }}>
                         교회 관계자이신가요? 정보 등록하기
@@ -361,15 +588,20 @@ export default function ChurchDetailSheet({ church: initialChurch, onClose, onOp
                     <MapPin size={18} style={{ color: W.cyan }} /> 오시는 길 / 주차
                    </h3>
                    
-                   <div className="grid grid-cols-2 gap-2.5 mb-1">
+                   <div className="grid grid-cols-3 gap-2 mb-1">
                      <button onClick={handleCall} className="py-3 justify-center rounded-2xl flex items-center gap-2 active:scale-[0.98] transition-all" style={{ background: W.cardBg, border: `1px solid ${W.cardBorder}` }}>
                        <Phone size={16} style={{ color: W.green }} />
-                       <span className="font-bold text-[13px]" style={{ color: W.text }}>전화 연결</span>
+                       <span className="font-bold text-[12px]" style={{ color: W.text }}>전화</span>
                      </button>
                      
                      <button onClick={handleDirections} className="py-3 justify-center rounded-2xl flex items-center gap-2 active:scale-[0.98] transition-all" style={{ background: W.accentLight, border: `1px solid ${W.accentBorder}` }}>
                        <Navigation size={16} style={{ color: W.accent }} />
-                       <span className="font-bold text-[13px]" style={{ color: W.accent }}>길 찾기</span>
+                       <span className="font-bold text-[12px]" style={{ color: W.accent }}>길찾기</span>
+                     </button>
+
+                     <button onClick={handleOpenPanorama} className="py-3 justify-center rounded-2xl flex items-center gap-2 active:scale-[0.98] transition-all" style={{ background: 'rgba(16, 185, 129, 0.06)', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
+                       <Eye size={16} style={{ color: W.green }} />
+                       <span className="font-bold text-[12px]" style={{ color: W.green }}>거리뷰</span>
                      </button>
                    </div>
 
@@ -410,6 +642,66 @@ export default function ChurchDetailSheet({ church: initialChurch, onClose, onOp
           </>
         )}
       </div>
+
+      {/* Panorama (Street View) Fullscreen Modal */}
+      {showPanorama && (
+        <div className="fixed inset-0 z-[9999] flex flex-col" style={{ background: '#0a0e1a' }}>
+          {/* Panorama Header */}
+          <div className="shrink-0 flex items-center justify-between px-4 py-3" style={{ background: 'rgba(10,14,26,0.95)', borderBottom: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)' }}>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.15)' }}>
+                <Eye size={16} style={{ color: '#10b981' }} />
+              </div>
+              <div>
+                <p className="text-white font-bold text-[14px] leading-tight">{church.name}</p>
+                <p className="text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>네이버 거리뷰</p>
+              </div>
+            </div>
+            <button 
+              onClick={handleClosePanorama}
+              className="w-10 h-10 rounded-full flex items-center justify-center transition-all hover:bg-white/10 active:scale-95"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+            >
+              <X size={20} style={{ color: '#fff' }} />
+            </button>
+          </div>
+
+          {/* Panorama Container */}
+          <div className="flex-1 relative">
+            <div ref={panoramaContainerRef} className="absolute inset-0" style={{ width: '100%', height: '100%' }} />
+            
+            {/* Loading state */}
+            {panoramaStatus === 'loading' && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4" style={{ background: 'rgba(10,14,26,0.85)' }}>
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-full border-2 border-transparent animate-spin" style={{ borderTopColor: '#10b981', borderRightColor: '#10b981' }}></div>
+                </div>
+                <p className="text-white/60 text-[13px] font-medium">거리뷰 데이터를 불러오는 중...</p>
+              </div>
+            )}
+
+            {/* Unavailable state */}
+            {panoramaStatus === 'unavailable' && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4" style={{ background: 'rgba(10,14,26,0.9)' }}>
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <Eye size={28} style={{ color: 'rgba(255,255,255,0.2)' }} />
+                </div>
+                <div className="text-center">
+                  <p className="text-white/80 text-[15px] font-bold">거리뷰를 사용할 수 없습니다</p>
+                  <p className="text-white/40 text-[12px] mt-1 leading-relaxed">이 지역에는 네이버 거리뷰 데이터가<br/>아직 제공되지 않습니다.</p>
+                </div>
+                <button 
+                  onClick={handleClosePanorama}
+                  className="mt-2 px-6 py-2.5 rounded-xl font-bold text-[13px] transition-all active:scale-95"
+                  style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.1)' }}
+                >
+                  돌아가기
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

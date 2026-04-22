@@ -1,8 +1,22 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { clusterChurches } from '../utils/clustering';
 
+const escapeHtml = (unsafe) => {
+  return (unsafe || '').replace(/[&<"']/g, (m) => {
+    switch (m) {
+      case '&': return '&amp;';
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '"': return '&quot;';
+      case "'": return '&#039;';
+      default: return m;
+    }
+  });
+};
+
 export default function MapContainer({ 
+  selectedChurch,
   onSelectChurch, 
   searchQuery = "", 
   onViewportChange, 
@@ -66,6 +80,7 @@ export default function MapContainer({
         maxZoom: 19,
         tileTransition: true,
         logoControlOptions: { position: window.naver.maps.Position.BOTTOM_LEFT },
+        background: '#f2f0ea' // 네이버 지도 기본 배경색과 유사하게 설정하여 줌아웃 시 빈 공간의 위화감 감소
       };
 
       const newMap = new window.naver.maps.Map(mapElRef.current, mapOptions);
@@ -116,10 +131,15 @@ export default function MapContainer({
     if (window.naver?.maps) {
       initMap();
     } else {
+      let attempts = 0;
       const checkNaver = setInterval(() => {
+        attempts++;
         if (window.naver?.maps) {
           clearInterval(checkNaver);
           initMap();
+        } else if (attempts > 20) {
+          clearInterval(checkNaver);
+          console.error("Naver Maps SDK 로드 시간 초과");
         }
       }, 500);
       return () => clearInterval(checkNaver);
@@ -128,13 +148,14 @@ export default function MapContainer({
 
   // Fetch all churches once
   useEffect(() => {
+    let isMounted = true;
     const fetchChurches = async () => {
       let allFetchedData = [];
       let start = 0;
       const step = 1000;
       let hasMore = true;
 
-      while (hasMore) {
+      while (hasMore && isMounted) {
         const { data, error } = await supabase
           .from('churches')
           .select('*')
@@ -157,10 +178,13 @@ export default function MapContainer({
         }
       }
 
+      if (!isMounted) return;
       setAllChurches(allFetchedData);
       if (onDataLoaded) onDataLoaded(allFetchedData.length);
     };
     fetchChurches();
+    
+    return () => { isMounted = false; };
   }, [onDataLoaded]);
 
   // Haversine distance
@@ -172,38 +196,14 @@ export default function MapContainer({
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }, []);
 
-  // Smooth animated zoom to position
-  const smoothZoomTo = useCallback((mapInst, targetPos, targetZoom) => {
-    const currentZoomVal = mapInst.getZoom();
-    // First pan, then zoom step by step
-    mapInst.panTo(targetPos, { duration: 300, easing: 'easeOutCubic' });
-    
-    if (targetZoom > currentZoomVal) {
-      let step = currentZoomVal;
-      const interval = setInterval(() => {
-        step = Math.min(step + 1, targetZoom);
-        mapInst.setZoom(step, true);
-        if (step >= targetZoom) clearInterval(interval);
-      }, 200);
-    } else if (targetZoom < currentZoomVal) {
-      setTimeout(() => mapInst.setZoom(targetZoom, true), 350);
-    }
-  }, []);
-
-  // Main filter/cluster/render effect
-  useEffect(() => {
-    if (!map || allChurches.length === 0) return;
-
-    // Clean up existing markers
-    markersRef.current.forEach(m => m.setMap(null));
-    markersRef.current = [];
-
+  // Use useMemo to cache the search and nearby filtered array to avoid heavy filtering loop on every pan/zoom
+  const queryFilteredChurches = useMemo(() => {
+    if (allChurches.length === 0) return [];
     const query = searchQuery.toLowerCase().trim();
     let filtered = allChurches;
 
     // --- Enhanced Search Logic ---
     if (query) {
-      // Normalize query: remove all spaces, remove trailing "교회"
       const normalizedQuery = query.replace(/\s+/g, '').replace(/교회$/, '');
       const isNohSearch = query.includes('노회') || query.includes('시찰');
 
@@ -212,19 +212,15 @@ export default function MapContainer({
         const address = (church.address || '').toLowerCase();
         const noh = (church.noh || '').toLowerCase();
 
-        // Normalize church name: remove all spaces, remove trailing "교회"
         const normalizedName = name.replace(/\s+/g, '').replace(/교회$/, '');
-        // Search inside address and noh ignoring spaces
         const normalizedAddress = address.replace(/\s+/g, '');
         const normalizedNoh = noh.replace(/\s+/g, '');
 
         if (isNohSearch) {
-          // For 노회/시찰 search: match noh field primarily
           const cleanNohQuery = normalizedQuery.replace('노회', '').replace('시찰', '');
           return normalizedNoh.includes(cleanNohQuery) || normalizedNoh.includes(normalizedQuery);
         }
 
-        // General search: name, address (region), noh
         return normalizedName.includes(normalizedQuery) || normalizedAddress.includes(normalizedQuery) || normalizedNoh.includes(normalizedQuery);
       });
     }
@@ -237,6 +233,20 @@ export default function MapContainer({
         return dist <= nearbyRadius;
       });
     }
+    
+    return filtered;
+  }, [allChurches, searchQuery, nearbyMode, nearbyRadius, userLocation, haversineKm]);
+
+  // Main filter/cluster/render effect
+  useEffect(() => {
+    if (!map || allChurches.length === 0) return;
+
+    // Clean up existing markers
+    markersRef.current.forEach(m => m.setMap(null));
+    markersRef.current = [];
+
+    const query = searchQuery.toLowerCase().trim();
+    const filtered = queryFilteredChurches;
 
     if (!window.naver?.maps?.Marker) return;
 
@@ -309,18 +319,35 @@ export default function MapContainer({
             </div>
           `;
         } else {
-          const pastorStr = item.pastor_name ? ` · ${item.pastor_name}` : '';
-          contentHtml = `
-            <div style="cursor:pointer;z-index:20;position:relative;" class="church-marker-tag">
-              <div style="background:rgba(255, 255, 255, 0.95);backdrop-filter:blur(20px);border:1.5px solid rgba(43, 57, 144, 0.2);box-shadow:0 6px 16px rgba(43, 57, 144, 0.1);border-radius:14px;display:flex;align-items:center;gap:7px;padding:5px 12px;transition:transform 0.2s,border-color 0.2s;" onmouseover="this.style.transform='scale(1.06)';this.style.borderColor='rgba(0,165,217,0.8)'" onmouseout="this.style.transform='scale(1)';this.style.borderColor='rgba(43, 57, 144, 0.2)'">
-                <div style="width:9px;height:9px;background:#00A5D9;box-shadow:0 0 10px rgba(0, 165, 217, 0.6);border-radius:50%;flex-shrink:0;"></div>
-                <span style="color:#0f172a;font-size:12px;font-weight:700;white-space:nowrap;letter-spacing:0.3px;">${item.name}<span style="color:#64748b;font-weight:500;">${pastorStr}</span></span>
+          const displayName = item.name.endsWith('교회') ? item.name : item.name + '교회';
+          const safeName = escapeHtml(displayName);
+          const safePastorStr = item.pastor_name ? escapeHtml(` · ${item.pastor_name}`) : '';
+          const isOnlyOne = markersToRender.length === 1;
+          const isSelected = selectedChurch && selectedChurch.id === item.id;
+          const shouldHighlight = isOnlyOne || isSelected;
+
+          if (shouldHighlight) {
+            contentHtml = `
+              <div style="cursor:pointer;z-index:20;position:relative;display:flex;flex-direction:column;align-items:center;transform:translateY(-12px);transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-16px) scale(1.05)'" onmouseout="this.style.transform='translateY(-12px) scale(1)'">
+                <img src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/26ea.png" alt="Church" style="width:44px;height:44px;filter:drop-shadow(0px 8px 12px rgba(0,0,0,0.3));margin-bottom:-6px;position:relative;z-index:2;" />
+                <div style="background:rgba(255, 255, 255, 0.95);backdrop-filter:blur(20px);border:1.5px solid rgba(0, 165, 217, 0.4);box-shadow:0 6px 16px rgba(0, 165, 217, 0.15);border-radius:14px;display:flex;align-items:center;gap:7px;padding:5px 12px;position:relative;z-index:1;">
+                  <span style="color:#0f172a;font-size:13px;font-weight:800;white-space:nowrap;letter-spacing:0.3px;">${safeName}<span style="color:#64748b;font-weight:600;">${safePastorStr}</span></span>
+                </div>
               </div>
-            </div>
-          `;
+            `;
+          } else {
+            contentHtml = `
+              <div style="cursor:pointer;z-index:20;position:relative;" class="church-marker-tag">
+                <div style="background:rgba(255, 255, 255, 0.95);backdrop-filter:blur(20px);border:1.5px solid rgba(43, 57, 144, 0.2);box-shadow:0 6px 16px rgba(43, 57, 144, 0.1);border-radius:14px;display:flex;align-items:center;gap:7px;padding:5px 12px;transition:transform 0.2s,border-color 0.2s;" onmouseover="this.style.transform='scale(1.06)';this.style.borderColor='rgba(0,165,217,0.8)'" onmouseout="this.style.transform='scale(1)';this.style.borderColor='rgba(43, 57, 144, 0.2)'">
+                  <div style="width:9px;height:9px;background:#00A5D9;box-shadow:0 0 10px rgba(0, 165, 217, 0.6);border-radius:50%;flex-shrink:0;"></div>
+                  <span style="color:#0f172a;font-size:12px;font-weight:700;white-space:nowrap;letter-spacing:0.3px;">${safeName}<span style="color:#64748b;font-weight:500;">${safePastorStr}</span></span>
+                </div>
+              </div>
+            `;
+          }
         }
 
-        const zIdx = item.type === 'CLUSTER' ? (100 + item.count) : 500;
+        const zIdx = item.type === 'CLUSTER' ? (100 + item.count) : ((markersToRender.length === 1 || (selectedChurch && selectedChurch.id === item.id)) ? 1000 : 500);
 
         const marker = new window.naver.maps.Marker({
           position: new window.naver.maps.LatLng(item.lat, item.lng),
@@ -336,10 +363,10 @@ export default function MapContainer({
         window.naver.maps.Event.addListener(marker, 'click', () => {
           if (item.type === 'CLUSTER') {
             const pos = marker.getPosition();
-            smoothZoomTo(map, pos, map.getZoom() + 2);
+            map.morph(pos, map.getZoom() + 2, { duration: 300, easing: 'easeOutCubic' });
           } else {
             const pos = marker.getPosition();
-            map.panTo(pos, { duration: 300, easing: 'easeOutCubic' });
+            map.morph(pos, map.getZoom(), { duration: 300, easing: 'easeOutCubic' });
             onSelectChurchRef.current(item);
           }
         });
@@ -404,7 +431,7 @@ export default function MapContainer({
     if (queryChanged && query && filtered.length > 0) {
       if (filtered.length === 1) {
         const pos = new window.naver.maps.LatLng(filtered[0].lat, filtered[0].lng);
-        smoothZoomTo(map, pos, 15);
+        map.morph(pos, 15, { duration: 300, easing: 'easeOutCubic' });
       } else if (filtered.length < allChurches.length) { // Don't fitBounds if query matches literally everything
         const bounds = new window.naver.maps.LatLngBounds();
         filtered.forEach(c => {
@@ -426,14 +453,48 @@ export default function MapContainer({
       if (myLocationMarkerRef.current) {
         myLocationMarkerRef.current.setMap(null);
       }
+      const cuteUserMarkerContent = `
+        <style>
+          @keyframes cuteBounce {
+            0%, 100% { transform: translateY(-3%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
+            50% { transform: none; animation-timing-function: cubic-bezier(0,0,0.2,1); }
+          }
+          @keyframes cutePing {
+            75%, 100% { transform: scale(2.5); opacity: 0; }
+          }
+        </style>
+        <div style="position:relative; width:64px; height:64px; display:flex; justify-content:center; align-items:center; cursor:pointer; pointer-events:none;">
+          <div style="position:absolute; width:36px; height:36px; background:rgba(16, 185, 129, 0.4); border-radius:50%; animation: cutePing 2s cubic-bezier(0, 0, 0.2, 1) infinite; z-index:0;"></div>
+          <div style="position:absolute; bottom:8px; width:22px; height:6px; background:rgba(0,0,0,0.2); border-radius:50%; filter:blur(1px); z-index:1;"></div>
+          
+          <svg style="position:relative; z-index:10; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); animation: cuteBounce 2s infinite;" width="42" height="48" viewBox="0 0 40 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 0C8.954 0 0 8.954 0 20C0 29.239 6.251 37.011 14.844 39.246C16.412 39.654 18.148 42.937 20 46C21.852 42.937 23.588 39.654 25.156 39.246C33.749 37.011 40 29.239 40 20C40 8.954 31.046 0 20 0Z" fill="#10B981"/>
+            <circle cx="20" cy="18" r="13" fill="#FFFFFF"/>
+            
+            <!-- Eyes (Smiling curves) -->
+            <path d="M14 16Q15.5 13.5 17 16" stroke="#0F172A" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <path d="M23 16Q24.5 13.5 26 16" stroke="#0F172A" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            
+            <!-- Mouth (Big happy curve) -->
+            <path d="M16 20.5Q20 24.5 24 20.5" stroke="#0F172A" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            
+            <!-- Blushing cheeks -->
+            <ellipse cx="12.5" cy="19.5" rx="2.5" ry="1.5" fill="#FCA5A5" opacity="0.9"/>
+            <ellipse cx="27.5" cy="19.5" rx="2.5" ry="1.5" fill="#FCA5A5" opacity="0.9"/>
+          </svg>
+          
+          <div style="position:absolute; bottom:-12px; font-weight:900; font-size:13px; color:#047857; text-shadow: -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff, 2px 2px 0 #fff; white-space:nowrap; letter-spacing:-0.5px; z-index:20;">내 위치</div>
+        </div>
+      `;
+
       myLocationMarkerRef.current = new window.naver.maps.Marker({
         position: userPos,
         map: map,
         icon: {
-          content: `<div style="width:20px;height:20px;background:#00A5D9;border-radius:50%;border:3px solid #ffffff;box-shadow:0 0 20px rgba(0, 165, 217, 0.6);animation:pulse 2s infinite;"></div>`,
-          anchor: new window.naver.maps.Point(10, 10)
+          content: cuteUserMarkerContent,
+          anchor: new window.naver.maps.Point(32, 54)
         },
-        zIndex: 200
+        zIndex: 1000 // Always on top of other markers
       });
 
       // Auto-fit ONLY when mode/radius changes (not on every viewport change)
@@ -459,10 +520,10 @@ export default function MapContainer({
     prevNearbyRadiusRef.current = nearbyRadius;
 
     return () => {};
-  }, [map, allChurches, searchQuery, currentZoom, currentBounds, nearbyMode, nearbyRadius, userLocation, haversineKm, smoothZoomTo]);
+  }, [map, allChurches, queryFilteredChurches, searchQuery, currentZoom, currentBounds, nearbyMode, nearbyRadius, userLocation, selectedChurch]);
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full" style={{ backgroundColor: '#f2f0ea' }}>
       <div ref={mapElRef} className="w-full h-full" id="map" />
     </div>
   );

@@ -4,6 +4,7 @@ import API_BASE from '../api';
 import { useBackButton } from '../useBackButton';
 import MobileHeader from './mobile/MobileHeader';
 import { useAuth } from '../AuthContext';
+import ApiImage from './ApiImage';
 
 const isNew = (dateStr) => {
   if (!dateStr) return false;
@@ -87,7 +88,16 @@ const HomePage = () => {
         {/* Welcome Section - compact */}
         <section>
           <h2 className="text-2xl font-extrabold text-primary leading-tight font-['Manrope',_'Pretendard']">
-            {user?.name || '사용자'}님, 평안하세요.
+            {user?.name || '사용자'} {(() => {
+              const duty = user?.duty || '';
+              if (duty.includes('목사')) return '목사님';
+              if (duty.includes('준목')) return '준목님';
+              if (duty.includes('장로')) return '장로님';
+              if (duty.includes('전도사')) return '전도사님';
+              if (duty.includes('권사')) return '권사님';
+              if (duty.includes('집사')) return '집사님';
+              return '님';
+            })()}, 평안하세요.
           </h2>
         </section>
 
@@ -132,7 +142,7 @@ const HomePage = () => {
                   className="absolute inset-0 transition-opacity duration-700"
                   style={{ opacity: i === adIdx ? 1 : 0, pointerEvents: i === adIdx ? 'auto' : 'none' }}
                 >
-                  <img
+                  <ApiImage
                     src={`${API_BASE}${ad.image_url}`}
                     alt={ad.title}
                     className="w-full h-full object-cover"
