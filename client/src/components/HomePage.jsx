@@ -27,6 +27,7 @@ const HomePage = () => {
   const [adIdx, setAdIdx] = useState(0);
   const [selectedNotice, setSelectedNotice] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(false);
   const [fgToast, setFgToast] = useState(null);
   const fcmInitRef = useRef(false);
 
@@ -35,13 +36,19 @@ const HomePage = () => {
     const sichalName = user?.SICHALNAME || user?.sichal_name || '';
     
     Promise.all([
-      fetch(`${API_BASE}/api/notices?target_noh=${encodeURIComponent(nohName)}&target_sichal=${encodeURIComponent(sichalName)}`).then(r => r.json()),
-      fetch(`${API_BASE}/api/ads?active_only=true`).then(r => r.json())
+      fetch(`${API_BASE}/api/notices?target_noh=${encodeURIComponent(nohName)}&target_sichal=${encodeURIComponent(sichalName)}`).then(r => r.ok ? r.json() : []),
+      fetch(`${API_BASE}/api/ads?active_only=true`).then(r => r.ok ? r.json() : [])
     ]).then(([noticeData, adData]) => {
       const sorted = (Array.isArray(noticeData) ? noticeData : [])
         .sort((a, b) => (scopeOrder[a.scope] ?? 99) - (scopeOrder[b.scope] ?? 99));
       setNotices(sorted);
       setAds(Array.isArray(adData) ? adData : []);
+      setApiError(false);
+    }).catch(err => {
+      console.error("API Fetch Error:", err);
+      setApiError(true);
+      setNotices([]);
+      setAds([]);
     }).finally(() => setLoading(false));
   }, [user]);
 
@@ -235,6 +242,12 @@ const HomePage = () => {
           
           {loading ? (
              <div className="text-center py-6 text-on-surface-variant text-sm">불러오는 중...</div>
+          ) : apiError ? (
+            <div className="bg-surface-container-lowest rounded-2xl p-6 text-center shadow-sm">
+              <span className="material-symbols-outlined text-3xl text-error mb-2">cloud_off</span>
+              <p className="text-error font-medium text-sm">현재 서버 점검 중이거나 연결이 원활하지 않습니다.</p>
+              <p className="text-on-surface-variant text-xs mt-1">주소록 검색은 캐시된 데이터로 이용 가능합니다.</p>
+            </div>
           ) : notices.length === 0 ? (
             <div className="bg-surface-container-lowest rounded-2xl p-6 text-center shadow-sm">
               <span className="material-symbols-outlined text-3xl text-outline-variant mb-2">inbox</span>
