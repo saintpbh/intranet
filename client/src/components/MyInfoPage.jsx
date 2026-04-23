@@ -8,11 +8,45 @@ import { useBackButton } from '../useBackButton';
 import MobileHeader from './mobile/MobileHeader';
 import API_BASE from '../api';
 import ApiImage from './ApiImage';
+import { requestNotificationPermission } from '../firebase';
 
 const MyInfoPage = () => {
   const { user, isLoggedIn, logout } = useAuth();
   const [view, setView] = useState('main');
   const [profileData, setProfileData] = useState(null);
+  const [notiPermission, setNotiPermission] = useState(
+    'Notification' in window ? Notification.permission : 'denied'
+  );
+
+  const handlePushToggle = async () => {
+    if (!('Notification' in window)) {
+      alert('이 브라우저는 푸시 알림을 지원하지 않습니다.');
+      return;
+    }
+    
+    if (Notification.permission === 'granted') {
+      alert('이미 푸시 알림이 설정되어 있습니다.');
+      return;
+    }
+
+    if (Notification.permission === 'denied') {
+      alert('브라우저 설정(또는 기기 설정)에서 알림 권한을 직접 "허용"으로 변경해주세요.');
+      return;
+    }
+
+    const token = await requestNotificationPermission(API_BASE);
+    if (token) {
+      alert('푸시 알림 설정이 완료되었습니다!');
+      setNotiPermission('granted');
+    } else {
+      if (Notification.permission === 'denied') {
+        alert('푸시 알림이 거부되었습니다. 받으시려면 브라우저 설정에서 허용해주세요.');
+      } else {
+        alert('푸시 알림 설정 중 오류가 발생했습니다.');
+      }
+      setNotiPermission(Notification.permission);
+    }
+  };
 
   const fetchProfile = useCallback(async () => {
     if (!user?.code) return;
@@ -115,6 +149,48 @@ const MyInfoPage = () => {
                 <span className="material-symbols-outlined text-outline-variant">arrow_forward_ios</span>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Push Notification Settings */}
+        <section>
+          <div className="flex justify-between items-center mb-4 px-2">
+            <h3 className="font-['Manrope',_'Pretendard'] text-lg font-bold text-primary">알림 설정</h3>
+          </div>
+          <div className="bg-surface-container-lowest rounded-2xl shadow-[0_20px_40px_rgba(10,37,64,0.04)] overflow-hidden">
+            <div 
+              className={`flex items-center p-5 transition-colors ${
+                notiPermission === 'granted' 
+                ? 'cursor-default' 
+                : 'cursor-pointer hover:bg-surface-container-low active:bg-surface-container-high'
+              }`}
+              onClick={notiPermission === 'granted' ? undefined : handlePushToggle}
+            >
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${
+                notiPermission === 'granted' 
+                ? 'bg-green-500/10 text-green-600' 
+                : 'bg-primary-container/5 text-primary-container'
+              }`}>
+                <span className="material-symbols-outlined">
+                  {notiPermission === 'granted' ? 'notifications_active' : 'notifications_off'}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className={`font-['Manrope',_'Pretendard'] font-bold text-base ${notiPermission === 'granted' ? 'text-green-600' : 'text-primary'}`}>
+                  앱 푸시 알림
+                </div>
+                <div className="text-sm text-on-surface-variant mt-0.5">
+                  {notiPermission === 'granted' 
+                    ? '현재 알림을 받고 있습니다.' 
+                    : notiPermission === 'denied' 
+                      ? '알림이 차단되었습니다 (설정에서 변경 요망)' 
+                      : '터치해서 푸시 알림을 켜고 새 소식을 받으세요!'}
+                </div>
+              </div>
+              {notiPermission !== 'granted' && (
+                <span className="material-symbols-outlined text-outline-variant">touch_app</span>
+              )}
+            </div>
           </div>
         </section>
 

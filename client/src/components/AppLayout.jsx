@@ -14,6 +14,18 @@ const AppLayout = () => {
   // SW 초기화 (swManager가 업데이트 감지/프로그레스 관리)
   useEffect(() => {
     initServiceWorker();
+
+    // 푸시알림 권한 요청 (새로고침 시 등)
+    if ('Notification' in window && Notification.permission === 'default') {
+      // 사용자 방해 최소화를 위해 약간의 딜레이 후 권한 요청
+      setTimeout(() => {
+        import('../firebase').then(({ requestNotificationPermission }) => {
+          import('../api').then(({ default: API_BASE }) => {
+            requestNotificationPermission(API_BASE);
+          });
+        });
+      }, 2000);
+    }
   }, []);
 
   // Back-button guard: keeps users inside the app
