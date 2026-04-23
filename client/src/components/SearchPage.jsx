@@ -23,7 +23,7 @@ const SearchPage = () => {
   }, [searchTerm]);
 
   const handleTabChange = (tab) => {
-    triggerHaptic(30);
+    triggerHaptic([15, 80, 15]);
     setActiveTab(tab);
     setSelectedMinister(null);
     setSelectedElder(null);

@@ -4,14 +4,12 @@ let iosHapticLabel = null;
 /**
  * Triggers a haptic feedback using navigator.vibrate on Android 
  * and a hidden checkbox switch trick on iOS 17.4+ Safari.
- * @param {number} duration - Vibration duration in ms (for Android)
+ * @param {number|number[]} pattern - Vibration duration in ms or pattern array
  */
-export const triggerHaptic = (duration = 40) => {
+export const triggerHaptic = (pattern = 40) => {
   // 1. Android / Web Supported
   if (navigator.vibrate) {
-    navigator.vibrate(duration);
-    // Don't return here if we want to fallback just in case, but usually navigator.vibrate exists on Android.
-    // iOS Safari does NOT have navigator.vibrate. So if it exists, we assume Android/Desktop.
+    navigator.vibrate(pattern);
     return;
   }
 
@@ -47,6 +45,13 @@ export const triggerHaptic = (duration = 40) => {
     // Programmatically click the label to toggle the switch, which fires the haptic tick
     if (iosHapticLabel) {
       iosHapticLabel.click();
+      
+      // If it's a pattern (like [20, 50, 20]), trigger a second tick after a short delay
+      if (Array.isArray(pattern) && pattern.length > 1) {
+        setTimeout(() => {
+          iosHapticLabel.click();
+        }, pattern[1] || 100);
+      }
     }
   }
 };
