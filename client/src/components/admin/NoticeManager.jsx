@@ -6,7 +6,7 @@ const NoticeManager = ({ scope, scopeCode = '', scopeName = '', authorRole = '' 
   const [notices, setNotices] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingNotice, setEditingNotice] = useState(null);
-  const [form, setForm] = useState({ category: '공지', title: '', content: '', is_pinned: false, target_type: 'all', recipients: [] });
+  const [form, setForm] = useState({ category: '공지', title: '', content: '', is_pinned: false, send_push: false, target_type: 'all', recipients: [] });
   const [loading, setLoading] = useState(true);
   const [viewReceipts, setViewReceipts] = useState(null);
   const [receipts, setReceipts] = useState([]);
@@ -24,7 +24,7 @@ const NoticeManager = ({ scope, scopeCode = '', scopeName = '', authorRole = '' 
 
   const openNew = () => {
     setEditingNotice(null);
-    setForm({ category: '공지', title: '', content: '', is_pinned: false, target_type: 'all', recipients: [] });
+    setForm({ category: '공지', title: '', content: '', is_pinned: false, send_push: false, target_type: 'all', recipients: [] });
     setShowForm(true);
   };
 
@@ -60,7 +60,14 @@ const NoticeManager = ({ scope, scopeCode = '', scopeName = '', authorRole = '' 
         }),
       });
       const data = await res.json();
-      if (data.success) { closeForm(); fetchNotices(); }
+      if (data.success) {
+        if (data.push_sent) {
+          alert('✅ 공지가 등록되고 푸시 알림이 발송되었습니다.');
+        } else if (form.send_push && data.push_error) {
+          alert(`⚠️ 공지는 등록되었지만 푸시 알림 발송에 실패했습니다.\n${data.push_error}`);
+        }
+        closeForm(); fetchNotices();
+      }
     }
   };
 
@@ -162,10 +169,24 @@ const NoticeManager = ({ scope, scopeCode = '', scopeName = '', authorRole = '' 
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-            <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-              <input type="checkbox" checked={form.is_pinned} onChange={e => setForm({ ...form, is_pinned: e.target.checked })} />
-              📌 상단 고정
-            </label>
+            <div style={{ display: 'flex', gap: 16 }}>
+              <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={form.is_pinned} onChange={e => setForm({ ...form, is_pinned: e.target.checked })} />
+                📌 상단 고정
+              </label>
+              {!editingNotice && (
+                <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+                  padding: '4px 10px', borderRadius: 6,
+                  background: form.send_push ? 'rgba(52,199,89,0.12)' : 'transparent',
+                  border: form.send_push ? '1px solid rgba(52,199,89,0.3)' : '1px solid transparent',
+                  transition: 'all 0.2s' }}>
+                  <input type="checkbox" checked={form.send_push}
+                    onChange={e => setForm({ ...form, send_push: e.target.checked })}
+                    style={{ accentColor: '#34C759' }} />
+                  🔔 푸시 알림 발송
+                </label>
+              )}
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-outline" style={{ padding: '10px 20px' }} onClick={closeForm}>취소</button>
               <button className="btn btn-primary" style={{ padding: '10px 24px' }} onClick={handleSubmit}>

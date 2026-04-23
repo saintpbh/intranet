@@ -783,6 +783,7 @@ class NoticeCreate(BaseModel):
     is_pinned: bool = False
     target_type: str = "all"  # all, select
     recipients: list = []     # [{type, code, name}]
+    send_push: bool = False   # 체크 시 FCM 푸시 알림 발송
 
 @app.get("/api/notices")
 def get_notices(scope: str = "", scope_code: str = "", target_noh: str = "", target_sichal: str = "", limit: int = 50):
@@ -853,21 +854,26 @@ def create_notice(req: NoticeCreate):
         notice_id = c.lastrowid
         conn.close()
 
-        # FCM 푸시 알림 발송 (총회 scope인 경우 all_users 토픽으로)
-        if FCM_AVAILABLE and req.scope == 'assembly':
+        # FCM 푸시 알림 발송 (관리자가 체크박스를 켠 경우)
+        push_sent = False
+        push_error = None
+        if FCM_AVAILABLE and req.send_push:
             try:
                 scope_label = {'assembly': '총회', 'presbytery': '노회', 'sichal': '시찰'}
                 _send_fcm_topic_notification(
                     topic='all_users',
-                    title=f"📢 {scope_label.get(req.scope, '')} 공지",
+                    title=f"📢 {scope_label.get(req.scope, '')} {req.category}",
                     body=req.title,
                     notice_id=str(notice_id)
                 )
+                push_sent = True
                 logging.info(f'[FCM] Push sent for notice #{notice_id}')
             except Exception as fcm_err:
+                push_error = str(fcm_err)
                 logging.error(f'[FCM] Push failed: {fcm_err}')
 
-        return {"success": True, "id": notice_id, "message": "공지가 등록되었습니다."}
+        return {"success": True, "id": notice_id, "message": "공지가 등록되었습니다.",
+                "push_sent": push_sent, "push_error": push_error}
     except Exception as e:
         return {"error": str(e)}
 
@@ -2891,29 +2897,28 @@ def _send_fcm_topic_notification(topic: str, title: str, body: str, notice_id: s
         logging.warning('[FCM] Not available, skipping send')
         return
     
+    base_url = 'https://prok-ga.web.app'
+    click_url = f'{base_url}/?notice={notice_id}' if notice_id else base_url
+    
     message = messaging.Message(
-        notification=messaging.Notification(
-            title=title,
-            body=body,
-        ),
         data={
             'notice_id': notice_id,
             'title': title,
             'body': body,
-            'click_action': f'/?notice={notice_id}',
+            'icon': '/assets/pwa-192x192.png',
         },
         topic=topic,
         webpush=messaging.WebpushConfig(
             notification=messaging.WebpushNotification(
                 title=title,
                 body=body,
-                icon='/assets/pwa-192x192.png',
-                badge='/assets/pwa-192x192.png',
+                icon=f'{base_url}/assets/pwa-192x192.png',
+                badge=f'{base_url}/assets/pwa-192x192.png',
                 tag=f'notice-{notice_id}',
                 require_interaction=True,
             ),
             fcm_options=messaging.WebpushFCMOptions(
-                link=f'/?notice={notice_id}',
+                link=click_url,
             ),
         ),
     )
