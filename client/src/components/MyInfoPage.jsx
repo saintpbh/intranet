@@ -26,7 +26,12 @@ const MyInfoPage = () => {
     }
     
     if (Notification.permission === 'granted') {
-      alert('이미 푸시 알림이 설정되어 있습니다.');
+      const token = await requestNotificationPermission(API_BASE, user);
+      if (token) {
+        alert('푸시 알림 정보가 서버에 성공적으로 동기화되었습니다.');
+      } else {
+        alert('푸시 알림 설정 중 오류가 발생했습니다.');
+      }
       return;
     }
 

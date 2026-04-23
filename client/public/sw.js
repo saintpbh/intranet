@@ -66,7 +66,15 @@ self.addEventListener('push', (event) => {
 /* ---------- Notification Click → Deep Link ---------- */
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const urlPath = event.notification.data?.url || '/';
+  
+  // Custom data or Firebase FCM_MSG payload
+  let urlPath = '/';
+  if (event.notification.data && event.notification.data.url) {
+    urlPath = event.notification.data.url;
+  } else if (event.notification.data && event.notification.data.FCM_MSG && event.notification.data.FCM_MSG.data) {
+    urlPath = event.notification.data.FCM_MSG.data.url || event.notification.data.FCM_MSG.data.click_action || '/';
+  }
+
   const fullUrl = new URL(urlPath, self.location.origin).href;
 
   event.waitUntil(

@@ -35,6 +35,9 @@ def _send_fcm_topic_notification(topic: str, title: str, body: str, notice_id: s
     """Firebase Admin SDK를 통해 토픽에 알림 전송"""
     if not FCM_AVAILABLE:
         raise RuntimeError('FCM not available')
+    
+    link_url = f'/?notice={notice_id}' if notice_id else '/'
+    
     message = messaging.Message(
         notification=messaging.Notification(
             title=title,
@@ -44,8 +47,14 @@ def _send_fcm_topic_notification(topic: str, title: str, body: str, notice_id: s
             'title': title,
             'body': body,
             'notice_id': notice_id,
-            'click_action': f'/?notice={notice_id}'
+            'click_action': link_url,
+            'url': link_url
         },
+        webpush=messaging.WebpushConfig(
+            fcm_options=messaging.WebpushFCMOptions(
+                link=link_url
+            )
+        ),
         topic=topic
     )
     response = messaging.send(message)
@@ -62,6 +71,8 @@ def _send_fcm_to_tokens(tokens: list, title: str, body: str, data: dict = None):
     extra_data = data or {}
     extra_data.update({'title': title, 'body': body})
     
+    link_url = extra_data.get('url') or extra_data.get('click_action') or '/'
+    
     success_count = 0
     failure_count = 0
     # FCM multicast는 최대 500개 토큰
@@ -70,6 +81,11 @@ def _send_fcm_to_tokens(tokens: list, title: str, body: str, data: dict = None):
         message = messaging.MulticastMessage(
             notification=messaging.Notification(title=title, body=body),
             data=extra_data,
+            webpush=messaging.WebpushConfig(
+                fcm_options=messaging.WebpushFCMOptions(
+                    link=link_url
+                )
+            ),
             tokens=batch
         )
         response = messaging.send_each_for_multicast(message)
@@ -2542,7 +2558,6 @@ def send_push_campaign(campaign_id: int, req: PushSendAction):
         """, (new_status, now, len(recipients), campaign_id))
         
         conn.commit()
-        conn.close()
         
         # --- 실제 FCM 푸시 발송 ---
         fcm_result = {'success': 0, 'failure': 0, 'error': None}
@@ -2578,6 +2593,7 @@ def send_push_campaign(campaign_id: int, req: PushSendAction):
                 fcm_result['error'] = str(fcm_err)
                 logging.error(f'[FCM] Campaign #{campaign_id} send failed: {fcm_err}')
         
+        conn.close()
         send_label = {'now': '발송', 'test': '테스트 발송', 'schedule': '예약'}
         return {
             "success": True, 
