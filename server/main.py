@@ -962,14 +962,65 @@ def create_notice(req: NoticeCreate):
         if FCM_AVAILABLE and req.send_push:
             try:
                 scope_label = {'assembly': '총회', 'presbytery': '노회', 'sichal': '시찰'}
-                _send_fcm_topic_notification(
-                    topic='all_users',
-                    title=f"📢 {scope_label.get(req.scope, '')} {req.category}",
-                    body=req.title,
-                    notice_id=str(notice_id)
-                )
-                push_sent = True
-                logging.info(f'[FCM] Push sent for notice #{notice_id}')
+                title = f"📢 {scope_label.get(req.scope, '')} {req.category}"
+                body = req.title
+
+                if req.target_type == 'all' or not req.recipients:
+                    # 전체 발송
+                    _send_fcm_topic_notification(
+                        topic='all_users',
+                        title=title,
+                        body=body,
+                        notice_id=str(notice_id)
+                    )
+                    push_sent = True
+                    logging.info(f'[FCM] Push sent to all_users for notice #{notice_id}')
+                else:
+                    # 지정 발송 (토큰 기반)
+                    conn_sub = sqlite3.connect('requests.db')
+                    c_sub = conn_sub.cursor()
+                    
+                    target_tokens = set()
+                    
+                    for r in req.recipients:
+                        r_type = r.get('type')
+                        r_code = r.get('code')
+                        
+                        if r_type == 'presbytery':
+                            c_sub.execute("SELECT push_token FROM push_subscriptions WHERE noh_code = ?", (r_code,))
+                            target_tokens.update(row[0] for row in c_sub.fetchall())
+                        elif r_type == 'sichal':
+                            c_sub.execute("SELECT push_token FROM push_subscriptions WHERE sichal_code = ?", (r_code,))
+                            target_tokens.update(row[0] for row in c_sub.fetchall())
+                        elif r_type == 'minister':
+                            c_sub.execute("SELECT push_token FROM push_subscriptions WHERE minister_code = ?", (r_code,))
+                            target_tokens.update(row[0] for row in c_sub.fetchall())
+                        elif r_type == 'group':
+                            # 추후 '담임목사', '각종 위원회' 등 그룹 추가를 위한 확장 지점
+                            # 예: push_groups 테이블 활용 또는 MSSQL 뷰 등 다른 정보와 연동 가능
+                            pass
+                            
+                    conn_sub.close()
+                    
+                    if target_tokens:
+                        base_url = 'https://prok-ga.web.app'
+                        click_url = f'{base_url}/?notice={notice_id}' if notice_id else base_url
+                        fcm_data = {
+                            'notice_id': str(notice_id),
+                            'title': title,
+                            'body': body,
+                            'url': click_url,
+                            'click_action': click_url,
+                            'icon': '/assets/pwa-192x192.png'
+                        }
+                        result = _send_fcm_to_tokens(list(target_tokens), title, body, data=fcm_data)
+                        push_sent = True
+                        logging.info(f'[FCM] Targeted push sent to {len(target_tokens)} tokens for notice #{notice_id}. Result: {result}')
+                    else:
+                        logging.info(f'[FCM] No tokens found for targeted notice #{notice_id}')
+                        push_sent = False
+                        push_error = "해당 대상자의 푸시 토큰이 등록되어 있지 않습니다."
+                        
             except Exception as fcm_err:
                 push_error = str(fcm_err)
                 logging.error(f'[FCM] Push failed: {fcm_err}')
@@ -2801,7 +2852,7 @@ def get_available_recipients(sender_scope: str = "assembly", noh_code: str = "",
         
         return {
             "bulk_targets": targets,
-            "ministers": individual_ministers[:200],  # limit
+            "ministers": individual_ministers,  # removed limit to allow full client-side search
         }
     except Exception as e:
         return {"error": str(e)}
