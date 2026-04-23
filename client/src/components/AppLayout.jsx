@@ -2,12 +2,19 @@ import { useEffect, useCallback } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import BottomTabBar from './BottomTabBar';
 import PWAInstallPrompt from './PWAInstallPrompt';
+import UpdateBar from './UpdateBar';
+import { initServiceWorker } from '../utils/swManager';
 
 const TAB_PATHS = ['/', '/documents', '/directory', '/profile'];
 
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+
+  // SW 초기화 (swManager가 업데이트 감지/프로그레스 관리)
+  useEffect(() => {
+    initServiceWorker();
+  }, []);
 
   // Back-button guard: keeps users inside the app
   useEffect(() => {
@@ -53,6 +60,7 @@ const AppLayout = () => {
 
   return (
     <div className="app-shell pb-safe">
+      <UpdateBar />
       <div className="app-content-area">
         <Outlet />
       </div>
@@ -63,3 +71,4 @@ const AppLayout = () => {
 };
 
 export default AppLayout;
+
