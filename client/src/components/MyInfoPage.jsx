@@ -9,6 +9,7 @@ import MobileHeader from './mobile/MobileHeader';
 import API_BASE from '../api';
 import ApiImage from './ApiImage';
 import { requestNotificationPermission } from '../firebase';
+import { forceAppUpdate } from '../utils/swManager';
 
 const MyInfoPage = () => {
   const { user, isLoggedIn, logout } = useAuth();
@@ -190,6 +191,36 @@ const MyInfoPage = () => {
               {notiPermission !== 'granted' && (
                 <span className="material-symbols-outlined text-outline-variant">touch_app</span>
               )}
+            </div>
+          </div>
+        </section>
+
+        {/* Force Update Settings */}
+        <section>
+          <div className="flex justify-between items-center mb-4 px-2">
+            <h3 className="font-['Manrope',_'Pretendard'] text-lg font-bold text-primary">버전 관리</h3>
+          </div>
+          <div className="bg-surface-container-lowest rounded-2xl shadow-[0_20px_40px_rgba(10,37,64,0.04)] overflow-hidden">
+            <div 
+              className="flex items-center p-5 cursor-pointer hover:bg-surface-container-low active:bg-surface-container-high transition-colors"
+              onClick={async () => {
+                if(window.confirm('기기의 캐시를 지우고 앱을 강제로 최신 버전으로 업데이트 하시겠습니까?')) {
+                  await forceAppUpdate();
+                }
+              }}
+            >
+              <div className="w-10 h-10 rounded-full bg-primary-container/5 text-primary-container flex items-center justify-center mr-4">
+                <span className="material-symbols-outlined">system_update_alt</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-['Manrope',_'Pretendard'] font-bold text-base text-primary">
+                  앱 강제 업데이트
+                </div>
+                <div className="text-sm text-on-surface-variant mt-0.5">
+                  앱이 비정상적이거나 구버전일 때 눌러주세요
+                </div>
+              </div>
+              <span className="material-symbols-outlined text-outline-variant">touch_app</span>
             </div>
           </div>
         </section>

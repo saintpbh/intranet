@@ -156,3 +156,29 @@ function checkFirstVisitGuide() {
     notify();
   }, 2000);
 }
+
+/** 앱 캐시를 완전히 삭제하고 강제 새로고침하는 유틸 (수동 업데이트용) */
+export async function forceAppUpdate() {
+  try {
+    // 1. 서비스 워커 제거
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const reg of registrations) {
+        await reg.unregister();
+      }
+    }
+    // 2. 브라우저 캐시 스토리지 제거 (SW 캐시 등)
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      for (const key of keys) {
+        await caches.delete(key);
+      }
+    }
+  } catch (err) {
+    console.error('Failed to clear cache:', err);
+  } finally {
+    // 3. 페이지 새로고침
+    window.location.reload(true);
+  }
+}
+
