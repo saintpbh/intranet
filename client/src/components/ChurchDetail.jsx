@@ -136,11 +136,32 @@ const ChurchDetail = ({ church, onBack }) => {
              </>
            ) : (
              <>
-               <div className="absolute inset-0 bg-gradient-to-br from-[#1a283b] to-[#3a4f6d] mix-blend-multiply"></div>
-               <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
-               <div className="absolute inset-0 flex items-center justify-center">
-                 <span className="material-symbols-outlined text-9xl text-white/10" style={{ fontVariationSettings: "'FILL' 1" }}>account_balance</span>
-               </div>
+               {churchAddress ? (
+                 <>
+                   <iframe
+                     title="background map"
+                     width="100%"
+                     height="120%"
+                     style={{ border: 0, pointerEvents: 'none', filter: 'grayscale(100%) contrast(1.2)' }}
+                     src={`https://maps.google.com/maps?q=${encodeURIComponent(churchAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                     className="absolute -top-[10%] left-0"
+                     tabIndex="-1"
+                   />
+                   <div className="absolute inset-0 bg-[#0A2540] opacity-80 mix-blend-multiply"></div>
+                   <div className="absolute inset-0 bg-gradient-to-t from-[#0A2540] via-[#0A2540]/80 to-transparent"></div>
+                   <div className="absolute inset-0 flex items-center justify-center opacity-30">
+                     <span className="material-symbols-outlined text-7xl text-white/40" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
+                   </div>
+                 </>
+               ) : (
+                 <>
+                   <div className="absolute inset-0 bg-gradient-to-br from-[#1a283b] to-[#3a4f6d] mix-blend-multiply"></div>
+                   <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
+                   <div className="absolute inset-0 flex items-center justify-center">
+                     <span className="material-symbols-outlined text-9xl text-white/10" style={{ fontVariationSettings: "'FILL' 1" }}>account_balance</span>
+                   </div>
+                 </>
+               )}
              </>
            )}
 

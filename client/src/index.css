@@ -97,6 +97,26 @@ body {
 }
 
 /* ============================================
+   Admin Mode Overrides (Full Screen)
+   ============================================ */
+body.admin-mode {
+  display: block;
+  background-color: #F2F2F7;
+  overflow: auto;
+}
+
+body.admin-mode #root {
+  max-width: none;
+  height: auto;
+  max-height: none;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
+}
+
+
+/* ============================================
    App Container & Header (Large Title Style)
    ============================================ */
 

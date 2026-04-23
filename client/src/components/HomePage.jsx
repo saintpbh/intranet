@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import API_BASE from '../api';
 import { useBackButton } from '../useBackButton';
 import MobileHeader from './mobile/MobileHeader';
 import { useAuth } from '../AuthContext';
 import ApiImage from './ApiImage';
+import { LinkifyText } from '../utils/linkify';
+import { requestNotificationPermission, isTokenRegistered, onForegroundMessage } from '../firebase';
 
 const isNew = (dateStr) => {
   if (!dateStr) return false;
@@ -19,11 +21,14 @@ const scopeColor = { assembly: '#0a2540', presbytery: '#0058bc', sichal: '#34C75
 const HomePage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [notices, setNotices] = useState([]);
   const [ads, setAds] = useState([]);
   const [adIdx, setAdIdx] = useState(0);
   const [selectedNotice, setSelectedNotice] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [fgToast, setFgToast] = useState(null);
+  const fcmInitRef = useRef(false);
 
   useEffect(() => {
     const nohName = user?.NOHNAME || user?.noh_name || '';
@@ -39,6 +44,50 @@ const HomePage = () => {
       setAds(Array.isArray(adData) ? adData : []);
     }).finally(() => setLoading(false));
   }, [user]);
+
+  // FCM 푸시 알림 토큰 등록 (최초 1회)
+  useEffect(() => {
+    if (fcmInitRef.current || !user) return;
+    fcmInitRef.current = true;
+
+    // 이미 토큰이 등록되어 있으면 skip
+    if (isTokenRegistered()) {
+      console.log('[FCM] Token already registered');
+    } else {
+      // 3초 후 알림 권한 요청 (UX: 페이지 로딩 후 자연스럽게)
+      const timer = setTimeout(() => {
+        requestNotificationPermission(API_BASE);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [user]);
+
+  // 포그라운드 FCM 메시지 수신 → 인앱 토스트
+  useEffect(() => {
+    onForegroundMessage((payload) => {
+      const { title, body } = payload.notification || payload.data || {};
+      const noticeId = payload.data?.notice_id;
+      setFgToast({ title, body, noticeId });
+      setTimeout(() => setFgToast(null), 6000);
+    });
+  }, []);
+
+  // URL 딥링크: /?notice=123 → 해당 공지 자동 open
+  useEffect(() => {
+    const noticeId = searchParams.get('notice');
+    if (noticeId && !selectedNotice) {
+      fetch(`${API_BASE}/api/notices/${noticeId}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && !data.error) {
+            setSelectedNotice(data);
+          }
+        })
+        .catch(() => {});
+      // URL에서 notice 파라미터 제거 (히스토리 깨끗하게)
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, selectedNotice, setSearchParams]);
 
   // Ad auto-slide every 4 seconds
   useEffect(() => {
@@ -71,7 +120,7 @@ const HomePage = () => {
             </p>
           </div>
           <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-[0_20px_40px_rgba(10,37,64,0.04)] text-on-surface leading-loose whitespace-pre-wrap text-[15px]">
-            {selectedNotice.content}
+            <LinkifyText text={selectedNotice.content} />
           </div>
         </main>
       </div>
@@ -81,8 +130,26 @@ const HomePage = () => {
   // Home Dashboard
   return (
     <div className="bg-surface text-on-surface min-h-screen pb-32 font-['Plus_Jakarta_Sans',_'Pretendard']">
-      <MobileHeader />
-      
+      <MobileHeader title="한국기독교장로회 주소록" />
+
+      {/* Foreground Push Toast */}
+      {fgToast && (
+        <div 
+          onClick={() => {
+            if (fgToast.noticeId) {
+              fetch(`${API_BASE}/api/notices/${fgToast.noticeId}`)
+                .then(r => r.json())
+                .then(data => { if (data && !data.error) setSelectedNotice(data); });
+            }
+            setFgToast(null);
+          }}
+          className="fixed top-20 left-4 right-4 z-[999] bg-primary text-white rounded-2xl p-4 shadow-[0_20px_40px_rgba(0,0,0,0.2)] cursor-pointer animate-[slideDown_0.3s_ease-out]"
+        >
+          <p className="font-bold text-sm">🔔 {fgToast.title}</p>
+          <p className="text-xs opacity-90 mt-1 line-clamp-2">{fgToast.body}</p>
+        </div>
+      )}
+
       <main className="pt-24 px-6 max-w-2xl mx-auto space-y-6">
         
         {/* Welcome Section - compact */}

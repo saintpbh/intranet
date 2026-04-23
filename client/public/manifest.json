@@ -1,7 +1,7 @@
 {
-  "name": "기장 인트라넷",
+  "name": "기장주소록",
   "short_name": "기장주소록",
-  "description": "한국기독교장로회총회 공식 인트라넷",
+  "description": "한국기독교장로회총회 주소록",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F2F2F7",
@@ -14,5 +14,6 @@
   "categories": ["business", "productivity"],
   "lang": "ko",
   "scope": "/",
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "gcm_sender_id": "103953800507"
 }

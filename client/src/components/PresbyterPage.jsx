@@ -3,6 +3,7 @@ import API_BASE from '../api';
 import { useAuth } from '../AuthContext';
 import { useBackButton } from '../useBackButton';
 import ApiImage from './ApiImage';
+import { LinkifyText } from '../utils/linkify';
 
 const isNew = (dateStr) => {
   if (!dateStr) return false;
@@ -50,7 +51,7 @@ const PresbyterPage = () => {
             {selectedNotice.created_at?.substring(0, 10)} · {selectedNotice.author_name || '관리자'}
           </p>
           <div style={{ fontSize: 16, lineHeight: 1.8, color: 'var(--label)', whiteSpace: 'pre-wrap' }}>
-            {selectedNotice.content}
+            <LinkifyText text={selectedNotice.content} />
           </div>
         </main>
       </div>

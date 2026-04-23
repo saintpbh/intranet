@@ -8,6 +8,26 @@ import json
 import shutil
 import sqlite3
 from datetime import datetime
+import logging
+
+# Firebase Admin SDK for FCM push
+try:
+    import firebase_admin
+    from firebase_admin import credentials, messaging
+    _sa_path = os.path.join(os.path.dirname(__file__), 'firebase-service-account.json')
+    if os.path.exists(_sa_path):
+        # 중복 초기화 방지
+        if not firebase_admin._apps:
+            cred = credentials.Certificate(_sa_path)
+            firebase_admin.initialize_app(cred)
+        FCM_AVAILABLE = True
+        logging.info('[FCM] Firebase Admin SDK initialized successfully')
+    else:
+        FCM_AVAILABLE = False
+        logging.warning(f'[FCM] Service account key not found: {_sa_path}')
+except ImportError:
+    FCM_AVAILABLE = False
+    logging.warning('[FCM] firebase-admin package not installed')
 
 app = FastAPI()
 
@@ -832,6 +852,21 @@ def create_notice(req: NoticeCreate):
         conn.commit()
         notice_id = c.lastrowid
         conn.close()
+
+        # FCM 푸시 알림 발송 (총회 scope인 경우 all_users 토픽으로)
+        if FCM_AVAILABLE and req.scope == 'assembly':
+            try:
+                scope_label = {'assembly': '총회', 'presbytery': '노회', 'sichal': '시찰'}
+                _send_fcm_topic_notification(
+                    topic='all_users',
+                    title=f"📢 {scope_label.get(req.scope, '')} 공지",
+                    body=req.title,
+                    notice_id=str(notice_id)
+                )
+                logging.info(f'[FCM] Push sent for notice #{notice_id}')
+            except Exception as fcm_err:
+                logging.error(f'[FCM] Push failed: {fcm_err}')
+
         return {"success": True, "id": notice_id, "message": "공지가 등록되었습니다."}
     except Exception as e:
         return {"error": str(e)}
@@ -2843,6 +2878,84 @@ def serve_ad_image(filename: str):
     if file_path.is_file():
         return FileResponse(str(file_path))
     return {"error": "not found"}
+
+# --- FCM (Firebase Cloud Messaging) APIs ---
+
+class FCMSubscribeRequest(BaseModel):
+    token: str
+    topic: str = "all_users"
+
+def _send_fcm_topic_notification(topic: str, title: str, body: str, notice_id: str = ""):
+    """FCM 토픽으로 푸시 알림 발송"""
+    if not FCM_AVAILABLE:
+        logging.warning('[FCM] Not available, skipping send')
+        return
+    
+    message = messaging.Message(
+        notification=messaging.Notification(
+            title=title,
+            body=body,
+        ),
+        data={
+            'notice_id': notice_id,
+            'title': title,
+            'body': body,
+            'click_action': f'/?notice={notice_id}',
+        },
+        topic=topic,
+        webpush=messaging.WebpushConfig(
+            notification=messaging.WebpushNotification(
+                title=title,
+                body=body,
+                icon='/assets/pwa-192x192.png',
+                badge='/assets/pwa-192x192.png',
+                tag=f'notice-{notice_id}',
+                require_interaction=True,
+            ),
+            fcm_options=messaging.WebpushFCMOptions(
+                link=f'/?notice={notice_id}',
+            ),
+        ),
+    )
+    
+    response = messaging.send(message)
+    logging.info(f'[FCM] Message sent: {response}')
+    return response
+
+@app.post("/api/fcm/subscribe")
+def fcm_subscribe(req: FCMSubscribeRequest):
+    """클라이언트 FCM 토큰을 토픽에 구독"""
+    if not FCM_AVAILABLE:
+        return {"success": False, "error": "FCM not configured"}
+    
+    try:
+        response = messaging.subscribe_to_topic([req.token], req.topic)
+        logging.info(f'[FCM] Subscribe result: success={response.success_count}, failure={response.failure_count}')
+        return {
+            "success": response.success_count > 0,
+            "success_count": response.success_count,
+            "failure_count": response.failure_count
+        }
+    except Exception as e:
+        logging.error(f'[FCM] Subscribe error: {e}')
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/fcm/test")
+def fcm_test_push():
+    """FCM 테스트 발송 (관리자 전용)"""
+    if not FCM_AVAILABLE:
+        return {"success": False, "error": "FCM not configured"}
+    
+    try:
+        result = _send_fcm_topic_notification(
+            topic='all_users',
+            title='🔔 테스트 알림',
+            body='기장주소록 푸시 알림 테스트입니다.',
+            notice_id='0'
+        )
+        return {"success": True, "message_id": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 if CLIENT_BUILD.exists():
     # SPA fallback: serve index.html for all non-API routes

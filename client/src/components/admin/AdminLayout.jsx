@@ -22,6 +22,12 @@ const AdminLayout = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Apply full-width styling by adding a class to the body
+  useEffect(() => {
+    document.body.classList.add('admin-mode');
+    return () => document.body.classList.remove('admin-mode');
+  }, []);
+
   // Track tab changes in browser history
   const switchTab = useCallback((tabId) => {
     if (tabId === activeTab) return;

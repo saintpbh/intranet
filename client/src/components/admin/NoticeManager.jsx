@@ -150,6 +150,9 @@ const NoticeManager = ({ scope, scopeCode = '', scopeName = '', authorRole = '' 
           <textarea placeholder="내용을 입력하세요" value={form.content}
             onChange={e => setForm({ ...form, content: e.target.value })} rows={5}
             style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--opaque-separator)', borderRadius: 8, fontSize: 14, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          <div style={{ fontSize: 12, color: 'var(--system-gray)', marginTop: 4, marginLeft: 4 }}>
+            💡 텍스트 링크 삽입 방법: <strong>[보여질 텍스트](링크주소)</strong> (예: [일정보기](https://prok-schedule...))
+          </div>
           
           {/* Recipient picker */}
           <div style={{ marginTop: 12, padding: 12, background: 'var(--grouped-bg)', borderRadius: 8 }}>
