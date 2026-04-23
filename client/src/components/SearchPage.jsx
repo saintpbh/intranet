@@ -22,7 +22,7 @@ const SearchPage = () => {
   }, [searchTerm]);
 
   const handleTabChange = (tab) => {
-    if (navigator.vibrate) navigator.vibrate(10);
+    if (navigator.vibrate) navigator.vibrate(30);
     setActiveTab(tab);
     setSelectedMinister(null);
     setSelectedElder(null);
@@ -73,8 +73,8 @@ const SearchPage = () => {
                   transform: `translateX(${
                     ['ministers', 'elders', 'churches'].indexOf(activeTab) * 100
                   }%)`,
-                  /* 변경: 튕기지 않고 빠르고 깔끔하게 뚜깍! 떨어지는 효과 */
-                  transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                  /* 변경: 원래의 0.3초 빠르고 쫀득한 효과로 롤백 */
+                  transition: 'transform 0.3s cubic-bezier(0.7, -0.6, 0.2, 1.6)'
                 }}
               />
               

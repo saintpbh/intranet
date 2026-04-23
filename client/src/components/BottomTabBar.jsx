@@ -33,7 +33,7 @@ const BottomTabBar = () => {
             <button
               key={tab.id}
               onClick={() => {
-                if (navigator.vibrate) navigator.vibrate(15);
+                if (navigator.vibrate) navigator.vibrate(40);
                 navigate(tab.path);
               }}
               className={`no-select no-tap-highlight flex flex-col items-center justify-center active:scale-95 transition-transform duration-200 relative ${
