@@ -3,13 +3,18 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import BottomTabBar from './BottomTabBar';
 import PWAInstallPrompt from './PWAInstallPrompt';
 import UpdateBar from './UpdateBar';
+import OfflineIndicator from './OfflineIndicator';
 import { initServiceWorker } from '../utils/swManager';
+import { useDirectorySync } from '../hooks/useDirectorySync';
 
 const TAB_PATHS = ['/', '/documents', '/directory', '/profile'];
 
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Initialize background directory sync
+  useDirectorySync();
 
   // SW 초기화 (swManager가 업데이트 감지/프로그레스 관리)
   useEffect(() => {
@@ -73,6 +78,7 @@ const AppLayout = () => {
   return (
     <div className="app-shell pb-safe">
       <UpdateBar />
+      <OfflineIndicator />
       <div className="app-content-area">
         <Outlet />
       </div>

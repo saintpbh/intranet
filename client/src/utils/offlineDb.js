@@ -79,15 +79,42 @@ export async function getCachedSearch(type, searchTerm) {
       req.onerror = reject;
     });
     
+    if (result) {
+      // 7일 이상 된 캐시는 무시 (온라인 시에만)
+      const age = Date.now() - result.timestamp;
+      if (navigator.onLine && age > 7 * 24 * 60 * 60 * 1000) {
+        db.close();
+        return null;
+      }
+      db.close();
+      return result.data;
+    }
+
+    // Fallback: Check if we have __all__ cached for this type
+    const allResult = await new Promise((resolve, reject) => {
+      const req = store.get(`${type}:__all__`);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = reject;
+    });
+
     db.close();
     
-    if (!result) return null;
-    
-    // 7일 이상 된 캐시는 무시 (온라인 시에만)
-    const age = Date.now() - result.timestamp;
-    if (navigator.onLine && age > 7 * 24 * 60 * 60 * 1000) return null;
-    
-    return result.data;
+    if (!allResult) return null;
+
+    // Filter allResult.data based on searchTerm
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return allResult.data.slice(0, 100); // Return top 100 if no search term
+
+    const filtered = allResult.data.filter(item => {
+      const searchables = [
+        item.MinisterName, item.MINISTERNAME, item.PriestName,
+        item.CHRNAME, item.ChrName, item.chrname,
+        item.NOHNAME, item.NohName, item.nohname,
+      ].filter(Boolean).map((s) => s.toLowerCase());
+      return searchables.some((s) => s.includes(term));
+    });
+    return filtered;
+
   } catch (err) {
     console.warn('[OfflineDB] Cache read failed:', err);
     return null;
@@ -168,5 +195,34 @@ export async function getCacheStats() {
     return { count };
   } catch {
     return { count: 0 };
+  }
+}
+
+/**
+ * 전체 주소록 백그라운드 동기화
+ * @param {string} apiBase 
+ */
+export async function syncFullDirectory(apiBase) {
+  try {
+    const res = await fetch(`${apiBase}/api/sync/directory`);
+    if (!res.ok) throw new Error('Sync failed');
+    const data = await res.json();
+    
+    if (data.error) throw new Error(data.error);
+
+    // Save to IndexedDB (as single __ALL__ entries)
+    if (data.ministers) await cacheSearchResult('ministers', '__all__', data.ministers);
+    if (data.churches) await cacheSearchResult('churches', '__all__', data.churches);
+    if (data.elders) await cacheSearchResult('elders', '__all__', data.elders);
+    if (data.addressbook) await cacheSearchResult('addressbook', '__all__', data.addressbook);
+    
+    // Update sync time
+    localStorage.setItem('last_directory_sync', Date.now().toString());
+    
+    console.log('[OfflineDB] Full directory sync completed.');
+    return true;
+  } catch (err) {
+    console.warn('[OfflineDB] Full directory sync failed:', err);
+    return false;
   }
 }

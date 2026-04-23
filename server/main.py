@@ -162,6 +162,33 @@ def get_connection():
         timeout=10
     )
 
+@app.on_event("startup")
+async def startup_event():
+    logging.info("[Startup] Verifying database connections...")
+    
+    # 1. SQLite DB (requests.db) check
+    try:
+        logging.info("[Startup] Checking SQLite connection...")
+        sqlite_conn = sqlite3.connect('requests.db')
+        sqlite_conn.execute("SELECT 1")
+        sqlite_conn.close()
+        logging.info("[Startup] SQLite connection successful.")
+    except Exception as e:
+        logging.critical(f"[Startup] SQLite connection failed! Error: {e}")
+        import os
+        os._exit(1) # Exit server if critical DB fails
+
+    # 2. MSSQL DB (KJ_CHURCH) check
+    try:
+        logging.info("[Startup] Checking MSSQL connection...")
+        mssql_conn = get_connection()
+        mssql_conn.close()
+        logging.info("[Startup] MSSQL connection successful.")
+    except Exception as e:
+        logging.critical(f"[Startup] MSSQL connection failed! Error: {e}")
+        import os
+        os._exit(1) # Exit server if critical DB fails
+
 @app.get("/api/user-profiles/{minister_code}")
 def get_user_profile(minister_code: str):
     conn = sqlite3.connect('requests.db')
@@ -417,6 +444,84 @@ def get_addressbook(search: str = ""):
         cursor.execute(query, (search_term, search_term, search_term))
         results = cursor.fetchall()
         return results
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
+@app.get("/api/sync/directory")
+def sync_directory():
+    conn = get_connection()
+    cursor = conn.cursor(as_dict=True)
+    try:
+        # Fetch all ministers
+        cursor.execute("""
+            SELECT 
+                m.MinisterCode, m.MinisterName, m.CHRNAME, m.NOHNAME, m.DUTYNAME, 
+                m.TEL_MOBILE, m.TEL_CHURCH, m.JUSO, m.EMAIL 
+            FROM VI_MIN_INFO m
+        """)
+        ministers = cursor.fetchall()
+        
+        # Fetch profiles for ministers
+        try:
+            sql_conn = sqlite3.connect('requests.db')
+            sql_c = sql_conn.cursor()
+            sql_c.execute('SELECT minister_code, profile_image_url, status_message, background_image_url FROM user_profiles')
+            profiles = {row[0]: {"profile_image_url": row[1], "status_message": row[2], "background_image_url": row[3] or ""} for row in sql_c.fetchall()}
+            sql_conn.close()
+        except:
+            profiles = {}
+            
+        for row in ministers:
+            code = str(row.get("MinisterCode", "")).strip()
+            if code in profiles:
+                row["custom_image"] = profiles[code]["profile_image_url"]
+                row["status_message"] = profiles[code]["status_message"]
+                row["background_image"] = profiles[code]["background_image_url"]
+
+        # Fetch all churches
+        duty_term = "%담임%".encode('cp949')
+        cursor.execute("""
+            SELECT 
+                c.ChrCode, c.ChrName AS CHRNAME, n.NohName AS NOHNAME, s.SichalName AS SICHALNAME, 
+                c.Tel_Church, c.Tel_Mobile, c.Tel_Fax, c.Address AS ADDRESS, c.Juso AS JUSO, c.PostNo, c.Email,
+                (SELECT TOP 1 m.MinisterName FROM VI_MIN_INFO m WHERE m.ChrCode = c.ChrCode AND m.DUTYNAME LIKE %s) AS MOCKNAME 
+            FROM TB_Chr100 c 
+            LEFT JOIN TB_Chr910 n ON c.NohCode = n.NohCode 
+            LEFT JOIN TB_Chr920 s ON c.NohCode = s.NohCode AND c.SichalCode = s.SichalCode
+        """, (duty_term,))
+        churches = cursor.fetchall()
+
+        # Fetch all elders
+        cursor.execute("""
+            SELECT 
+                e.PriestCode, e.PriestName, e.ChrCode,
+                c.ChrName, n.NohName,
+                e.Tel_Mobile, e.Email,
+                e.Address, e.Juso, e.PostNo
+            FROM TB_Chr300 e
+            LEFT JOIN TB_Chr100 c ON e.ChrCode = c.ChrCode
+            LEFT JOIN TB_Chr910 n ON c.NohCode = n.NohCode
+            WHERE e.DelGu IS NULL OR e.DelGu != '1'
+        """)
+        elders = cursor.fetchall()
+
+        # Fetch all addressbook combinations
+        cursor.execute("""
+            SELECT 
+                MINISTERCODE, MINISTERNAME, NOHNAME, CHRNAME, 
+                TEL_CHURCH, TEL_MOBILE, POSTNO, ADDRESS, JUSO, EMAIL
+            FROM VI_MIN_JANG_LIST_2
+        """)
+        addressbook = cursor.fetchall()
+
+        return {
+            "ministers": ministers,
+            "churches": churches,
+            "elders": elders,
+            "addressbook": addressbook
+        }
     except Exception as e:
         return {"error": str(e)}
     finally:
