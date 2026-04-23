@@ -7,6 +7,7 @@ import ElderDetail from './ElderDetail';
 import ChurchDetail from './ChurchDetail';
 import { useBackButton } from '../useBackButton';
 import MobileHeader from './mobile/MobileHeader';
+import { triggerHaptic } from '../utils/haptics';
 
 const SearchPage = () => {
   const [activeTab, setActiveTab] = useState('ministers');
@@ -22,7 +23,7 @@ const SearchPage = () => {
   }, [searchTerm]);
 
   const handleTabChange = (tab) => {
-    if (navigator.vibrate) navigator.vibrate(30);
+    triggerHaptic(30);
     setActiveTab(tab);
     setSelectedMinister(null);
     setSelectedElder(null);
