@@ -17,19 +17,30 @@ const SimpleLogin = () => {
 
     try {
       const res = await fetch(`${API_BASE}/api/ministers/${code.trim()}`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        if (errData.error === 'db_connection_failed') {
+          setError('DB연결 오류! 데이터베이스 서버에 접속할 수 없습니다.');
+        } else {
+          setError(errData.message || '서버 오류가 발생했습니다.');
+        }
+        return;
+      }
       const data = await res.json();
       if (data.error) {
-        setError('해당 코드로 등록된 정보를 찾을 수 없습니다.');
+        setError(data.error === 'db_connection_failed' ? 'DB연결 오류! 데이터베이스에 접속할 수 없습니다.' : '해당 코드로 등록된 정보를 찾을 수 없습니다.');
       } else {
         let nohCode = '', chrCode = '';
         try {
           const histRes = await fetch(`${API_BASE}/api/myinfo/${code.trim()}/history`);
-          const hist = await histRes.json();
-          if (Array.isArray(hist)) {
-            const current = hist.find(h => h.is_current);
-            if (current) {
-              nohCode = current.NohCode || '';
-              chrCode = current.ChrCode || '';
+          if (histRes.ok) {
+            const hist = await histRes.json();
+            if (Array.isArray(hist)) {
+              const current = hist.find(h => h.is_current);
+              if (current) {
+                nohCode = current.NohCode || '';
+                chrCode = current.ChrCode || '';
+              }
             }
           }
         } catch(e) {}
@@ -48,7 +59,7 @@ const SimpleLogin = () => {
         });
       }
     } catch (err) {
-      setError('서버 연결에 실패했습니다.');
+      setError('네트워크 오류 — 서버에 연결할 수 없습니다.');
     } finally {
       setLoading(false);
     }

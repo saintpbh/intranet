@@ -36,7 +36,7 @@ window.addEventListener('offline', () => { state.isOnline = false; notify(); });
 /** 푸시 알림 안내 닫기 */
 export function dismissNotifGuide() {
   state.showNotifGuide = false;
-  localStorage.setItem('prok_notif_guided', '1');
+  localStorage.setItem('prok_notif_guided', String(Date.now()));
   notify();
 }
 
@@ -144,11 +144,21 @@ function handleNewWorker(worker, registration) {
 }
 
 function checkFirstVisitGuide() {
-  // 이미 안내를 본 적 있으면 skip
-  if (localStorage.getItem('prok_notif_guided') === '1') return;
   // Notification API가 없거나 이미 granted이면 skip
   if (!('Notification' in window)) return;
   if (Notification.permission === 'granted') return;
+  // 이미 FCM 토큰이 있으면 skip
+  if (localStorage.getItem('fcm_token')) return;
+
+  const guidedAt = localStorage.getItem('prok_notif_guided');
+  if (guidedAt) {
+    // 숫자가 아닌 '1'(구 형식)이면 → 7일 후 재안내 허용을 위해 현재 시각으로 갱신
+    const ts = parseInt(guidedAt, 10);
+    if (!isNaN(ts) && Date.now() - ts < 7 * 24 * 60 * 60 * 1000) {
+      // 마지막 안내 후 7일이 안 지났으면 skip
+      return;
+    }
+  }
 
   // 2초 후 안내 표시
   setTimeout(() => {

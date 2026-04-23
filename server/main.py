@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Query, UploadFile, File, Form
+from fastapi import FastAPI, Query, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import pymssql
 import os
@@ -29,13 +30,61 @@ except ImportError:
     FCM_AVAILABLE = False
     logging.warning('[FCM] firebase-admin package not installed')
 
+# --- FCM Helper Functions ---
+def _send_fcm_topic_notification(topic: str, title: str, body: str, notice_id: str = ""):
+    """Firebase Admin SDK를 통해 토픽에 알림 전송"""
+    if not FCM_AVAILABLE:
+        raise RuntimeError('FCM not available')
+    message = messaging.Message(
+        notification=messaging.Notification(
+            title=title,
+            body=body
+        ),
+        data={
+            'title': title,
+            'body': body,
+            'notice_id': notice_id,
+            'click_action': f'/?notice={notice_id}'
+        },
+        topic=topic
+    )
+    response = messaging.send(message)
+    logging.info(f'[FCM] Topic message sent to {topic}: {response}')
+    return response
+
+def _send_fcm_to_tokens(tokens: list, title: str, body: str, data: dict = None):
+    """Firebase Admin SDK를 통해 개별 토큰 목록에 알림 전송 (최대 500개씩)"""
+    if not FCM_AVAILABLE:
+        raise RuntimeError('FCM not available')
+    if not tokens:
+        return {'success': 0, 'failure': 0}
+    
+    extra_data = data or {}
+    extra_data.update({'title': title, 'body': body})
+    
+    success_count = 0
+    failure_count = 0
+    # FCM multicast는 최대 500개 토큰
+    for i in range(0, len(tokens), 500):
+        batch = tokens[i:i+500]
+        message = messaging.MulticastMessage(
+            notification=messaging.Notification(title=title, body=body),
+            data=extra_data,
+            tokens=batch
+        )
+        response = messaging.send_each_for_multicast(message)
+        success_count += response.success_count
+        failure_count += response.failure_count
+        logging.info(f'[FCM] Multicast batch {i//500+1}: {response.success_count} success, {response.failure_count} failed')
+    return {'success': success_count, 'failure': failure_count}
+
 app = FastAPI()
 
 os.makedirs("uploads/profiles", exist_ok=True)
 os.makedirs("uploads/church_photos", exist_ok=True)
 app.mount("/api/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# Enable CORS for React frontend
+# Enable CORS for all origins (PWA + ngrok 유료 터널)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -44,6 +93,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Global Exception Handler: DB 연결 오류를 안전하게 JSON으로 반환 ──
+@app.exception_handler(pymssql.OperationalError)
+async def mssql_operational_error_handler(request: Request, exc: pymssql.OperationalError):
+    logging.error(f'[DB] MSSQL OperationalError: {exc}')
+    return JSONResponse(
+        status_code=503,
+        content={"error": "db_connection_failed", "message": "DB연결 오류! 데이터베이스 서버에 접속할 수 없습니다."}
+    )
+
+@app.exception_handler(pymssql.InterfaceError)
+async def mssql_interface_error_handler(request: Request, exc: pymssql.InterfaceError):
+    logging.error(f'[DB] MSSQL InterfaceError: {exc}')
+    return JSONResponse(
+        status_code=503,
+        content={"error": "db_connection_failed", "message": "DB연결 오류! 데이터베이스 서버에 접속할 수 없습니다."}
+    )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    # pymssql 관련 에러인지 추가 확인
+    exc_str = str(exc).lower()
+    if 'pymssql' in type(exc).__module__ if hasattr(type(exc), '__module__') else False or \
+       'connection' in exc_str or 'login' in exc_str or 'timeout' in exc_str:
+        logging.error(f'[DB] Connection-related error: {type(exc).__name__}: {exc}')
+        return JSONResponse(
+            status_code=503,
+            content={"error": "db_connection_failed", "message": "DB연결 오류! 데이터베이스 서버에 접속할 수 없습니다."}
+        )
+    # 기타 예상치 못한 에러
+    logging.error(f'[Server] Unhandled error: {type(exc).__name__}: {exc}')
+    return JSONResponse(
+        status_code=500,
+        content={"error": "server_error", "message": f"서버 오류가 발생했습니다: {type(exc).__name__}"}
+    )
+
 # Database credentials
 DB_USER = "pbh"
 DB_PASSWORD = "prok3000"
@@ -51,13 +135,15 @@ DB_SERVER = "192.168.0.145"
 DB_DATABASE = "KJ_CHURCH"
 
 def get_connection():
-    # Use standard connection, usually MS SQL Korean uses cp949 or default utf8
+    """MSSQL 연결 (5초 타임아웃)"""
     return pymssql.connect(
         server=DB_SERVER, 
         user=DB_USER, 
         password=DB_PASSWORD, 
         database=DB_DATABASE, 
-        charset='cp949'
+        charset='cp949',
+        login_timeout=5,
+        timeout=10
     )
 
 @app.get("/api/user-profiles/{minister_code}")
@@ -2186,6 +2272,15 @@ def get_church_staff(chr_code: str):
     finally:
         conn.close()
 
+# --- FCM Token Topic Subscription API ---
+
+class FCMSubscribeRequest(BaseModel):
+    token: str
+    topic: str = "all_users"
+
+
+# NOTE: /api/fcm/subscribe endpoint is defined later in the file (after FCM helper functions)
+
 # --- Push Notification APIs ---
 
 class PushSubscription(BaseModel):
@@ -2209,6 +2304,7 @@ def push_subscribe(req: PushSubscription):
               req.push_token, req.device_info, datetime.now().isoformat()))
         conn.commit()
         conn.close()
+        logging.info(f'[FCM] Push subscription saved: {req.minister_name} ({req.minister_code})')
         return {"success": True}
     except Exception as e:
         return {"error": str(e)}
@@ -2448,13 +2544,46 @@ def send_push_campaign(campaign_id: int, req: PushSendAction):
         conn.commit()
         conn.close()
         
-        # TODO: Actual FCM push send here
+        # --- 실제 FCM 푸시 발송 ---
+        fcm_result = {'success': 0, 'failure': 0, 'error': None}
+        if FCM_AVAILABLE:
+            try:
+                if campaign['target_type'] == 'all':
+                    # 전체 발송: 토픽 메시지 사용 (가장 효율적)
+                    _send_fcm_topic_notification(
+                        topic='all_users',
+                        title=campaign['title'],
+                        body=campaign['body'],
+                        notice_id=str(campaign_id)
+                    )
+                    fcm_result['success'] = len(recipients)
+                else:
+                    # 개별/그룹 발송: 해당 목회자들의 토큰을 DB에서 조회 후 multicast
+                    codes = [r.get('MinisterCode', '') for r in recipients]
+                    if codes:
+                        placeholders = ','.join(['?' for _ in codes])
+                        c.execute(f'SELECT DISTINCT push_token FROM push_subscriptions WHERE minister_code IN ({placeholders})', codes)
+                        tokens = [row['push_token'] for row in c.fetchall() if row['push_token']]
+                        if tokens:
+                            fcm_result = _send_fcm_to_tokens(
+                                tokens=tokens,
+                                title=campaign['title'],
+                                body=campaign['body'],
+                                data={'campaign_id': str(campaign_id)}
+                            )
+                        else:
+                            fcm_result['error'] = '등록된 푸시 토큰이 없습니다'
+                logging.info(f'[FCM] Campaign #{campaign_id} sent: {fcm_result}')
+            except Exception as fcm_err:
+                fcm_result['error'] = str(fcm_err)
+                logging.error(f'[FCM] Campaign #{campaign_id} send failed: {fcm_err}')
         
         send_label = {'now': '발송', 'test': '테스트 발송', 'schedule': '예약'}
         return {
             "success": True, 
             "message": f"{len(recipients)}명에게 {send_label.get(req.send_type, '발송')} 완료",
-            "recipient_count": len(recipients)
+            "recipient_count": len(recipients),
+            "fcm_result": fcm_result
         }
     except Exception as e:
         return {"error": str(e)}

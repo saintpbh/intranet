@@ -45,21 +45,16 @@ const HomePage = () => {
     }).finally(() => setLoading(false));
   }, [user]);
 
-  // FCM 푸시 알림 토큰 등록 (최초 1회)
+  // FCM 푸시 알림 토큰 등록 (최초 1회 및 변경 시)
   useEffect(() => {
     if (fcmInitRef.current || !user) return;
     fcmInitRef.current = true;
 
-    // 이미 토큰이 등록되어 있으면 skip
-    if (isTokenRegistered()) {
-      console.log('[FCM] Token already registered');
-    } else {
-      // 3초 후 알림 권한 요청 (UX: 페이지 로딩 후 자연스럽게)
-      const timer = setTimeout(() => {
-        requestNotificationPermission(API_BASE);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
+    // 이미 기기에 토큰이 있더라도 서버 DB 동기화를 위해 무조건 1회 실행
+    const timer = setTimeout(() => {
+      requestNotificationPermission(API_BASE, user);
+    }, 2000);
+    return () => clearTimeout(timer);
   }, [user]);
 
   // 포그라운드 FCM 메시지 수신 → 인앱 토스트

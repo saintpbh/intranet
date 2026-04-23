@@ -35,7 +35,7 @@ const MyInfoPage = () => {
       return;
     }
 
-    const token = await requestNotificationPermission(API_BASE);
+    const token = await requestNotificationPermission(API_BASE, user);
     if (token) {
       alert('푸시 알림 설정이 완료되었습니다!');
       setNotiPermission('granted');
@@ -165,7 +165,7 @@ const MyInfoPage = () => {
                 ? 'cursor-default' 
                 : 'cursor-pointer hover:bg-surface-container-low active:bg-surface-container-high'
               }`}
-              onClick={notiPermission === 'granted' ? undefined : handlePushToggle}
+              onClick={handlePushToggle}
             >
               <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${
                 notiPermission === 'granted' 

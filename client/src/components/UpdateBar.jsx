@@ -198,8 +198,8 @@ const UpdateBar = () => {
                 나중에
               </button>
               <button
-                onClick={() => {
-                  requestNotificationPermission(API_BASE);
+                onClick={async () => {
+                  await requestNotificationPermission(API_BASE);
                   dismissNotifGuide();
                 }}
                 style={{

@@ -29,9 +29,10 @@ try {
 /**
  * FCM 알림 권한 요청 및 토큰 발급
  * @param {string} apiBase - API 서버 베이스 URL
+ * @param {object} userData - 개별 알림 대상을 위한 사용자 정보
  * @returns {string|null} FCM 토큰 또는 null
  */
-export async function requestNotificationPermission(apiBase = '') {
+export async function requestNotificationPermission(apiBase = '', userData = null) {
   if (!messaging) {
     console.warn('[FCM] Messaging not available');
     return null;
@@ -68,6 +69,30 @@ export async function requestNotificationPermission(apiBase = '') {
         }
       } catch (err) {
         console.error('[FCM] Subscribe API failed:', err);
+      }
+
+      // 개별 사용자 정보를 등록하여 타겟팅 푸시 활성화
+      if (userData && userData.code) {
+        try {
+          const pushRes = await fetch(`${apiBase}/api/push/subscribe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              minister_code: userData.code,
+              minister_name: userData.name || '',
+              noh_code: userData.nohCode || '',
+              sichal_code: userData.chrCode || '',
+              push_token: token,
+              device_info: navigator.userAgent
+            })
+          });
+          const pushData = await pushRes.json();
+          if (pushData.success) {
+            console.log('[FCM] Subscribed user individual push DB');
+          }
+        } catch (err) {
+          console.error('[FCM] User Push DB subscribe failed:', err);
+        }
       }
 
       return token;
