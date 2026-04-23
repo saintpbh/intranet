@@ -108,6 +108,26 @@ const PushManager = ({ scope = 'assembly', senderRole = '총회관리자' }) => 
     fetchCampaigns();
   };
 
+  const handleResendCampaign = async (campaign) => {
+    if (!confirm(`'${campaign.title}' 알림을 재발송 하시겠습니까?`)) return;
+    try {
+      const sendRes = await fetch(`${API_BASE}/api/push/campaigns/${campaign.id}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ send_type: 'now', test_minister_code: '' }),
+      });
+      const sendData = await sendRes.json();
+      if (sendData.success) {
+        alert('재발송 되었습니다.');
+        fetchCampaigns();
+      } else {
+        alert(sendData.error || '재발송 실패');
+      }
+    } catch (e) {
+      alert('오류가 발생했습니다.');
+    }
+  };
+
   // --- Group Management ---
   const openGroupNew = () => {
     setEditingGroup(null);
@@ -206,7 +226,10 @@ const PushManager = ({ scope = 'assembly', senderRole = '총회관리자' }) => 
                       </div>
                       <div style={{ display: 'flex', gap: 4 }}>
                         {c.status === 'sent' && (
-                          <button className="btn btn-outline" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => viewAnalytics(c)}>📊 수신율</button>
+                          <>
+                            <button className="btn btn-outline" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => viewAnalytics(c)}>📊 수신율</button>
+                            <button className="btn btn-primary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => handleResendCampaign(c)}>🚀 재발송</button>
+                          </>
                         )}
                         <button className="btn" style={{ fontSize: 12, padding: '4px 10px', background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}
                           onClick={() => handleDeleteCampaign(c.id)}>삭제</button>
