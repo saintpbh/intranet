@@ -77,6 +77,22 @@ const NoticeManager = ({ scope, scopeCode = '', scopeName = '', authorRole = '' 
     fetchNotices();
   };
 
+  const handleResendPush = async (id) => {
+    if (!confirm('이 공지의 푸시 알림을 다시 발송하시겠습니까?')) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/notices/${id}/resend-push`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ ' + data.message);
+      } else {
+        alert('⚠️ 발송 실패: ' + (data.error || '알 수 없는 오류'));
+      }
+    } catch (e) {
+      alert('오류가 발생했습니다.');
+      console.error(e);
+    }
+  };
+
   const showReadReceipts = async (notice) => {
     const res = await fetch(`${API_BASE}/api/read-receipts/notice/${notice.id}`);
     const data = await res.json();
@@ -237,6 +253,8 @@ const NoticeManager = ({ scope, scopeCode = '', scopeName = '', authorRole = '' 
                 <td>{n.created_at?.substring(0, 10)}</td>
                 <td>
                   <div style={{ display: 'flex', gap: 4 }}>
+                    <button className="btn btn-outline" style={{ fontSize: 12, padding: '4px 8px', background: 'rgba(52,199,89,0.1)', color: '#34C759', borderColor: 'transparent' }}
+                      onClick={() => handleResendPush(n.id)}>🔔푸시재발송</button>
                     <button className="btn btn-outline" style={{ fontSize: 12, padding: '4px 10px' }}
                       onClick={() => openEdit(n)}>수정</button>
                     <button className="btn" style={{ fontSize: 12, padding: '4px 10px', background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}

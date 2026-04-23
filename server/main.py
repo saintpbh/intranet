@@ -1064,6 +1064,90 @@ def delete_notice(notice_id: int):
     except Exception as e:
         return {"error": str(e)}
 
+@app.post("/api/notices/{notice_id}/resend-push")
+def resend_notice_push(notice_id: int):
+    try:
+        if not FCM_AVAILABLE:
+            return {"error": "푸시 알림 기능이 활성화되어 있지 않습니다."}
+
+        conn = sqlite3.connect('requests.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM notices WHERE id = ?", (notice_id,))
+        notice = c.fetchone()
+        
+        if not notice:
+            conn.close()
+            return {"error": "존재하지 않는 공지입니다."}
+        
+        scope_label = {'assembly': '총회', 'presbytery': '노회', 'sichal': '시찰'}
+        title = f"📢 {scope_label.get(notice['scope'], '')} {notice['category']}"
+        body = notice['title']
+        
+        target_type = notice['target_type']
+        recipients_str = notice['recipients']
+        recipients = json.loads(recipients_str) if recipients_str else []
+
+        push_sent = False
+        push_error = None
+        
+        if target_type == 'all' or not recipients:
+            _send_fcm_topic_notification(
+                topic='all_users',
+                title=title,
+                body=body,
+                notice_id=str(notice_id)
+            )
+            push_sent = True
+            logging.info(f'[FCM] Re-sent Push to all_users for notice #{notice_id}')
+        else:
+            conn_sub = sqlite3.connect('requests.db')
+            c_sub = conn_sub.cursor()
+            
+            target_tokens = set()
+            
+            for r in recipients:
+                r_type = r.get('type')
+                r_code = r.get('code')
+                
+                if r_type == 'presbytery':
+                    c_sub.execute("SELECT push_token FROM push_subscriptions WHERE noh_code = ?", (r_code,))
+                    target_tokens.update(row[0] for row in c_sub.fetchall())
+                elif r_type == 'sichal':
+                    c_sub.execute("SELECT push_token FROM push_subscriptions WHERE sichal_code = ?", (r_code,))
+                    target_tokens.update(row[0] for row in c_sub.fetchall())
+                elif r_type == 'minister':
+                    c_sub.execute("SELECT push_token FROM push_subscriptions WHERE minister_code = ?", (r_code,))
+                    target_tokens.update(row[0] for row in c_sub.fetchall())
+                    
+            conn_sub.close()
+            
+            if target_tokens:
+                base_url = 'https://prok-ga.web.app'
+                click_url = f'{base_url}/?notice={notice_id}' if notice_id else base_url
+                fcm_data = {
+                    'notice_id': str(notice_id),
+                    'title': title,
+                    'body': body,
+                    'url': click_url,
+                    'click_action': click_url,
+                    'icon': '/assets/pwa-192x192.png'
+                }
+                _send_fcm_to_tokens(list(target_tokens), title, body, data=fcm_data)
+                push_sent = True
+                logging.info(f'[FCM] Re-sent Targeted push to {len(target_tokens)} tokens for notice #{notice_id}')
+            else:
+                push_error = "해당 대상자의 푸시 토큰이 등록되어 있지 않습니다."
+                
+        conn.close()
+        return {
+            "success": push_sent, 
+            "message": "푸시 알림이 재발송되었습니다." if push_sent else "발송 대상이 없습니다.", 
+            "error": push_error
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 # --- Ads APIs ---
 
 class AdCreate(BaseModel):
