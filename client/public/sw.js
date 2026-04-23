@@ -1,5 +1,5 @@
 /* Service Worker v3 - PROK (기장주소록) PWA + FCM Push + Offline API Cache */
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const STATIC_CACHE = `prok-static-${CACHE_VERSION}`;
 const API_CACHE = `prok-api-${CACHE_VERSION}`;
 const PRECACHE_URLS = ['/', '/index.html'];

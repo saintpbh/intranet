@@ -2386,24 +2386,39 @@ def get_subscribers(scope: str = "assembly", noh_code: str = "", sichal_code: st
         ms_conn = get_connection()
         cursor = ms_conn.cursor(as_dict=True)
         query = """
-            SELECT DISTINCT m.MinisterCode, m.MinisterName, m.NOHNAME,
-                   r.NohCode, c.SichalCode
-            FROM VI_MIN_INFO m
-            LEFT JOIN TB_Chr201 r ON m.MinisterCode = r.MinisterCode 
-                AND (r.TradeDate IS NULL OR r.TradeDate = '')
-            LEFT JOIN TB_Chr100 c ON r.ChrCode = c.ChrCode
+            SELECT MinisterCode, MinisterName, NOHNAME, NohCode, SichalCode
+            FROM (
+                SELECT DISTINCT m.MinisterCode, m.MinisterName, m.NOHNAME,
+                       r.NohCode, c.SichalCode
+                FROM VI_MIN_INFO m
+                LEFT JOIN TB_Chr201 r ON m.MinisterCode = r.MinisterCode 
+                    AND (r.TradeDate IS NULL OR r.TradeDate = '')
+                LEFT JOIN TB_Chr100 c ON r.ChrCode = c.ChrCode
+                
+                UNION
+                
+                SELECT DISTINCT j.MINISTERCODE as MinisterCode, j.MINISTERNAME as MinisterName, j.NOHNAME,
+                       j.NOHCODE as NohCode, '' as SichalCode
+                FROM VI_MIN_JANG_LIST j
+            ) t
             WHERE 1=1
         """
         params = []
         if noh_code:
-            query += " AND r.NohCode = %s"
+            query += " AND NohCode = %s"
             params.append(noh_code)
         if sichal_code:
-            query += " AND c.SichalCode = %s"
+            query += " AND SichalCode = %s"
             params.append(sichal_code)
-        query += " ORDER BY m.MinisterName"
+        query += " ORDER BY MinisterName"
         cursor.execute(query, tuple(params))
         ministers = cursor.fetchall()
+        
+        # 이름의 뒤 공백 제거
+        for m in ministers:
+            if m.get('MinisterName'):
+                m['MinisterName'] = m['MinisterName'].strip()
+                
         ms_conn.close()
         conn.close()
         return ministers
