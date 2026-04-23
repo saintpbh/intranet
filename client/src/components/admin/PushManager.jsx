@@ -195,7 +195,7 @@ const PushManager = ({ scope = 'assembly', senderRole = '총회관리자' }) => 
                             {STATUS_LABELS[c.status]}
                           </span>
                           <span style={{ fontSize: 12, color: 'var(--system-gray)' }}>
-                            {c.target_type === 'all' ? '전체' : c.target_type === 'group' ? '그룹' : '개별'} · {c.total_targets}명
+                            {c.target_type === 'all' ? '모두에게' : c.target_type === 'all_pastors' ? '전체 목회자' : c.target_type === 'all_senior_pastors' ? '전체 담임목사' : c.target_type === 'all_elders' ? '전체 장로' : c.target_type === 'group' ? '그룹' : '개별'} · {c.total_targets}명
                           </span>
                         </div>
                         <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>{c.title}</div>
@@ -250,7 +250,10 @@ const PushManager = ({ scope = 'assembly', senderRole = '총회관리자' }) => 
             <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 8 }}>대상 선택</label>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               {[
-                { value: 'all', label: '📣 전체' },
+                { value: 'all', label: '📣 모두에게' },
+                { value: 'all_pastors', label: '🙏 전체 목회자' },
+                { value: 'all_senior_pastors', label: '⛪ 전체 담임목사' },
+                { value: 'all_elders', label: '👨‍💼 전체 장로' },
                 { value: 'group', label: '👥 그룹' },
                 { value: 'individual', label: '👤 개별 선택' },
               ].map(opt => (

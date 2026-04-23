@@ -2561,7 +2561,7 @@ def send_push_campaign(campaign_id: int, req: PushSendAction):
             # Test: send only to the requesting user
             recipients = [{'MinisterCode': req.test_minister_code, 'MinisterName': '테스트', 'NohCode': '', 'SichalCode': ''}]
         elif campaign['target_type'] == 'all':
-            # Get all ministers from MSSQL
+            # 모두에게: 목회자 + 장로
             try:
                 ms_conn = get_connection()
                 cursor = ms_conn.cursor(as_dict=True)
@@ -2571,7 +2571,58 @@ def send_push_campaign(campaign_id: int, req: PushSendAction):
                     LEFT JOIN TB_Chr201 r ON m.MinisterCode = r.MinisterCode 
                         AND (r.TradeDate IS NULL OR r.TradeDate = '')
                     LEFT JOIN TB_Chr100 c ON r.ChrCode = c.ChrCode
-                    ORDER BY m.MinisterName
+                """)
+                ministers = cursor.fetchall()
+                cursor.execute("""
+                    SELECT DISTINCT j.MINISTERCODE as MinisterCode, j.MINISTERNAME as MinisterName, j.NOHCODE as NohCode, '' as SichalCode
+                    FROM VI_MIN_JANG_LIST j
+                """)
+                elders = cursor.fetchall()
+                recipients = ministers + elders
+                ms_conn.close()
+            except:
+                recipients = []
+        elif campaign['target_type'] == 'all_pastors':
+            # 전체 목회자
+            try:
+                ms_conn = get_connection()
+                cursor = ms_conn.cursor(as_dict=True)
+                cursor.execute("""
+                    SELECT DISTINCT m.MinisterCode, m.MinisterName, r.NohCode, c.SichalCode
+                    FROM VI_MIN_INFO m
+                    LEFT JOIN TB_Chr201 r ON m.MinisterCode = r.MinisterCode 
+                        AND (r.TradeDate IS NULL OR r.TradeDate = '')
+                    LEFT JOIN TB_Chr100 c ON r.ChrCode = c.ChrCode
+                """)
+                recipients = cursor.fetchall()
+                ms_conn.close()
+            except:
+                recipients = []
+        elif campaign['target_type'] == 'all_senior_pastors':
+            # 전체 담임목사
+            try:
+                ms_conn = get_connection()
+                cursor = ms_conn.cursor(as_dict=True)
+                cursor.execute("""
+                    SELECT DISTINCT m.MinisterCode, m.MinisterName, r.NohCode, c.SichalCode
+                    FROM VI_MIN_INFO m
+                    LEFT JOIN TB_Chr201 r ON m.MinisterCode = r.MinisterCode 
+                        AND (r.TradeDate IS NULL OR r.TradeDate = '')
+                    LEFT JOIN TB_Chr100 c ON r.ChrCode = c.ChrCode
+                    WHERE m.DUTYNAME = '담임목사'
+                """)
+                recipients = cursor.fetchall()
+                ms_conn.close()
+            except:
+                recipients = []
+        elif campaign['target_type'] == 'all_elders':
+            # 전체 장로
+            try:
+                ms_conn = get_connection()
+                cursor = ms_conn.cursor(as_dict=True)
+                cursor.execute("""
+                    SELECT DISTINCT j.MINISTERCODE as MinisterCode, j.MINISTERNAME as MinisterName, j.NOHCODE as NohCode, '' as SichalCode
+                    FROM VI_MIN_JANG_LIST j
                 """)
                 recipients = cursor.fetchall()
                 ms_conn.close()
@@ -2624,12 +2675,19 @@ def send_push_campaign(campaign_id: int, req: PushSendAction):
                     )
                     fcm_result['success'] = len(recipients)
                 else:
-                    # 개별/그룹 발송: 해당 목회자들의 토큰을 DB에서 조회 후 multicast
+                    # 개별/그룹/조건 발송: 해당 목회자들의 토큰을 DB에서 조회 후 multicast
                     codes = [r.get('MinisterCode', '') for r in recipients]
+                    tokens = []
                     if codes:
-                        placeholders = ','.join(['?' for _ in codes])
-                        c.execute(f'SELECT DISTINCT push_token FROM push_subscriptions WHERE minister_code IN ({placeholders})', codes)
-                        tokens = [row['push_token'] for row in c.fetchall() if row['push_token']]
+                        chunk_size = 900
+                        for i in range(0, len(codes), chunk_size):
+                            chunk = codes[i:i+chunk_size]
+                            placeholders = ','.join(['?' for _ in chunk])
+                            c.execute(f'SELECT DISTINCT push_token FROM push_subscriptions WHERE minister_code IN ({placeholders})', chunk)
+                            tokens.extend([row['push_token'] for row in c.fetchall() if row['push_token']])
+                        
+                        tokens = list(set(tokens))
+                        
                         if tokens:
                             fcm_result = _send_fcm_to_tokens(
                                 tokens=tokens,
