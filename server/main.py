@@ -96,6 +96,12 @@ def _send_fcm_to_tokens(tokens: list, title: str, body: str, data: dict = None):
 
 app = FastAPI()
 
+# ── In-memory active session tracking ──
+import time as _time
+_server_start_time = datetime.now().isoformat()
+_active_sessions = {}   # key: session_id -> {minister_code, name, page, device, last_seen, ip}
+_SESSION_TIMEOUT = 300   # 5 min heartbeat timeout
+
 os.makedirs("uploads/profiles", exist_ok=True)
 os.makedirs("uploads/church_photos", exist_ok=True)
 app.mount("/api/uploads", StaticFiles(directory="uploads"), name="uploads")
@@ -3420,10 +3426,160 @@ def fcm_test_push():
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+# ── System Admin: Session Heartbeat ──
+class SessionHeartbeat(BaseModel):
+    session_id: str = ""
+    minister_code: str = ""
+    minister_name: str = ""
+    page: str = "/"
+    device_info: str = ""
+
+@app.post("/api/system/heartbeat")
+def session_heartbeat(req: SessionHeartbeat, request: Request):
+    """Record or refresh an active user session (called every 30s from client)"""
+    sid = req.session_id or f"{req.minister_code}_{_time.time()}"
+    ip = request.client.host if request.client else "unknown"
+    now = datetime.now().isoformat()
+    _active_sessions[sid] = {
+        "session_id": sid,
+        "minister_code": req.minister_code,
+        "minister_name": req.minister_name,
+        "page": req.page,
+        "device_info": req.device_info,
+        "ip": ip,
+        "last_seen": now,
+    }
+    return {"success": True, "session_id": sid}
+
+@app.get("/api/system/sessions")
+def get_active_sessions():
+    """Return currently active sessions (within timeout window)"""
+    cutoff = datetime.now().timestamp() - _SESSION_TIMEOUT
+    active = []
+    expired_keys = []
+    for sid, sess in _active_sessions.items():
+        try:
+            last_ts = datetime.fromisoformat(sess["last_seen"]).timestamp()
+        except Exception:
+            last_ts = 0
+        if last_ts >= cutoff:
+            active.append(sess)
+        else:
+            expired_keys.append(sid)
+    # Clean up expired
+    for k in expired_keys:
+        del _active_sessions[k]
+    return {"sessions": active, "count": len(active)}
+
+@app.get("/api/system/info")
+def get_system_info():
+    """System dashboard: server health, DB counts, storage, uptime"""
+    info = {
+        "server_start_time": _server_start_time,
+        "current_time": datetime.now().isoformat(),
+        "active_sessions": len([
+            s for s in _active_sessions.values()
+            if datetime.fromisoformat(s["last_seen"]).timestamp() >= datetime.now().timestamp() - _SESSION_TIMEOUT
+        ]),
+    }
+
+    # SQLite stats
+    try:
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        tables_stats = {}
+        for tbl in ['notices', 'push_subscriptions', 'cert_requests', 'push_campaigns',
+                     'admin_roles', 'official_documents', 'user_profiles', 'ads',
+                     'form_templates', 'form_documents', 'form_responses']:
+            try:
+                c.execute(f"SELECT COUNT(*) FROM {tbl}")
+                tables_stats[tbl] = c.fetchone()[0]
+            except Exception:
+                tables_stats[tbl] = -1
+        conn.close()
+        info["sqlite_tables"] = tables_stats
+        info["sqlite_status"] = "connected"
+    except Exception as e:
+        info["sqlite_status"] = f"error: {e}"
+        info["sqlite_tables"] = {}
+
+    # MSSQL stats
+    try:
+        ms = get_connection()
+        cur = ms.cursor(as_dict=True)
+        cur.execute("SELECT COUNT(*) AS cnt FROM VI_MIN_INFO")
+        info["mssql_minister_count"] = cur.fetchone()["cnt"]
+        cur.execute("SELECT COUNT(*) AS cnt FROM TB_Chr100")
+        info["mssql_church_count"] = cur.fetchone()["cnt"]
+        ms.close()
+        info["mssql_status"] = "connected"
+    except Exception as e:
+        info["mssql_status"] = f"error: {e}"
+        info["mssql_minister_count"] = 0
+        info["mssql_church_count"] = 0
+
+    # Push subscription stats
+    try:
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM push_subscriptions")
+        info["push_subscriber_count"] = c.fetchone()[0]
+        c.execute("SELECT COUNT(DISTINCT minister_code) FROM push_subscriptions WHERE minister_code != ''")
+        info["push_unique_users"] = c.fetchone()[0]
+        conn.close()
+    except Exception:
+        info["push_subscriber_count"] = 0
+        info["push_unique_users"] = 0
+
+    # Disk usage for uploads
+    try:
+        upload_size = 0
+        for dirpath, dirnames, filenames in os.walk("uploads"):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                upload_size += os.path.getsize(fp)
+        info["uploads_size_mb"] = round(upload_size / (1024 * 1024), 2)
+    except Exception:
+        info["uploads_size_mb"] = 0
+
+    # requests.db file size
+    try:
+        info["sqlite_size_mb"] = round(os.path.getsize("requests.db") / (1024 * 1024), 2)
+    except Exception:
+        info["sqlite_size_mb"] = 0
+
+    return info
+
+@app.get("/api/system/health")
+def system_health_check():
+    """Quick health check for both databases"""
+    result = {"sqlite": "unknown", "mssql": "unknown"}
+    try:
+        conn = sqlite3.connect('requests.db')
+        conn.execute("SELECT 1")
+        conn.close()
+        result["sqlite"] = "ok"
+    except Exception as e:
+        result["sqlite"] = f"error: {e}"
+
+    try:
+        ms = get_connection()
+        ms.close()
+        result["mssql"] = "ok"
+    except Exception as e:
+        result["mssql"] = f"error: {e}"
+
+    all_ok = result["sqlite"] == "ok" and result["mssql"] == "ok"
+    result["status"] = "healthy" if all_ok else "degraded"
+    return result
+
 if CLIENT_BUILD.exists():
     # SPA fallback: serve index.html for all non-API routes
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
+        # Never intercept API routes
+        if full_path.startswith("api/"):
+            return JSONResponse(status_code=404, content={"error": "not_found"})
         # Check if the file exists in the build directory
         file_path = CLIENT_BUILD / full_path
         if file_path.is_file():

@@ -23,7 +23,7 @@ const SearchPage = () => {
   }, [searchTerm]);
 
   const handleTabChange = (tab) => {
-    triggerHaptic([15, 80, 15]);
+    triggerHaptic([20, 40, 20]); // 짧게 두 번
     setActiveTab(tab);
     setSelectedMinister(null);
     setSelectedElder(null);

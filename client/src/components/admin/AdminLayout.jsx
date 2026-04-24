@@ -6,6 +6,7 @@ import PresbyteryTab from './PresbyteryTab';
 import SichalTab from './SichalTab';
 import ChurchTab from './ChurchTab';
 import PersonalTab from './PersonalTab';
+import SystemTab from './SystemTab';
 import ApiImage from '../ApiImage';
 
 const adminTabs = [
@@ -14,6 +15,7 @@ const adminTabs = [
   { id: 'sichal', label: '시찰', icon: 'manage_search', desc: '경유 · 확인' },
   { id: 'church', label: '교회', icon: 'church', desc: '접수 · 확인' },
   { id: 'personal', label: '개인', icon: 'person', desc: '신청 · 조회' },
+  { id: 'system', label: '시스템', icon: 'settings', desc: '모니터링 · 설정' },
 ];
 
 const AdminLayout = () => {
@@ -77,6 +79,7 @@ const AdminLayout = () => {
       case 'sichal': return <SichalTab user={user} />;
       case 'church': return <ChurchTab user={user} />;
       case 'personal': return <PersonalTab user={user} />;
+      case 'system': return <SystemTab user={user} />;
       default: return null;
     }
   };

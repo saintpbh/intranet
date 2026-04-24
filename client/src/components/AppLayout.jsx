@@ -6,15 +6,21 @@ import UpdateBar from './UpdateBar';
 import OfflineIndicator from './OfflineIndicator';
 import { initServiceWorker } from '../utils/swManager';
 import { useDirectorySync } from '../hooks/useDirectorySync';
+import { useSessionHeartbeat } from '../hooks/useSessionHeartbeat';
+import { useAuth } from '../AuthContext';
 
 const TAB_PATHS = ['/', '/documents', '/directory', '/profile'];
 
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Initialize background directory sync
   useDirectorySync();
+
+  // Session heartbeat for real-time monitoring
+  useSessionHeartbeat(user);
 
   // SW 초기화 (swManager가 업데이트 감지/프로그레스 관리)
   useEffect(() => {
