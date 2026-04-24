@@ -973,6 +973,39 @@ def init_sqlite():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    # --- Staff Accounts (총회직원, code 7600++) ---
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS staff_accounts (
+            staff_code TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            department TEXT DEFAULT '총회',
+            position TEXT DEFAULT '직원',
+            phone TEXT DEFAULT '',
+            email TEXT DEFAULT '',
+            is_active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    # Seed default staff accounts if table is empty
+    c.execute("SELECT COUNT(*) FROM staff_accounts")
+    if c.fetchone()[0] == 0:
+        default_staff = [
+            ('7600', '총회직원', '총회본부', '직원', '', ''),
+            ('7601', '직원01', '총회', '직원', '', ''),
+            ('7602', '직원02', '총회', '직원', '', ''),
+            ('7603', '직원03', '총회', '직원', '', ''),
+            ('7604', '직원04', '총회', '직원', '', ''),
+            ('7605', '직원05', '총회', '직원', '', ''),
+            ('7606', '직원06', '총회', '직원', '', ''),
+            ('7607', '직원07', '총회', '직원', '', ''),
+            ('7608', '직원08', '총회', '직원', '', ''),
+            ('7609', '직원09', '총회', '직원', '', ''),
+        ]
+        for code, name, dept, pos, phone, email in default_staff:
+            c.execute(
+                "INSERT OR IGNORE INTO staff_accounts (staff_code, name, department, position, phone, email) VALUES (?, ?, ?, ?, ?, ?)",
+                (code, name, dept, pos, phone, email)
+            )
     conn.commit()
     conn.close()
 
@@ -981,6 +1014,118 @@ init_sqlite()
 # ensure uploads dir
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# --- Staff Account CRUD APIs (총회직원 관리) ---
+
+class StaffAccountCreate(BaseModel):
+    staff_code: str
+    name: str
+    department: str = "총회"
+    position: str = "직원"
+    phone: str = ""
+    email: str = ""
+
+class StaffAccountUpdate(BaseModel):
+    name: str = ""
+    department: str = ""
+    position: str = ""
+    phone: str = ""
+    email: str = ""
+    is_active: int = 1
+
+@app.get("/api/staff")
+def list_staff():
+    try:
+        conn = sqlite3.connect('requests.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM staff_accounts ORDER BY staff_code")
+        rows = [dict(r) for r in c.fetchall()]
+        conn.close()
+        return {"staff": rows}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/api/staff")
+def create_staff(req: StaffAccountCreate):
+    try:
+        # Validate code range (7600-7699)
+        code_num = int(req.staff_code)
+        if code_num < 7600 or code_num > 7699:
+            return {"error": "직원 코드는 7600~7699 범위여야 합니다."}
+    except ValueError:
+        return {"error": "직원 코드는 숫자여야 합니다."}
+    try:
+        # Check for MSSQL conflict
+        mssql_conn = get_connection()
+        mssql_cursor = mssql_conn.cursor(as_dict=True)
+        mssql_cursor.execute("SELECT TOP 1 MinisterCode FROM VI_MIN_INFO WHERE MinisterCode = %s", (req.staff_code,))
+        if mssql_cursor.fetchone():
+            mssql_conn.close()
+            return {"error": f"코드 {req.staff_code}은(는) 이미 목회자DB에 존재합니다."}
+        mssql_conn.close()
+    except:
+        pass  # If MSSQL is down, allow creation
+    try:
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        c.execute(
+            "INSERT INTO staff_accounts (staff_code, name, department, position, phone, email) VALUES (?, ?, ?, ?, ?, ?)",
+            (req.staff_code, req.name, req.department, req.position, req.phone, req.email)
+        )
+        conn.commit()
+        conn.close()
+        return {"success": True, "message": f"직원 {req.name}({req.staff_code}) 등록 완료"}
+    except sqlite3.IntegrityError:
+        return {"error": f"코드 {req.staff_code}은(는) 이미 등록되어 있습니다."}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.put("/api/staff/{code}")
+def update_staff(code: str, req: StaffAccountUpdate):
+    try:
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        updates = []
+        params = []
+        if req.name:
+            updates.append("name=?")
+            params.append(req.name)
+        if req.department:
+            updates.append("department=?")
+            params.append(req.department)
+        if req.position:
+            updates.append("position=?")
+            params.append(req.position)
+        if req.phone is not None:
+            updates.append("phone=?")
+            params.append(req.phone)
+        if req.email is not None:
+            updates.append("email=?")
+            params.append(req.email)
+        updates.append("is_active=?")
+        params.append(req.is_active)
+        if not updates:
+            return {"error": "수정할 필드가 없습니다."}
+        params.append(code)
+        c.execute(f"UPDATE staff_accounts SET {', '.join(updates)} WHERE staff_code=?", params)
+        conn.commit()
+        conn.close()
+        return {"success": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.delete("/api/staff/{code}")
+def delete_staff(code: str):
+    try:
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        c.execute("DELETE FROM staff_accounts WHERE staff_code=?", (code,))
+        conn.commit()
+        conn.close()
+        return {"success": True}
+    except Exception as e:
+        return {"error": str(e)}
 
 # --- Notice APIs ---
 
@@ -2375,6 +2520,30 @@ def simple_login(req: LoginRequest):
         cursor.execute(query, (req.code,))
         result = cursor.fetchone()
         if not result:
+            # Fallback: check SQLite staff_accounts (총회직원)
+            try:
+                sql_conn = sqlite3.connect('requests.db')
+                sql_conn.row_factory = sqlite3.Row
+                sql_c = sql_conn.cursor()
+                sql_c.execute('SELECT * FROM staff_accounts WHERE staff_code=? AND is_active=1', (req.code,))
+                staff = sql_c.fetchone()
+                sql_conn.close()
+                if staff:
+                    return {"success": True, "user": {
+                        "MinisterCode": staff["staff_code"],
+                        "MinisterName": staff["name"],
+                        "CHRNAME": staff["department"],
+                        "NOHNAME": "총회",
+                        "DUTYNAME": staff["position"],
+                        "TEL_MOBILE": staff["phone"],
+                        "TEL_CHURCH": "",
+                        "JUSO": "",
+                        "BIRTHDAY": "",
+                        "EMAIL": staff["email"],
+                        "is_staff": True,
+                    }}
+            except:
+                pass
             return {"error": "해당 코드로 등록된 정보를 찾을 수 없습니다."}
         return {"success": True, "user": result}
     except Exception as e:
@@ -2398,6 +2567,30 @@ def get_minister_detail(code: str):
         cursor.execute(query, (code,))
         result = cursor.fetchone()
         if not result:
+            # Fallback: check SQLite staff_accounts (총회직원)
+            try:
+                sql_conn = sqlite3.connect('requests.db')
+                sql_conn.row_factory = sqlite3.Row
+                sql_c = sql_conn.cursor()
+                sql_c.execute('SELECT * FROM staff_accounts WHERE staff_code=? AND is_active=1', (code,))
+                staff = sql_c.fetchone()
+                sql_conn.close()
+                if staff:
+                    return {
+                        "MinisterCode": staff["staff_code"],
+                        "MinisterName": staff["name"],
+                        "CHRNAME": staff["department"],
+                        "NOHNAME": "총회",
+                        "DUTYNAME": staff["position"],
+                        "TEL_MOBILE": staff["phone"],
+                        "TEL_CHURCH": "",
+                        "JUSO": "",
+                        "BIRTHDAY": "",
+                        "EMAIL": staff["email"],
+                        "is_staff": True,
+                    }
+            except:
+                pass
             return {"error": "Minister not found."}
         # Attach user_profiles data (profile image, background, status)
         try:
