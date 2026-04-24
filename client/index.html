@@ -2,6 +2,58 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
+
+    <!-- ═══ In-App Browser Escape (KakaoTalk, Naver, Line, FB, IG) ═══ -->
+    <script>
+      (function () {
+        var ua = navigator.userAgent.toLowerCase();
+        // Detect major in-app browsers
+        var isKakao   = ua.indexOf('kakaotalk') > -1;
+        var isNaver   = ua.indexOf('naver') > -1 && ua.indexOf('inapp') > -1;
+        var isLine    = ua.indexOf('line/') > -1;
+        var isFB      = ua.indexOf('fban') > -1 || ua.indexOf('fbav') > -1;
+        var isIG      = ua.indexOf('instagram') > -1;
+        var isInApp   = isKakao || isNaver || isLine || isFB || isIG;
+
+        if (!isInApp) return; // Normal browser — do nothing
+
+        var url = window.location.href;
+        var isAndroid = ua.indexOf('android') > -1;
+        var isIOS     = /iphone|ipad|ipod/.test(ua);
+
+        if (isAndroid) {
+          // Android: Intent scheme → open in Chrome
+          location.href = 'intent://' + url.replace(/https?:\/\//, '')
+            + '#Intent;scheme=https;package=com.android.chrome;end';
+        } else if (isIOS) {
+          if (isKakao) {
+            // KakaoTalk iOS: official external browser API
+            location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url);
+          } else {
+            // Other iOS in-app: try opening in Safari via a trick
+            // Create a hidden <a> tag with target=_system (Cordova-style hint)
+            // Fallback: guide the user
+            var safariUrl = url;
+            // Some in-app browsers respect window.open with _blank
+            window.open(safariUrl, '_blank');
+            // Show guidance if redirect fails after 1.5s
+            setTimeout(function () {
+              if (!document.hidden) {
+                document.title = '외부 브라우저로 여세요';
+                document.body.innerHTML =
+                  '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:Pretendard,sans-serif;padding:24px;text-align:center;background:#f8faff">'
+                  + '<div style="font-size:48px;margin-bottom:16px">🌐</div>'
+                  + '<h2 style="color:#0A2540;margin-bottom:8px">외부 브라우저에서 열어주세요</h2>'
+                  + '<p style="color:#64748b;font-size:14px;line-height:1.6;margin-bottom:24px">이 앱은 인앱 브라우저에서 정상 작동하지 않습니다.<br>우측 상단 <strong>⋮</strong> 메뉴에서<br><strong>"다른 브라우저로 열기"</strong>를 선택해주세요.</p>'
+                  + '<a href="' + url + '" target="_blank" style="padding:12px 32px;background:#0070eb;color:white;border-radius:12px;text-decoration:none;font-weight:600;font-size:15px">브라우저에서 열기</a>'
+                  + '</div>';
+              }
+            }, 1500);
+          }
+        }
+      })();
+    </script>
+
     <link rel="icon" type="image/png" href="/assets/pwa-192x192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
     <title>기장주소록</title>
