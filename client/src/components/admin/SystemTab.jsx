@@ -173,7 +173,7 @@ const SystemTab = ({ user }) => {
         </div>
       </div>
 
-      {/* ─── Active Sessions ─── */}
+      {/* ─── Active Sessions (Tag Style) ─── */}
       <div style={card}>
         <div style={{ ...sectionTitle, justifyContent: 'space-between' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -195,54 +195,42 @@ const SystemTab = ({ user }) => {
             <p style={{ fontSize: 11, opacity: 0.7 }}>사용자가 앱에 접속하면 여기에 표시됩니다</p>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px', fontSize: 13 }}>
-              <thead>
-                <tr style={{ color: '#94a3b8', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>사용자</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>코드</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>현재 페이지</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>디바이스</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>IP</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>마지막 활동</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sessions.map((s, i) => (
-                  <tr key={s.session_id || i} style={{
-                    background: i % 2 === 0 ? '#f8faff' : '#fff',
-                    borderRadius: 8,
-                  }}>
-                    <td style={{ padding: '10px 12px', fontWeight: 600, color: '#0A2540' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{
-                          width: 8, height: 8, borderRadius: '50%', background: '#22c55e',
-                          boxShadow: '0 0 6px rgba(34,197,94,0.5)',
-                        }} />
-                        {s.minister_name || '(비로그인)'}
-                      </div>
-                    </td>
-                    <td style={{ padding: '10px 12px', color: '#64748b', fontFamily: 'monospace', fontSize: 12 }}>
-                      {s.minister_code || '—'}
-                    </td>
-                    <td style={{ padding: '10px 12px', color: '#475569' }}>
-                      <span style={{ background: '#f0f4ff', padding: '2px 8px', borderRadius: 6, fontSize: 12 }}>
-                        {s.page || '/'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 12px', color: '#64748b', fontSize: 12, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {s.device_info || '—'}
-                    </td>
-                    <td style={{ padding: '10px 12px', color: '#94a3b8', fontFamily: 'monospace', fontSize: 11 }}>
-                      {s.ip || '—'}
-                    </td>
-                    <td style={{ padding: '10px 12px', color: '#64748b', fontSize: 12 }}>
-                      {formatTime(s.last_seen)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {[...sessions]
+              .sort((a, b) => new Date(b.last_seen) - new Date(a.last_seen))
+              .slice(0, 50)
+              .map((s, i) => (
+                <div
+                  key={s.session_id || i}
+                  title={`${s.minister_code || '—'} · ${s.page || '/'} · ${s.device_info || '—'} · ${formatTime(s.last_seen)}`}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '6px 14px', borderRadius: 20,
+                    background: i === 0 ? 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)'
+                      : i < 3 ? '#f0fdf4' : '#f8faff',
+                    border: i === 0 ? '1px solid #86efac' : '1px solid #e2e8f0',
+                    cursor: 'default', transition: 'all 0.2s',
+                    fontSize: 13, fontWeight: i < 3 ? 600 : 500,
+                    color: '#0A2540',
+                  }}
+                >
+                  <div style={{
+                    width: 7, height: 7, borderRadius: '50%', background: '#22c55e', flexShrink: 0,
+                    boxShadow: i < 3 ? '0 0 6px rgba(34,197,94,0.5)' : 'none',
+                    animation: i < 3 ? 'pulse 2s ease-in-out infinite' : 'none',
+                  }} />
+                  {s.minister_name || '익명'}
+                </div>
+              ))}
+            {sessions.length > 50 && (
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', padding: '6px 14px',
+                borderRadius: 20, background: '#fefce8', border: '1px solid #fde68a',
+                fontSize: 12, fontWeight: 600, color: '#ca8a04',
+              }}>
+                +{sessions.length - 50}명 더
+              </div>
+            )}
           </div>
         )}
       </div>
