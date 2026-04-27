@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import { syncFullDirectory } from '../utils/offlineDb';
-import API_BASE from '../api';
 
-const SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const SYNC_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export function useDirectorySync() {
   useEffect(() => {
@@ -18,8 +17,8 @@ export function useDirectorySync() {
         // Wait a few seconds to let the app load first before heavy background fetch
         setTimeout(async () => {
           try {
-            console.log('[DirectorySync] Starting background sync...');
-            await syncFullDirectory(API_BASE);
+            console.log('[DirectorySync] Starting background sync from Firebase Storage...');
+            await syncFullDirectory();
           } catch (err) {
             console.error('[DirectorySync] Background sync failed', err);
           }

@@ -5,6 +5,8 @@
  */
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { getStorage } from 'firebase/storage';
+import { getFirestore } from 'firebase/firestore';
 
 // prok-ga 프로젝트 설정
 const firebaseConfig = {
@@ -18,6 +20,8 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+const storage = getStorage(app);
+const firestore = getFirestore(app);
 
 let messaging = null;
 try {
@@ -123,4 +127,4 @@ export function onForegroundMessage(callback) {
   });
 }
 
-export { app, messaging };
+export { app, messaging, storage, firestore };

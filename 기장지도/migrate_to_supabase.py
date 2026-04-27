@@ -19,11 +19,38 @@ DB_USER = "pbh"
 DB_PASSWORD = "prok3000"
 DB_DATABASE = "KJ_CHURCH"
 
+# .env 파일들에서 환경 변수 직접 읽기 (우회 방식)
+for env_path in [
+    os.path.join(os.path.dirname(__file__), "..", "server", ".env"),
+    os.path.join(os.path.dirname(__file__), ".env.local")
+]:
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if "=" in line and not line.strip().startswith("#"):
+                    k, v = line.strip().split("=", 1)
+                    if k not in os.environ:
+                        os.environ[k] = v
+
 NCP_CLIENT_ID = os.getenv("VITE_NAVER_API_KEY_ID", "a7lrosytn2")
 NCP_CLIENT_SECRET = os.getenv("VITE_NAVER_API_KEY", "")
 
 SUPABASE_URL = "https://wfpacsoyoalkdzksnmdg.supabase.co"
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+
+# Load from dynamic config if available
+CONFIG_FILE = os.path.join(os.path.dirname(__file__), "..", "server", "map_sync_config.json")
+if os.path.exists(CONFIG_FILE):
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+            if cfg.get("db_server"):
+                DB_SERVER = cfg["db_server"]
+            if cfg.get("supabase_url"):
+                SUPABASE_URL = cfg["supabase_url"]
+        print(f"Loaded dynamic config: DB_SERVER={DB_SERVER}, SUPABASE_URL={SUPABASE_URL}")
+    except Exception as e:
+        print(f"Error loading config file: {e}")
 # -----------------------------------------
 
 def get_connection():
@@ -55,9 +82,10 @@ def clean_address(addr):
     # 너무 짧은 주소(동 이름만)는 무효 처리
     if len(cleaned) < 5:
         return ""
-    # "~층", "~호" 등 건물 상세 제거 (번지까지만 유지)
-    cleaned = re.sub(r'\s*\d+층.*$', '', cleaned)
-    cleaned = re.sub(r'\s*\d+호.*$', '', cleaned)
+    # 아파트 동/호수 및 층수 상세 정보 제거 (지번/도로명 번호는 유지)
+    cleaned = re.sub(r'\s+\d+동\s*\d+호.*$', '', cleaned)
+    cleaned = re.sub(r'\s+B?\d+층.*$', '', cleaned)
+    cleaned = re.sub(r'지하\s*\d+층.*$', '', cleaned)
     return cleaned.strip()
 
 def geocode_address(address):
@@ -157,13 +185,26 @@ def main():
         lat, lng = geocode_address(addr)
         
         # 1차 실패 시 다른 주소 필드로 재시도
-        if lat is None and raw_juso and raw_juso != raw_address:
-            alt_addr = clean_address(raw_juso)
-            if alt_addr:
-                lat, lng = geocode_address(alt_addr)
-                if lat:
-                    addr = alt_addr  # 성공한 주소로 교체
-                time.sleep(0.3)
+        if lat is None:
+            # 2. raw_address 원본 그대로 시도 (clean_address가 오히려 필수 정보를 날렸을 경우 대비)
+            lat, lng = geocode_address(raw_address.strip())
+            if lat:
+                addr = raw_address.strip()
+            
+            # 3. 그래도 안 되면 raw_juso (도로명/지번) 시도
+            if lat is None and raw_juso and raw_juso != raw_address:
+                alt_addr = clean_address(raw_juso)
+                if alt_addr:
+                    lat, lng = geocode_address(alt_addr)
+                    if lat:
+                        addr = alt_addr
+                # 4. raw_juso 원본 그대로 시도
+                if lat is None:
+                    lat, lng = geocode_address(raw_juso.strip())
+                    if lat:
+                        addr = raw_juso.strip()
+
+            time.sleep(0.3)
 
         if lat and lng:
             data_row = {

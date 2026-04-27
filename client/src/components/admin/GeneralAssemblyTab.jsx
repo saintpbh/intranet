@@ -47,16 +47,23 @@ const GeneralAssemblyTab = ({ user }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState('dashboard');
+  const [isOffline, setIsOffline] = useState(false);
 
   const fetchData = () => {
+    setLoading(true);
+    setIsOffline(false);
     Promise.all([
-      fetch(`${API_BASE}/api/admin/cert-requests`).then(r => r.json()),
-      fetch(`${API_BASE}/api/admin/stats`).then(r => r.json()),
-      fetch(`${API_BASE}/api/church-reports`).then(r => r.json())
+      fetch(`${API_BASE}/api/admin/cert-requests`).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+      fetch(`${API_BASE}/api/admin/stats`).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+      fetch(`${API_BASE}/api/church-reports`).then(r => { if (!r.ok) throw new Error(); return r.json(); })
     ]).then(([reqs, st, reps]) => {
       setRequests(Array.isArray(reqs) ? reqs : []);
       setStats(st);
       setReports(Array.isArray(reps) ? reps : []);
+      setIsOffline(false);
+    }).catch(err => {
+      console.error("Admin fetch error:", err);
+      setIsOffline(true);
     }).finally(() => setLoading(false));
   };
 
@@ -64,6 +71,22 @@ const GeneralAssemblyTab = ({ user }) => {
 
   if (selected) return <RequestDetail request={selected} onBack={() => { setSelected(null); fetchData(); }} actionRole="assembly" />;
   if (selectedReportId) return <ChurchReportForm user={user} reportId={selectedReportId} onBack={() => { setSelectedReportId(null); fetchData(); }} />;
+
+  if (isOffline) {
+    return (
+      <div style={{...S.card, textAlign: 'center', padding: '60px 20px', marginTop: 24}}>
+        <span className="material-symbols-outlined" style={{ fontSize: 48, color: '#ef4444', marginBottom: 16, display: 'block' }}>cloud_off</span>
+        <h3 style={{ ...S.heading, fontSize: 20, marginBottom: 8, color: '#ef4444' }}>관리자 서버가 오프라인 상태입니다</h3>
+        <p style={{ ...S.subText, fontSize: 15, marginBottom: 24, lineHeight: 1.6 }}>
+          관리자 전용 기능은 실시간 데이터베이스 연동이 필요합니다.<br/>
+          <strong>목사님 PC에서 서버(start_prok_api.ps1)를 켜주세요.</strong>
+        </p>
+        <button style={{ ...S.gradientBtn, background: 'linear-gradient(135deg, #ef4444, #dc2626)', boxShadow: '0 4px 16px rgba(239,68,68,0.25)' }} onClick={() => fetchData()}>
+          다시 시도
+        </button>
+      </div>
+    );
+  }
 
   const certStats = stats?.cert_requests || {};
   const pending = (certStats['NOH_CONFIRMED'] || 0) + (certStats['APPROVED'] || 0);

@@ -25,6 +25,7 @@
 html {
   -webkit-touch-callout: none;
   touch-action: pan-y;
+  color-scheme: light;
 }
 
 /* ============================================
@@ -63,7 +64,7 @@ html {
 
 body {
   font-family: var(--font-family);
-  background-color: #050E17; /* Dark background for desktop outside the app */
+  background-color: #E8E4DF; /* Warm light background for desktop outside the app */
   color: var(--label);
   line-height: 1.47;
   -webkit-font-smoothing: antialiased;
@@ -84,7 +85,7 @@ body {
   background-color: var(--grouped-bg);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 0 40px rgba(0,0,0,0.5);
+  box-shadow: 0 0 40px rgba(0,0,0,0.12);
 }
 
 @media (min-width: 640px) {
@@ -92,7 +93,7 @@ body {
     height: 90vh;
     max-height: 900px;
     border-radius: 40px;
-    border: 8px solid #1a2c3a;
+    border: 8px solid #C8C4BF;
   }
 }
 

@@ -10,17 +10,20 @@ import shutil
 import sqlite3
 from datetime import datetime
 import logging
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 # Firebase Admin SDK for FCM push
 try:
     import firebase_admin
-    from firebase_admin import credentials, messaging
+    from firebase_admin import credentials, messaging, storage, firestore
     _sa_path = os.path.join(os.path.dirname(__file__), 'firebase-service-account.json')
     if os.path.exists(_sa_path):
         # 중복 초기화 방지
         if not firebase_admin._apps:
             cred = credentials.Certificate(_sa_path)
-            firebase_admin.initialize_app(cred)
+            firebase_admin.initialize_app(cred, {
+                'storageBucket': 'prok-ga.firebasestorage.app'
+            })
         FCM_AVAILABLE = True
         logging.info('[FCM] Firebase Admin SDK initialized successfully')
     else:
@@ -109,7 +112,17 @@ app.mount("/api/uploads", StaticFiles(directory="uploads"), name="uploads")
 # Enable CORS for all origins (PWA + ngrok 유료 터널)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "https://prok-ga.web.app",
+        "https://prok-ga-map.web.app",
+        "http://localhost:4173",
+        "http://localhost:3000",
+        "http://localhost:4000",
+        "http://localhost:4001",
+        "http://localhost:4002",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -532,6 +545,124 @@ def sync_directory():
         return {"error": str(e)}
     finally:
         conn.close()
+
+import subprocess
+MAP_SYNC_LOG_FILE = os.path.join(os.path.dirname(__file__), "map_sync.log")
+MAP_SYNC_CONFIG_FILE = os.path.join(os.path.dirname(__file__), "map_sync_config.json")
+map_sync_process = None
+
+class MapSyncConfig(BaseModel):
+    db_server: str
+    supabase_url: str
+
+@app.get("/api/admin/map-sync-config")
+def get_map_sync_config():
+    if os.path.exists(MAP_SYNC_CONFIG_FILE):
+        try:
+            with open(MAP_SYNC_CONFIG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return {"db_server": "192.168.0.145", "supabase_url": "https://wfpacsoyoalkdzksnmdg.supabase.co"}
+
+@app.post("/api/admin/map-sync-config")
+def save_map_sync_config(config: MapSyncConfig):
+    try:
+        with open(MAP_SYNC_CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config.dict(), f, ensure_ascii=False, indent=2)
+        return {"success": True, "message": "설정이 저장되었습니다."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/admin/sync-map-data")
+def start_map_sync():
+    global map_sync_process
+    if map_sync_process and map_sync_process.poll() is None:
+        return {"success": False, "error": "이미 동기화가 진행 중입니다."}
+    
+    script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "기장지도", "migrate_to_supabase.py"))
+    
+    with open(MAP_SYNC_LOG_FILE, "w", encoding="utf-8") as f:
+        f.write(f"=== 동기화 시작: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
+        f.write("백그라운드에서 데이터를 가져오는 중입니다...\n\n")
+
+    try:
+        log_file = open(MAP_SYNC_LOG_FILE, "a", encoding="utf-8")
+        map_sync_process = subprocess.Popen(["python", "-u", script_path], stdout=log_file, stderr=subprocess.STDOUT, cwd=os.path.dirname(script_path))
+        return {"success": True, "message": "기장지도 동기화가 백그라운드에서 시작되었습니다. 하단의 로그 창에서 진행 상황을 확인하세요."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/api/admin/map-sync-logs")
+def get_map_sync_logs():
+    if not os.path.exists(MAP_SYNC_LOG_FILE):
+        return {"logs": "로그 파일이 없습니다. 동기화를 시작해주세요."}
+    try:
+        with open(MAP_SYNC_LOG_FILE, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+            return {"logs": "".join(lines[-100:])}
+    except Exception as e:
+        return {"logs": f"로그 읽기 실패: {str(e)}"}
+
+@app.post("/api/admin/sync-to-firebase")
+def sync_to_firebase():
+    """Fetches all directory data and uploads it to Firebase Storage."""
+    if not FCM_AVAILABLE:
+        return {"success": False, "error": "Firebase Admin SDK not available"}
+
+    try:
+        # Fetch the entire directory
+        directory_data = sync_directory()
+        if "error" in directory_data:
+            raise Exception(directory_data["error"])
+
+        # Convert to JSON string
+        json_str = json.dumps(directory_data, ensure_ascii=False)
+
+        # Upload to Firebase Storage
+        bucket = storage.bucket()
+        blob = bucket.blob('directory.json')
+        blob.upload_from_string(json_str, content_type='application/json')
+        
+        # Log to Firestore
+        db_firestore = firestore.client()
+        doc_ref = db_firestore.collection('sync_logs').document()
+        doc_ref.set({
+            'timestamp': datetime.now().isoformat(),
+            'status': 'SUCCESS',
+            'message': f'Synced {len(directory_data.get("addressbook", []))} address book entries to Firebase Storage.',
+            'url': blob.public_url if blob.public_url else ''
+        })
+
+        return {"success": True, "message": "Successfully synchronized directory to Firebase Storage."}
+    except Exception as e:
+        logging.error(f"[Sync] Failed to sync to Firebase: {e}")
+        try:
+            # Attempt to log failure to Firestore
+            db_firestore = firestore.client()
+            doc_ref = db_firestore.collection('sync_logs').document()
+            doc_ref.set({
+                'timestamp': datetime.now().isoformat(),
+                'status': 'FAILURE',
+                'message': str(e)
+            })
+        except:
+            pass
+        return {"success": False, "error": str(e)}
+
+@app.get("/api/admin/sync-logs")
+def get_sync_logs(limit: int = 20):
+    if not FCM_AVAILABLE:
+        return {"success": False, "error": "Firebase Admin SDK not available"}
+    
+    try:
+        db_firestore = firestore.client()
+        logs_ref = db_firestore.collection('sync_logs').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(limit)
+        logs = [doc.to_dict() for doc in logs_ref.stream()]
+        return {"success": True, "logs": logs}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 
 @app.get("/api/elders")
 def get_elders(search: str = ""):
@@ -1711,6 +1842,7 @@ def get_minister_history(code: str):
             SELECT 
                 r.MinisterCode, m.MinisterName, 
                 c.ChrName, n.NohName,
+                r.ChrCode, r.NohCode,
                 d.CodeName as DUTYNAME,
                 r.AppDate, r.TradeDate
             FROM TB_Chr201 r
@@ -1763,20 +1895,34 @@ def submit_cert_request(req: CertRequestModel):
 
         conn = sqlite3.connect('requests.db')
         c = conn.cursor()
+        
+        # Determine initial status from cert_types
+        initial_status = 'SUBMITTED'
+        c.execute("SELECT workflow FROM cert_types WHERE name = ?", (req.cert_type,))
+        ct_row = c.fetchone()
+        if ct_row and ct_row[0]:
+            import json
+            try:
+                wf = json.loads(ct_row[0])
+                if wf and isinstance(wf, list) and len(wf) > 0 and 'stage' in wf[0]:
+                    initial_status = wf[0]['stage']
+            except Exception as e:
+                print(f"Error parsing workflow for {req.cert_type}: {e}")
+
         c.execute('''
             INSERT INTO cert_requests 
             (minister_code, minister_name, cert_type, cert_label, memo,
              noh_code, noh_name, sichal_code, chr_code, chr_name, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SUBMITTED')
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (req.minister_code, req.minister_name, req.cert_type, req.cert_label, req.memo,
               info.get('NohCode', ''), info.get('NOHNAME', ''), 
-              info.get('SichalCode', ''), info.get('ChrCode', ''), info.get('CHRNAME', '')))
+              info.get('SichalCode', ''), info.get('ChrCode', ''), info.get('CHRNAME', ''), initial_status))
         req_id = c.lastrowid
         # Add initial history
         c.execute('''
             INSERT INTO approval_history (request_id, request_type, stage, action, actor_name, actor_role, comment)
-            VALUES (?, 'cert', 'SUBMITTED', 'submit', ?, 'personal', ?)
-        ''', (req_id, req.minister_name, f'{req.cert_label} 신청'))
+            VALUES (?, 'cert', ?, 'submit', ?, 'personal', ?)
+        ''', (req_id, initial_status, req.minister_name, f'{req.cert_label} 신청'))
         conn.commit()
         conn.close()
         return {"success": True, "message": "증명서 요청이 접수되었습니다.", "id": req_id}
@@ -1906,7 +2052,7 @@ def approve_cert_request(req_id: int, req: ApprovalAction):
         current_status = cert['status']
         expected_role = STAGE_ROLE.get(current_status)
         
-        if req.actor_role != expected_role:
+        if req.actor_role != expected_role and req.actor_role != 'assembly':
             return {"error": f"이 단계({STATUS_LABELS.get(current_status, current_status)})의 결재 권한이 없습니다."}
         
         if req.action == 'reject':
@@ -3765,6 +3911,203 @@ def system_health_check():
     all_ok = result["sqlite"] == "ok" and result["mssql"] == "ok"
     result["status"] = "healthy" if all_ok else "degraded"
     return result
+
+@app.get("/api/directions")
+def get_directions(start: str, goal: str, option: str = "traoptimal"):
+    """Proxy for Naver Directions API to avoid CORS and hide client secret in production"""
+    import os
+    import requests
+    from dotenv import load_dotenv
+
+    # Load keys from server/.env
+    load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+    
+    client_id = os.environ.get("VITE_NAVER_API_KEY_ID")
+    client_secret = os.environ.get("VITE_NAVER_API_KEY")
+    
+    if not client_id or not client_secret:
+        return {"code": -1, "message": "Naver API keys are missing on the server configuration."}
+        
+    url = f"https://maps.apigw.ntruss.com/map-direction/v1/driving?start={start}&goal={goal}&option={option}"
+    headers = {
+        "X-NCP-APIGW-API-KEY-ID": client_id,
+        "X-NCP-APIGW-API-KEY": client_secret
+    }
+    
+    try:
+        resp = requests.get(url, headers=headers)
+        return resp.json()
+    except Exception as e:
+        return {"code": -1, "message": f"Proxy request failed: {str(e)}"}
+
+# ═══════════════════════════════════════════════════════════════
+# ── Church Management API (Supabase Proxy) ──
+# 기장주소록 앱에서 교회 정보를 관리하기 위한 엔드포인트
+# Supabase service_role 키를 사용하여 RLS을 우회
+# ═══════════════════════════════════════════════════════════════
+
+import requests as _requests
+
+_SUPABASE_URL = "https://wfpacsoyoalkdzksnmdg.supabase.co"
+_SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_KEY", "")
+
+def _sb_headers():
+    """Supabase REST API 헤더 (service_role)"""
+    return {
+        "apikey": _SUPABASE_SERVICE_KEY,
+        "Authorization": f"Bearer {_SUPABASE_SERVICE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+
+
+@app.get("/api/church-manage/{chr_code}")
+async def get_church_by_code(chr_code: str):
+    """교회코드(chr_code)로 Supabase churches 테이블에서 교회 정보 조회"""
+    try:
+        r = _requests.get(
+            f"{_SUPABASE_URL}/rest/v1/churches",
+            headers=_sb_headers(),
+            params={"chr_code": f"eq.{chr_code}", "select": "*"},
+            timeout=10,
+        )
+        if r.status_code != 200:
+            return JSONResponse(status_code=r.status_code, content={"error": r.text})
+        data = r.json()
+        if not data:
+            return JSONResponse(status_code=404, content={"error": "church_not_found", "message": "해당 교회코드로 등록된 교회를 찾을 수 없습니다."})
+        return data[0]
+    except Exception as e:
+        logging.error(f"[ChurchManage] GET error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+class ChurchUpdatePayload(BaseModel):
+    youtube_video_id: str | None = None
+    youtube_channel_id: str | None = None
+    main_photo_url: str | None = None
+    photo_urls: list | None = None
+    homepage_url: str | None = None
+    intro_text: str | None = None
+    worship_times: list | None = None
+    address: str | None = None
+    phone: str | None = None
+    parking_info: str | None = None
+    transport_info: str | None = None
+
+
+@app.put("/api/church-manage/{chr_code}")
+async def update_church_by_code(chr_code: str, payload: ChurchUpdatePayload):
+    """교회코드(chr_code)로 교회 정보 업데이트"""
+    try:
+        # None이 아닌 필드만 업데이트
+        update_data = {k: v for k, v in payload.dict().items() if v is not None}
+        if not update_data:
+            return JSONResponse(status_code=400, content={"error": "no_fields", "message": "업데이트할 필드가 없습니다."})
+
+        r = _requests.patch(
+            f"{_SUPABASE_URL}/rest/v1/churches",
+            headers=_sb_headers(),
+            params={"chr_code": f"eq.{chr_code}"},
+            json=update_data,
+            timeout=10,
+        )
+        if r.status_code not in (200, 204):
+            return JSONResponse(status_code=r.status_code, content={"error": r.text})
+        data = r.json() if r.text else []
+        if not data:
+            return JSONResponse(status_code=404, content={"error": "church_not_found"})
+        return data[0]
+    except Exception as e:
+        logging.error(f"[ChurchManage] PUT error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.get("/api/church-manage/{chr_code}/inquiries")
+async def get_church_inquiries(chr_code: str):
+    """해당 교회의 비밀 문의 목록 조회"""
+    try:
+        # 먼저 chr_code로 church_id 조회
+        r1 = _requests.get(
+            f"{_SUPABASE_URL}/rest/v1/churches",
+            headers=_sb_headers(),
+            params={"chr_code": f"eq.{chr_code}", "select": "id"},
+            timeout=10,
+        )
+        if r1.status_code != 200 or not r1.json():
+            return JSONResponse(status_code=404, content={"error": "church_not_found"})
+
+        church_id = r1.json()[0]["id"]
+
+        # 문의 목록 조회 (최신순)
+        r2 = _requests.get(
+            f"{_SUPABASE_URL}/rest/v1/inquiries",
+            headers=_sb_headers(),
+            params={
+                "church_id": f"eq.{church_id}",
+                "select": "*",
+                "order": "created_at.desc",
+            },
+            timeout=10,
+        )
+        if r2.status_code != 200:
+            return JSONResponse(status_code=r2.status_code, content={"error": r2.text})
+        return r2.json()
+    except Exception as e:
+        logging.error(f"[ChurchManage] Inquiries error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+class InquiryReplyPayload(BaseModel):
+    reply: str
+
+
+@app.put("/api/church-manage/inquiries/{inquiry_id}/reply")
+async def reply_to_inquiry(inquiry_id: int, payload: InquiryReplyPayload):
+    """문의에 답변 작성"""
+    try:
+        r = _requests.patch(
+            f"{_SUPABASE_URL}/rest/v1/inquiries",
+            headers=_sb_headers(),
+            params={"id": f"eq.{inquiry_id}"},
+            json={"reply": payload.reply, "is_read": True},
+            timeout=10,
+        )
+        if r.status_code not in (200, 204):
+            return JSONResponse(status_code=r.status_code, content={"error": r.text})
+        data = r.json() if r.text else []
+        return data[0] if data else {"ok": True}
+    except Exception as e:
+        logging.error(f"[ChurchManage] Reply error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.get("/api/church-manage/search/all")
+async def search_churches(q: str = Query("", min_length=1)):
+    """교회 이름으로 Supabase churches 검색 (총회 관리자용)"""
+    try:
+        r = _requests.get(
+            f"{_SUPABASE_URL}/rest/v1/churches",
+            headers=_sb_headers(),
+            params={"name": f"ilike.*{q}*", "select": "id,chr_code,name,noh,address,phone,pastor_name", "order": "name.asc", "limit": "50"},
+            timeout=10,
+        )
+        if r.status_code != 200:
+            return JSONResponse(status_code=r.status_code, content={"error": r.text})
+        return r.json()
+    except Exception as e:
+        logging.error(f"[ChurchManage] Search error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# --- Background Scheduler ---
+@app.on_event("startup")
+async def start_scheduler():
+    scheduler = AsyncIOScheduler()
+    # Schedule sync to run every Monday at 03:00 AM
+    scheduler.add_job(sync_to_firebase, 'cron', day_of_week='mon', hour=3, minute=0)
+    scheduler.start()
+    logging.info("[Scheduler] Started AsyncIOScheduler. sync_to_firebase is scheduled for Mondays at 03:00 AM.")
 
 if CLIENT_BUILD.exists():
     # SPA fallback: serve index.html for all non-API routes

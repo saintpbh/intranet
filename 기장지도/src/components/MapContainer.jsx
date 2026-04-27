@@ -199,29 +199,45 @@ export default function MapContainer({
   // Use useMemo to cache the search and nearby filtered array to avoid heavy filtering loop on every pan/zoom
   const queryFilteredChurches = useMemo(() => {
     if (allChurches.length === 0) return [];
-    const query = searchQuery.toLowerCase().trim();
+    
+    const qChurch = (typeof searchQuery === 'object' ? searchQuery.church : searchQuery || '').toLowerCase().trim();
+    const qRegion = (typeof searchQuery === 'object' ? searchQuery.region : '').toLowerCase().trim();
+    
     let filtered = allChurches;
 
     // --- Enhanced Search Logic ---
-    if (query) {
-      const normalizedQuery = query.replace(/\s+/g, '').replace(/교회$/, '');
-      const isNohSearch = query.includes('노회') || query.includes('시찰');
-
+    if (qChurch || qRegion) {
       filtered = allChurches.filter(church => {
         const name = (church.name || '').toLowerCase();
         const address = (church.address || '').toLowerCase();
         const noh = (church.noh || '').toLowerCase();
+        const pastor = (church.pastor_name || '').toLowerCase();
 
         const normalizedName = name.replace(/\s+/g, '').replace(/교회$/, '');
+        const normalizedPastor = pastor.replace(/\s+/g, '').replace(/목사$/, '');
         const normalizedAddress = address.replace(/\s+/g, '');
         const normalizedNoh = noh.replace(/\s+/g, '');
+        
+        const normalizedQChurch = qChurch.replace(/\s+/g, '').replace(/교회$/, '').replace(/목사$/, '');
+        const normalizedQRegion = qRegion.replace(/\s+/g, '');
 
-        if (isNohSearch) {
-          const cleanNohQuery = normalizedQuery.replace('노회', '').replace('시찰', '');
-          return normalizedNoh.includes(cleanNohQuery) || normalizedNoh.includes(normalizedQuery);
+        let matchChurch = true;
+        if (qChurch) {
+            matchChurch = normalizedName.includes(normalizedQChurch) || normalizedPastor.includes(normalizedQChurch);
         }
 
-        return normalizedName.includes(normalizedQuery) || normalizedAddress.includes(normalizedQuery) || normalizedNoh.includes(normalizedQuery);
+        let matchRegion = true;
+        if (qRegion) {
+            const isNohSearch = qRegion.includes('노회') || qRegion.includes('시찰');
+            if (isNohSearch) {
+                const cleanNohQuery = normalizedQRegion.replace('노회', '').replace('시찰', '');
+                matchRegion = normalizedNoh.includes(cleanNohQuery) || normalizedNoh.includes(normalizedQRegion);
+            } else {
+                matchRegion = normalizedAddress.includes(normalizedQRegion) || normalizedNoh.includes(normalizedQRegion);
+            }
+        }
+
+        return matchChurch && matchRegion;
       });
     }
 
@@ -245,10 +261,16 @@ export default function MapContainer({
     markersRef.current.forEach(m => m.setMap(null));
     markersRef.current = [];
 
-    const query = searchQuery.toLowerCase().trim();
+    const qChurch = (typeof searchQuery === 'object' ? searchQuery.church : searchQuery || '').toLowerCase().trim();
+    const qRegion = (typeof searchQuery === 'object' ? searchQuery.region : '').toLowerCase().trim();
+    const isSearchActive = !!(qChurch || qRegion);
+    
     const filtered = queryFilteredChurches;
 
-    if (!window.naver?.maps?.Marker) return;
+    // Map viewport handling based on filtered results
+    if (isSearchActive && filtered.length > 0) {
+      // Logic handled below
+    }
 
     if (isDirectionsMode) {
       return; // Skip rendering markers in directions mode
@@ -261,7 +283,7 @@ export default function MapContainer({
 
     // Determine clustering level
     let dynamicLevel = 'PROVINCE';
-    if (query || nearbyMode) {
+    if (isSearchActive || nearbyMode) {
       dynamicLevel = 'ALL';
     } else {
       if (currentZoom >= 14) dynamicLevel = 'ALL';
@@ -272,7 +294,7 @@ export default function MapContainer({
 
     // Viewport culling
     let viewportChurches = filtered;
-    if (currentBounds && !query && !nearbyMode && dynamicLevel !== 'PROVINCE') {
+    if (currentBounds && !isSearchActive && !nearbyMode && dynamicLevel !== 'PROVINCE') {
       const latBuffer = (currentBounds.maxLat - currentBounds.minLat) * 0.1;
       const lngBuffer = (currentBounds.maxLng - currentBounds.minLng) * 0.1;
 
@@ -427,8 +449,9 @@ export default function MapContainer({
     markersRef.current = newMarkers.filter(Boolean);
 
     // Auto-fit search results — ONLY when the query actually changes
-    const queryChanged = query !== prevSearchQueryRef.current;
-    if (queryChanged && query && filtered.length > 0) {
+    const currentQueryStr = typeof searchQuery === 'object' ? JSON.stringify(searchQuery) : searchQuery;
+    const queryChanged = currentQueryStr !== prevSearchQueryRef.current;
+    if (queryChanged && isSearchActive && filtered.length > 0) {
       if (filtered.length === 1) {
         const pos = new window.naver.maps.LatLng(filtered[0].lat, filtered[0].lng);
         map.morph(pos, 15, { duration: 300, easing: 'easeOutCubic' });
@@ -515,7 +538,7 @@ export default function MapContainer({
     }
 
     // Update prev refs after processing
-    prevSearchQueryRef.current = query;
+    prevSearchQueryRef.current = typeof searchQuery === 'object' ? JSON.stringify(searchQuery) : searchQuery;
     prevNearbyModeRef.current = nearbyMode;
     prevNearbyRadiusRef.current = nearbyRadius;
 

@@ -84,25 +84,31 @@ export default function DirectionsPanel({ church, userLocation, onClose, mapInst
     }
   };
 
-  const handleGeocodeAddress = async () => {
+  const handleGeocodeAddress = () => {
     if (!addressInput.trim()) return;
     setGeocoding(true);
     setGeocodeError('');
     try {
-      const res = await fetch(`/api/geocode?query=${encodeURIComponent(addressInput.trim())}`);
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      if (data.addresses?.length > 0) {
-        const addr = data.addresses[0];
-        setDepartureLocation({ lat: parseFloat(addr.y), lng: parseFloat(addr.x) });
-        setDepartureName(addr.roadAddress || addr.jibunAddress || addressInput.trim());
-        setGeocodeError('');
-      } else {
-        setGeocodeError('주소를 찾을 수 없습니다.');
+      if (!window.naver || !window.naver.maps || !window.naver.maps.Service) {
+        throw new Error("네이버 지도 API가 아직 로드되지 않았습니다.");
       }
-    } catch {
+      window.naver.maps.Service.geocode({ query: addressInput.trim() }, (status, response) => {
+        setGeocoding(false);
+        if (status !== window.naver.maps.Service.Status.OK) {
+          setGeocodeError('주소를 찾을 수 없습니다.');
+          return;
+        }
+        if (response.v2.addresses?.length > 0) {
+          const addr = response.v2.addresses[0];
+          setDepartureLocation({ lat: parseFloat(addr.y), lng: parseFloat(addr.x) });
+          setDepartureName(addr.roadAddress || addr.jibunAddress || addressInput.trim());
+          setGeocodeError('');
+        } else {
+          setGeocodeError('주소를 찾을 수 없습니다.');
+        }
+      });
+    } catch (e) {
       setGeocodeError('주소 검색 중 오류가 발생했습니다.');
-    } finally {
       setGeocoding(false);
     }
   };
@@ -125,21 +131,26 @@ export default function DirectionsPanel({ church, userLocation, onClose, mapInst
       const start = `${departureLocation.lng},${departureLocation.lat}`;
       const goal = `${church.lng},${church.lat}`;
       const option = ROUTE_OPTIONS.map(o => o.key).join(':');
+      const API_BASE = import.meta.env.VITE_API_URL || '';
 
-      const carPromise = fetch(`/api/directions?start=${start}&goal=${goal}&option=${option}`).then(async res => {
+      const carPromise = fetch(`${API_BASE}/api/directions?start=${start}&goal=${goal}&option=${option}`).then(async res => {
         if (!res.ok) throw new Error(`API 응답 오류 (${res.status})`);
         const data = await res.json();
         if (data.code !== 0) throw new Error(data.message || '경로를 찾을 수 없습니다.');
         return data.route;
+      }).catch(e => {
+        console.warn('Car direction fetch error (proxy might be missing)', e);
+        return null; // Return null so it doesn't break Promise.all
       });
 
-      const transitPromise = fetch(`/api/odsay/searchPubTransPathT?apiKey=${encodeURIComponent('eYawE4okt4BXYtz+Y/DeZA')}&SX=${departureLocation.lng}&SY=${departureLocation.lat}&EX=${church.lng}&EY=${church.lat}`).then(r => r.json()).then(async data => {
+      const ODSAY_BASE = 'https://api.odsay.com/v1/api';
+      const transitPromise = fetch(`${ODSAY_BASE}/searchPubTransPathT?apiKey=${encodeURIComponent('eYawE4okt4BXYtz+Y/DeZA')}&SX=${departureLocation.lng}&SY=${departureLocation.lat}&EX=${church.lng}&EY=${church.lat}`).then(r => r.json()).then(async data => {
         if (data.result?.path?.length > 0) {
           const mainPath = data.result.path[0];
           const mapObj = mainPath.info.mapObj;
           if (mapObj) {
             try {
-              const graphRes = await fetch(`/api/odsay/loadLane?apiKey=${encodeURIComponent('eYawE4okt4BXYtz+Y/DeZA')}&mapObject=0:0@${mapObj}`);
+              const graphRes = await fetch(`${ODSAY_BASE}/loadLane?apiKey=${encodeURIComponent('eYawE4okt4BXYtz+Y/DeZA')}&mapObject=0:0@${mapObj}`);
               const graphData = await graphRes.json();
               if (graphData.result?.lane) {
                 mainPath.graphicData = graphData.result.lane;

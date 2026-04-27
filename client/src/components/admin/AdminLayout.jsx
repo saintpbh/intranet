@@ -18,10 +18,57 @@ const adminTabs = [
   { id: 'system', label: '시스템', icon: 'settings', desc: '모니터링 · 설정' },
 ];
 
+const AdminLogin = ({ onLogin }) => {
+  const [id, setId] = useState('');
+  const [pw, setPw] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (id === 'admin' && pw === 'prok7600') {
+      onLogin({ id: 'admin', name: '관리자', role: 'assembly' });
+    } else {
+      alert('아이디 또는 비밀번호가 일치하지 않습니다.');
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', background: '#F2F2F7', fontFamily: "'Pretendard', sans-serif" }}>
+      <div style={{ background: '#fff', padding: 40, borderRadius: 16, boxShadow: '0 10px 40px rgba(0,0,0,0.05)', width: '100%', maxWidth: 400 }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <ApiImage src="/assets/admin_logo.png" style={{ height: 40, marginBottom: 16 }} alt="총회 로고" />
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#0A2540' }}>관리자 로그인</h1>
+        </div>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <input
+            type="text"
+            placeholder="아이디"
+            value={id}
+            onChange={(e) => setId(e.target.value)}
+            style={{ padding: '12px 16px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 15 }}
+          />
+          <input
+            type="password"
+            placeholder="비밀번호"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            style={{ padding: '12px 16px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 15 }}
+          />
+          <button type="submit" style={{ padding: 14, background: '#0070eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 16, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}>
+            로그인
+          </button>
+        </form>
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
+          <Link to="/" style={{ color: '#64748b', fontSize: 14, textDecoration: 'none' }}>홈으로 돌아가기</Link>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const AdminLayout = () => {
   const [activeTab, setActiveTab] = useState('assembly');
   const [tabHistory, setTabHistory] = useState(['assembly']);
-  const { user } = useAuth();
+  const { user, login, logout } = useAuth();
   const navigate = useNavigate();
 
   // Apply full-width styling by adding a class to the body
@@ -71,6 +118,10 @@ const AdminLayout = () => {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [activeTab, navigate]);
+
+  if (!user || user.id !== 'admin') {
+    return <AdminLogin onLogin={login} />;
+  }
 
   const renderContent = () => {
     switch (activeTab) {
@@ -154,14 +205,33 @@ const AdminLayout = () => {
             </span>
             {adminTabs.find(t => t.id === activeTab)?.label} 관리
           </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#0A2540' }}>{user?.name || '관리자'}</p>
-              <p style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Administrator</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#0A2540' }}>{user?.name || '관리자'}</p>
+                <p style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Administrator</p>
+              </div>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #0058bc, #0070eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14 }}>
+                {(user?.name || '관')[0]}
+              </div>
             </div>
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #0058bc, #0070eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14 }}>
-              {(user?.name || '관')[0]}
-            </div>
+            <button 
+              onClick={() => {
+                logout();
+                navigate('/');
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4, padding: '8px 12px',
+                background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: 8,
+                fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
+                fontFamily: "'Pretendard', sans-serif"
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#0f172a'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>logout</span>
+              로그아웃
+            </button>
           </div>
         </header>
 

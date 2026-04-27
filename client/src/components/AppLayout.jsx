@@ -9,7 +9,7 @@ import { useDirectorySync } from '../hooks/useDirectorySync';
 import { useSessionHeartbeat } from '../hooks/useSessionHeartbeat';
 import { useAuth } from '../AuthContext';
 
-const TAB_PATHS = ['/', '/documents', '/directory', '/profile'];
+const TAB_PATHS = ['/', '/documents', '/church', '/directory', '/profile'];
 
 const AppLayout = () => {
   const location = useLocation();

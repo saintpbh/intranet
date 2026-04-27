@@ -1,3 +1,6 @@
+import { firestore } from '../firebase';
+import { collection, addDoc } from 'firebase/firestore';
+
 /**
  * Offline Database — IndexedDB 기반 주소록 캐싱
  * 
@@ -199,13 +202,22 @@ export async function getCacheStats() {
 }
 
 /**
- * 전체 주소록 백그라운드 동기화
- * @param {string} apiBase 
+ * 전체 주소록 백그라운드 동기화 (오직 Firebase Storage 에서만 가져옴)
  */
-export async function syncFullDirectory(apiBase) {
+export async function syncFullDirectory() {
   try {
-    const res = await fetch(`${apiBase}/api/sync/directory`);
-    if (!res.ok) throw new Error('Sync failed');
+    if (!navigator.onLine) {
+      console.log('[OfflineDB] Offline, skipping directory sync.');
+      return false;
+    }
+    
+    // Fetch the latest directory.json from Firebase Storage
+    console.log('[OfflineDB] Fetching directory.json from Firebase Storage...');
+    const fbStorageUrl = 'https://storage.googleapis.com/prok-ga.firebasestorage.app/directory.json';
+    // Add cache busting query param
+    const res = await fetch(`${fbStorageUrl}?t=${Date.now()}`);
+    if (!res.ok) throw new Error('Failed to fetch from Firebase Storage');
+    
     const data = await res.json();
     
     if (data.error) throw new Error(data.error);

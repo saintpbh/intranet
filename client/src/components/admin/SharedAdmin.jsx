@@ -125,8 +125,22 @@ const RequestDetail = ({ request, onBack, onAction, actionRole }) => {
     MODIFY_REQUESTED: 'assembly',
   };
 
-  const canApprove = detail.status !== 'REJECTED' && REQUIRED_ROLE[detail.status] === actionRole;
+  const canApprove = detail.status !== 'REJECTED' && (REQUIRED_ROLE[detail.status] === actionRole || actionRole === 'assembly');
   const isReissue = detail.status === 'ISSUED' || detail.status === 'MODIFY_REQUESTED';
+  const isFinalStage = ['NOH_CONFIRMED', 'APPROVED', 'ISSUED', 'MODIFY_REQUESTED'].includes(detail.status);
+
+  let approveLabel = '승인';
+  if (isReissue) {
+    approveLabel = '재발급 (승인)';
+  } else if (actionRole === 'assembly' && !isFinalStage) {
+    approveLabel = '확인/경유 (대결재)';
+  } else if (actionRole === 'assembly' && detail.status === 'NOH_CONFIRMED') {
+    approveLabel = '총회 승인 (결재)';
+  } else if (actionRole === 'assembly' && detail.status === 'APPROVED') {
+    approveLabel = '최종 발급';
+  } else if (!isFinalStage) {
+    approveLabel = '확인/경유';
+  }
 
   return (
     <div>
@@ -185,7 +199,7 @@ const RequestDetail = ({ request, onBack, onAction, actionRole }) => {
             style={{ width: '100%', padding: 12, border: '1px solid var(--opaque-separator)', borderRadius: 8, fontSize: 14, resize: 'none', marginBottom: 12, fontFamily: 'inherit', boxSizing: 'border-box' }}
             rows={2}
           />
-          {actionRole === 'assembly' && (
+          {actionRole === 'assembly' && isFinalStage && (
             <div style={{ marginBottom: 16, padding: 12, background: 'var(--grouped-bg)', borderRadius: 8 }}>
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--system-gray)' }}>최종 발급 시 첨부 (선택)</div>
               <input type="text" placeholder="문서번호 (예: 총회-2026-001)" value={docNumber} onChange={e => setDocNumber(e.target.value)}
@@ -199,7 +213,7 @@ const RequestDetail = ({ request, onBack, onAction, actionRole }) => {
           )}
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-primary" style={{ flex: 1, padding: 12 }} onClick={() => handleAction('approve')}>
-              {isReissue ? '재발급 (승인)' : '승인'}
+              {approveLabel}
             </button>
             <button className="btn" style={{ flex: 1, padding: 12, background: 'rgba(255, 59, 48, 0.1)', color: '#FF3B30' }} onClick={() => handleAction('reject')}>반려</button>
           </div>

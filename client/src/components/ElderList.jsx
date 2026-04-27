@@ -11,6 +11,16 @@ const ElderList = ({ searchTerm, onSelect }) => {
     const fetchData = async () => {
       setLoading(true); setError(null);
       try {
+        const { getCachedSearch } = await import('../utils/offlineDb');
+        const cached = await getCachedSearch('elders', searchTerm);
+        
+        if (cached !== null) {
+          setData(cached);
+          setLoading(false);
+          return;
+        }
+
+        // Fallback to API
         const response = await fetch(`${API_BASE}/api/elders?search=${encodeURIComponent(searchTerm)}`);
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}));

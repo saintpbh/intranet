@@ -10,6 +10,7 @@ import SearchPage from './components/SearchPage';
 import MyInfoPage from './components/MyInfoPage';
 import AdminLayout from './components/admin/AdminLayout';
 import DocumentsPage from './components/mobile/DocumentsPage';
+import ChurchManagePage from './components/ChurchManagePage';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
             <Route element={<AppLayout />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/documents" element={<DocumentsPage />} />
+              <Route path="/church" element={<ChurchManagePage />} />
               <Route path="/directory" element={<SearchPage />} />
               <Route path="/profile" element={<MyInfoPage />} />
               

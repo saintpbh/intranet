@@ -1,0 +1,53 @@
+rules_version = '2';
+
+// Craft rules based on data in your Firestore database
+// allow write: if firestore.get(
+//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
+service firebase.storage {
+  match /b/{bucket}/o {
+    // 주소록 데이터 파일 (공개 읽기 허용)
+    match /directory.json {
+      allow read: if true;
+      allow write: if request.auth != null && 
+        (request.auth.uid == "cRl9d4wXG0VXHzsRbLpoLhnCjiK2" || 
+         request.auth.token.admin == true);
+    }
+    
+    // 관리자만 모든 파일에 접근 가능
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null && 
+        (request.auth.uid == "cRl9d4wXG0VXHzsRbLpoLhnCjiK2" || 
+         request.auth.token.admin == true);
+    }
+    
+    // 선교사 프로필 이미지
+    match /missionaries/{missionaryId}/profile.jpg {
+      allow read: if true; // 공개 읽기
+      allow write: if request.auth != null && 
+        (request.auth.uid == "cRl9d4wXG0VXHzsRbLpoLhnCjiK2" || 
+         request.auth.token.admin == true);
+    }
+    
+    match /missionaries/{missionaryId}/profile.png {
+      allow read: if true; // 공개 읽기
+      allow write: if request.auth != null && 
+        (request.auth.uid == "cRl9d4wXG0VXHzsRbLpoLhnCjiK2" || 
+         request.auth.token.admin == true);
+    }
+    
+    // 뉴스레터 첨부파일
+    match /newsletters/{newsletterId}/{fileName} {
+      allow read: if true; // 공개 읽기
+      allow write: if request.auth != null && 
+        (request.auth.uid == "cRl9d4wXG0VXHzsRbLpoLhnCjiK2" || 
+         request.auth.token.admin == true);
+    }
+    
+    // 백업 파일들
+    match /backups/{fileName} {
+      allow read, write: if request.auth != null && 
+        (request.auth.uid == "cRl9d4wXG0VXHzsRbLpoLhnCjiK2" || 
+         request.auth.token.admin == true);
+    }
+  }
+}

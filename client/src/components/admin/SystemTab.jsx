@@ -34,6 +34,36 @@ const TABLE_LABELS = {
   form_templates: '양식 템플릿',
   form_documents: '양식 문서',
   form_responses: '양식 응답',
+  staff_accounts: '총회직원',
+};
+
+// Staff management styles
+const inputStyle = {
+  padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
+  fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box',
+};
+const inputStyleSm = { ...inputStyle, padding: '4px 8px', fontSize: 12 };
+const tdStyle = { padding: '8px 6px', verticalAlign: 'middle' };
+const addBtnStyle = {
+  padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
+  background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', color: '#fff',
+  fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
+};
+const saveBtnStyle = {
+  padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
+  background: '#059669', color: '#fff', fontSize: 11, fontWeight: 600,
+};
+const cancelBtnStyle = {
+  padding: '4px 10px', borderRadius: 6, border: '1px solid #e2e8f0', cursor: 'pointer',
+  background: '#fff', color: '#64748b', fontSize: 11, fontWeight: 600,
+};
+const editBtnStyle = {
+  padding: '3px 8px', borderRadius: 6, border: '1px solid #e2e8f0', cursor: 'pointer',
+  background: '#fff', fontSize: 12,
+};
+const delBtnStyle = {
+  padding: '3px 8px', borderRadius: 6, border: '1px solid #fecaca', cursor: 'pointer',
+  background: '#fff', fontSize: 12,
 };
 
 const SystemTab = ({ user }) => {
@@ -44,19 +74,124 @@ const SystemTab = ({ user }) => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const timerRef = useRef(null);
 
+  // Staff management state
+  const [staffList, setStaffList] = useState([]);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [newStaff, setNewStaff] = useState({ staff_code: '', name: '', department: '총회', position: '직원', phone: '', email: '' });
+  const [editingCode, setEditingCode] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [staffMsg, setStaffMsg] = useState('');
+
+  // Sync management state
+  const [syncLogs, setSyncLogs] = useState([]);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
+
+  // Map Sync Config State
+  const [mapConfig, setMapConfig] = useState({ db_server: '', supabase_url: '' });
+  const [mapSyncMsg, setMapSyncMsg] = useState('');
+  const [mapSyncing, setMapSyncing] = useState(false);
+  const [mapSyncLogs, setMapSyncLogs] = useState('');
+
+  const fetchStaff = useCallback(async () => {
+    try {
+      setStaffLoading(true);
+      const res = await fetch(`${API_BASE}/api/staff`);
+      const data = await res.json();
+      setStaffList(data.staff || []);
+    } catch (e) {
+      console.error('[SystemTab] staff fetch error:', e);
+    } finally {
+      setStaffLoading(false);
+    }
+  }, []);
+
+  const handleAddStaff = async () => {
+    if (!newStaff.staff_code || !newStaff.name) {
+      setStaffMsg('코드와 이름은 필수입니다.');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/staff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newStaff),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setStaffMsg(`❌ ${data.error}`);
+      } else {
+        setStaffMsg(`✅ ${data.message}`);
+        setNewStaff({ staff_code: '', name: '', department: '총회', position: '직원', phone: '', email: '' });
+        fetchStaff();
+      }
+    } catch (e) {
+      setStaffMsg(`❌ ${e.message}`);
+    }
+  };
+
+  const handleUpdateStaff = async (code) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/staff/${code}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditingCode(null);
+        fetchStaff();
+        setStaffMsg('✅ 수정 완료');
+      } else {
+        setStaffMsg(`❌ ${data.error}`);
+      }
+    } catch (e) {
+      setStaffMsg(`❌ ${e.message}`);
+    }
+  };
+
+  const handleDeleteStaff = async (code, name) => {
+    if (!confirm(`${name}(${code}) 직원을 삭제하시겠습니까?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/staff/${code}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        fetchStaff();
+        setStaffMsg('✅ 삭제 완료');
+      }
+    } catch (e) {
+      setStaffMsg(`❌ ${e.message}`);
+    }
+  };
+
+  const handleToggleActive = async (s) => {
+    try {
+      await fetch(`${API_BASE}/api/staff/${s.staff_code}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...s, is_active: s.is_active ? 0 : 1 }),
+      });
+      fetchStaff();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const fetchAll = useCallback(async () => {
     try {
-      const [infoRes, sessRes, healthRes] = await Promise.all([
+      const [infoRes, sessRes, healthRes, logsRes] = await Promise.all([
         fetch(`${API_BASE}/api/system/info`),
         fetch(`${API_BASE}/api/system/sessions`),
         fetch(`${API_BASE}/api/system/health`),
+        fetch(`${API_BASE}/api/admin/sync-logs`),
       ]);
-      const [info, sess, hlth] = await Promise.all([
-        infoRes.json(), sessRes.json(), healthRes.json(),
+      const [info, sess, hlth, logs] = await Promise.all([
+        infoRes.json(), sessRes.json(), healthRes.json(), logsRes.json()
       ]);
       setSysInfo(info);
       setSessions(sess.sessions || []);
       setHealth(hlth);
+      if (logs.success) setSyncLogs(logs.logs || []);
     } catch (e) {
       console.error('[SystemTab] fetch error:', e);
     } finally {
@@ -64,19 +199,95 @@ const SystemTab = ({ user }) => {
     }
   }, []);
 
+  const handleManualSync = async () => {
+    if (!confirm('Firebase Storage 전체 동기화를 실행하시겠습니까? 데이터 크기에 따라 수 분이 소요될 수 있습니다.')) return;
+    try {
+      setSyncing(true);
+      setSyncMsg('동기화 진행 중...');
+      const res = await fetch(`${API_BASE}/api/admin/sync-to-firebase`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setSyncMsg('✅ 동기화 성공');
+        fetchAll(); // Refresh logs
+      } else {
+        setSyncMsg(`❌ 동기화 실패: ${data.error}`);
+      }
+    } catch (e) {
+      setSyncMsg(`❌ 동기화 중 오류: ${e.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const fetchMapConfig = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/map-sync-config`);
+      const data = await res.json();
+      setMapConfig(data);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  const fetchMapLogs = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/map-sync-logs`);
+      const data = await res.json();
+      setMapSyncLogs(data.logs || '');
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  const handleSaveMapConfig = async () => {
+    try {
+      setMapSyncMsg('저장 중...');
+      const res = await fetch(`${API_BASE}/api/admin/map-sync-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mapConfig),
+      });
+      const data = await res.json();
+      setMapSyncMsg(data.success ? `✅ ${data.message}` : `❌ ${data.error}`);
+    } catch (e) {
+      setMapSyncMsg(`❌ ${e.message}`);
+    }
+  };
+
+  const handleStartMapSync = async () => {
+    if (!confirm('기장지도 데이터 동기화를 백그라운드에서 실행하시겠습니까? (20~30분 소요될 수 있습니다)')) return;
+    try {
+      setMapSyncMsg('시작 중...');
+      const res = await fetch(`${API_BASE}/api/admin/sync-map-data`, { method: 'POST' });
+      const data = await res.json();
+      setMapSyncMsg(data.success ? `✅ ${data.message}` : `❌ ${data.error}`);
+      if (data.success) {
+        setMapSyncing(true);
+      }
+    } catch (e) {
+      setMapSyncMsg(`❌ ${e.message}`);
+    }
+  };
+
   useEffect(() => {
     fetchAll();
-  }, [fetchAll]);
+    fetchStaff();
+    fetchMapConfig();
+    fetchMapLogs();
+  }, [fetchAll, fetchStaff, fetchMapConfig, fetchMapLogs]);
 
   // Auto-refresh every 10 seconds
   useEffect(() => {
     if (autoRefresh) {
-      timerRef.current = setInterval(fetchAll, 10000);
+      timerRef.current = setInterval(() => {
+        fetchAll();
+        fetchMapLogs();
+      }, 10000);
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [autoRefresh, fetchAll]);
+  }, [autoRefresh, fetchAll, fetchMapLogs]);
 
   // ── Uptime calculation ──
   const getUptime = () => {
@@ -321,6 +532,79 @@ const SystemTab = ({ user }) => {
         </div>
       </div>
 
+      {/* ─── Sync Management ─── */}
+      <div style={card}>
+        <div style={{ ...sectionTitle, justifyContent: 'space-between' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#3b82f6' }}>sync</span>
+            Firebase 동기화 관리
+          </span>
+          <button 
+            onClick={handleManualSync} 
+            disabled={syncing}
+            style={{
+              padding: '6px 14px', borderRadius: 8, border: 'none', cursor: syncing ? 'not-allowed' : 'pointer',
+              background: syncing ? '#cbd5e1' : 'linear-gradient(135deg, #3b82f6, #2563eb)', 
+              color: '#fff', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16, animation: syncing ? 'spin 1s linear infinite' : 'none' }}>sync</span>
+            수동 동기화 실행
+          </button>
+        </div>
+
+        {syncMsg && (
+          <div style={{
+            padding: '8px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13, fontWeight: 500,
+            background: syncMsg.startsWith('✅') ? '#ecfdf5' : syncMsg.startsWith('❌') ? '#fef2f2' : '#f0f9ff',
+            color: syncMsg.startsWith('✅') ? '#059669' : syncMsg.startsWith('❌') ? '#ef4444' : '#0284c7',
+          }}>
+            {syncMsg}
+          </div>
+        )}
+
+        <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 10 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead style={{ background: '#f8fafc' }}>
+              <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                <th style={{ padding: '10px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>시간</th>
+                <th style={{ padding: '10px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>상태</th>
+                <th style={{ padding: '10px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>메시지</th>
+                <th style={{ padding: '10px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>링크</th>
+              </tr>
+            </thead>
+            <tbody>
+              {syncLogs.length === 0 ? (
+                <tr>
+                  <td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>동기화 기록이 없습니다.</td>
+                </tr>
+              ) : (
+                syncLogs.map((log, idx) => (
+                  <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '10px', whiteSpace: 'nowrap', color: '#475569' }}>
+                      {log.timestamp ? new Date(log.timestamp).toLocaleString('ko-KR') : '—'}
+                    </td>
+                    <td style={{ padding: '10px' }}>
+                      <span style={badge(log.status === 'SUCCESS' ? 'green' : 'red')}>
+                        {log.status === 'SUCCESS' ? '성공' : '실패'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px', color: '#0f172a' }}>{log.message}</td>
+                    <td style={{ padding: '10px' }}>
+                      {log.url && (
+                        <a href={log.url} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: 500, fontSize: 12 }}>
+                          다운로드
+                        </a>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* ─── Server Info ─── */}
       <div style={card}>
         <div style={sectionTitle}>
@@ -352,6 +636,196 @@ const SystemTab = ({ user }) => {
               {getUptime()}
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* ─── 총회직원 관리 ─── */}
+      <div style={card}>
+        <div style={sectionTitle}>
+          <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#7c3aed' }}>badge</span>
+          총회직원 관리 (7600~7699)
+          <span style={{ marginLeft: 'auto', fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>
+            {staffList.length}명 등록
+          </span>
+        </div>
+
+        {staffMsg && (
+          <div style={{
+            padding: '8px 14px', borderRadius: 8, marginBottom: 12, fontSize: 13, fontWeight: 500,
+            background: staffMsg.startsWith('✅') ? '#ecfdf5' : '#fef2f2',
+            color: staffMsg.startsWith('✅') ? '#059669' : '#ef4444',
+          }}>
+            {staffMsg}
+          </div>
+        )}
+
+        {/* Add new staff */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '80px 100px 1fr 1fr 1fr 1fr auto', gap: 6,
+          marginBottom: 16, alignItems: 'center',
+        }}>
+          <input
+            placeholder="코드"
+            value={newStaff.staff_code}
+            onChange={e => setNewStaff({ ...newStaff, staff_code: e.target.value })}
+            style={inputStyle}
+          />
+          <input
+            placeholder="이름"
+            value={newStaff.name}
+            onChange={e => setNewStaff({ ...newStaff, name: e.target.value })}
+            style={inputStyle}
+          />
+          <input
+            placeholder="부서"
+            value={newStaff.department}
+            onChange={e => setNewStaff({ ...newStaff, department: e.target.value })}
+            style={inputStyle}
+          />
+          <input
+            placeholder="직위"
+            value={newStaff.position}
+            onChange={e => setNewStaff({ ...newStaff, position: e.target.value })}
+            style={inputStyle}
+          />
+          <input
+            placeholder="전화번호"
+            value={newStaff.phone}
+            onChange={e => setNewStaff({ ...newStaff, phone: e.target.value })}
+            style={inputStyle}
+          />
+          <input
+            placeholder="이메일"
+            value={newStaff.email}
+            onChange={e => setNewStaff({ ...newStaff, email: e.target.value })}
+            style={inputStyle}
+          />
+          <button onClick={handleAddStaff} style={addBtnStyle}>+ 추가</button>
+        </div>
+
+        {/* Staff list */}
+        {staffLoading ? (
+          <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>로딩 중...</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                  {['코드', '이름', '부서', '직위', '전화번호', '이메일', '상태', ''].map(h => (
+                    <th key={h} style={{ padding: '8px 6px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {staffList.map(s => (
+                  <tr key={s.staff_code} style={{ borderBottom: '1px solid #f1f5f9', opacity: s.is_active ? 1 : 0.5 }}>
+                    {editingCode === s.staff_code ? (
+                      <>
+                        <td style={tdStyle}>{s.staff_code}</td>
+                        <td style={tdStyle}><input value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} style={inputStyleSm} /></td>
+                        <td style={tdStyle}><input value={editForm.department} onChange={e => setEditForm({ ...editForm, department: e.target.value })} style={inputStyleSm} /></td>
+                        <td style={tdStyle}><input value={editForm.position} onChange={e => setEditForm({ ...editForm, position: e.target.value })} style={inputStyleSm} /></td>
+                        <td style={tdStyle}><input value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} style={inputStyleSm} /></td>
+                        <td style={tdStyle}><input value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} style={inputStyleSm} /></td>
+                        <td style={tdStyle}>—</td>
+                        <td style={{ ...tdStyle, display: 'flex', gap: 4 }}>
+                          <button onClick={() => handleUpdateStaff(s.staff_code)} style={saveBtnStyle}>저장</button>
+                          <button onClick={() => setEditingCode(null)} style={cancelBtnStyle}>취소</button>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td style={{ ...tdStyle, fontFamily: 'monospace', fontWeight: 700 }}>{s.staff_code}</td>
+                        <td style={{ ...tdStyle, fontWeight: 600 }}>{s.name}</td>
+                        <td style={tdStyle}>{s.department}</td>
+                        <td style={tdStyle}>{s.position}</td>
+                        <td style={tdStyle}>{s.phone || '—'}</td>
+                        <td style={tdStyle}>{s.email || '—'}</td>
+                        <td style={tdStyle}>
+                          <button
+                            onClick={() => handleToggleActive(s)}
+                            style={{
+                              ...badge(s.is_active ? 'green' : 'red'),
+                              border: 'none', cursor: 'pointer', fontSize: 11,
+                            }}
+                          >
+                            {s.is_active ? '활성' : '비활성'}
+                          </button>
+                        </td>
+                        <td style={{ ...tdStyle, display: 'flex', gap: 4 }}>
+                          <button onClick={() => { setEditingCode(s.staff_code); setEditForm({ name: s.name, department: s.department, position: s.position, phone: s.phone, email: s.email, is_active: s.is_active }); }} style={editBtnStyle}>✏️</button>
+                          <button onClick={() => handleDeleteStaff(s.staff_code, s.name)} style={delBtnStyle}>🗑</button>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ─── 기장지도 동기화 설정 ─── */}
+      <div style={card}>
+        <div style={sectionTitle}>
+          <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#f59e0b' }}>map</span>
+          기장지도 동기화 설정
+        </div>
+        <div style={{ color: '#64748b', fontSize: 13, marginBottom: 16 }}>
+          총회 서버 DB의 교회 정보를 변환하여 클라우드(Supabase) 지도로 전송합니다. 변환에 20~30분 정도 소요될 수 있습니다.
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>DB 서버 IP (가져오는 주소)</div>
+            <input 
+              value={mapConfig.db_server || ''}
+              onChange={e => setMapConfig({...mapConfig, db_server: e.target.value})}
+              style={{...inputStyle, width: '100%'}}
+              placeholder="192.168.0.145"
+            />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Supabase URL (저장하는 주소)</div>
+            <input 
+              value={mapConfig.supabase_url || ''}
+              onChange={e => setMapConfig({...mapConfig, supabase_url: e.target.value})}
+              style={{...inputStyle, width: '100%'}}
+              placeholder="https://xxx.supabase.co"
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <button onClick={handleSaveMapConfig} style={{...saveBtnStyle, padding: '8px 16px', fontSize: 13}}>설정 저장</button>
+          <button 
+            onClick={handleStartMapSync} 
+            disabled={mapSyncing}
+            style={{
+              padding: '8px 16px', borderRadius: 6, border: 'none', cursor: mapSyncing ? 'not-allowed' : 'pointer',
+              color: '#fff', fontSize: 13, fontWeight: 600,
+              background: mapSyncing ? '#94a3b8' : '#0070eb',
+              opacity: mapSyncing ? 0.7 : 1,
+            }}
+          >
+            {mapSyncing ? '동기화 진행 중...' : '지도 동기화 시작'}
+          </button>
+        </div>
+
+        {mapSyncMsg && (
+          <div style={{
+            padding: '8px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13, fontWeight: 500,
+            background: mapSyncMsg.startsWith('✅') ? '#ecfdf5' : '#fef2f2',
+            color: mapSyncMsg.startsWith('✅') ? '#059669' : '#ef4444',
+          }}>
+            {mapSyncMsg}
+          </div>
+        )}
+
+        {/* Real-time Log Viewer */}
+        <div style={{ background: '#0f172a', color: '#10b981', padding: 12, borderRadius: 8, fontSize: 12, fontFamily: 'monospace', height: 200, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
+          {mapSyncLogs || '동기화 대기 중...'}
         </div>
       </div>
 

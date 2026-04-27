@@ -19,7 +19,6 @@ $ErrLog = Join-Path $ServerDir "server_err.log"
 Start-Process -FilePath $NgrokExe -ArgumentList "start","prok-api","--config",$NgrokCfg -WindowStyle Hidden
 Start-Process -FilePath $PythonExe -ArgumentList "-m","uvicorn","main:app","--host","0.0.0.0","--port","5005" -WorkingDirectory $ServerDir -WindowStyle Hidden -RedirectStandardOutput $OutLog -RedirectStandardError $ErrLog
 
-
 Start-Sleep -Seconds 5
 try {
     $response = Invoke-RestMethod -Uri "http://localhost:5005/docs" -Method Get -ErrorAction Stop

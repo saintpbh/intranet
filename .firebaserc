@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "prok-ga"
-  }
+  },
+  "targets": {
+    "prok-ga": {
+      "hosting": {
+        "addressbook": [
+          "prok-ga"
+        ],
+        "map": [
+          "prok-ga-map"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

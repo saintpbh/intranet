@@ -10,8 +10,9 @@ import { getFavorites } from './utils/favorites'
 
 function App() {
   const [selectedChurch, setSelectedChurch] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState({ church: "", region: "" });
+  const [searchChurchInput, setSearchChurchInput] = useState("");
+  const [searchRegionInput, setSearchRegionInput] = useState("");
   
   // Map viewport info
   const [viewLevel, setViewLevel] = useState('PROVINCE');
@@ -96,17 +97,18 @@ function App() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    setSearchQuery(searchInput.trim());
+    setSearchQuery({ church: searchChurchInput.trim(), region: searchRegionInput.trim() });
     setNearbyMode(false);
     setSelectedChurch(null); // 새로운 검색 시 기존 켜져 있던 상세창 닫기
-    if (searchInput.trim()) {
+    if (searchChurchInput.trim() || searchRegionInput.trim()) {
       setShowSidebar(true);
     }
   };
 
   const handleClearSearch = () => {
-    setSearchInput("");
-    setSearchQuery("");
+    setSearchChurchInput("");
+    setSearchRegionInput("");
+    setSearchQuery({ church: "", region: "" });
     setShowSidebar(false);
     setNearbyMode(false);
     setSearchResults([]);
@@ -139,8 +141,9 @@ function App() {
         setUserLocation(loc);
         setNearbyMode(true);
         setShowSidebar(true);
-        setSearchQuery(""); // clear text search
-        setSearchInput("");
+        setSearchQuery({ church: "", region: "" }); // clear text search
+        setSearchChurchInput("");
+        setSearchRegionInput("");
         setLocatingUser(false);
       },
       () => {
@@ -191,7 +194,7 @@ function App() {
         });
         if (hasValidCoords) {
           mapRef.current.fitBounds(bounds, {
-             margin: new window.naver.maps.Margin(40, 40, 40, showSidebar ? 380 : 40)
+             margin: { top: 40, right: 40, bottom: 40, left: showSidebar ? 380 : 40 }
           });
         }
       }, 50);
@@ -224,14 +227,14 @@ function App() {
       </div>
 
       {/* Search Sidebar (Left panel / Bottom sheet) - hidden in directions mode */}
-      {!isDirectionsMode && showSidebar && (searchQuery || nearbyMode) && searchResults.length > 0 && !selectedChurch && (
+      {!isDirectionsMode && showSidebar && (searchQuery.church || searchQuery.region || nearbyMode) && searchResults.length > 0 && !selectedChurch && (
         <SearchSidebar
           results={searchResults}
           onSelectChurch={handleSelectFromSidebar}
           onClose={handleClearSearch}
           userLocation={userLocation}
           isNearbyMode={nearbyMode}
-          searchQuery={searchQuery}
+          searchQuery={typeof searchQuery === 'object' ? (searchQuery.church || searchQuery.region) : searchQuery}
         />
       )}
 
@@ -242,22 +245,34 @@ function App() {
         {/* Search Bar + Nearby Button + Favorites */}
         <div className="flex items-center gap-2 mx-auto w-full max-w-xl pointer-events-auto">
           {/* Search Form */}
-          <form onSubmit={handleSearch} className="flex-1 flex items-center gap-2" style={{ background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(20px)', borderRadius: '24px', border: '1px solid rgba(226, 232, 240, 0.8)', boxShadow: '0 8px 30px rgba(43, 57, 144, 0.08)', padding: '6px' }}>
-            {searchInput && (
-              <button type="button" onClick={handleClearSearch} className="ml-2 text-gray-400 hover:text-gray-700 transition-colors">
-                <X size={18} />
+          <form onSubmit={handleSearch} className="flex-1 flex flex-col gap-2 pointer-events-auto" style={{ background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(20px)', borderRadius: '24px', border: '1px solid rgba(226, 232, 240, 0.8)', boxShadow: '0 8px 30px rgba(43, 57, 144, 0.08)', padding: '12px 16px' }}>
+            <div className="text-xs font-bold text-gray-500 text-center mb-1">
+              ※ 교회/담임목사, 지역/노회는 반드시 구분하여 입력해주세요.
+            </div>
+            <div className="flex items-center gap-2">
+              <input 
+                type="text" 
+                placeholder="교회명 또는 목사이름" 
+                value={searchChurchInput}
+                onChange={(e) => setSearchChurchInput(e.target.value)}
+                className="flex-1 bg-gray-100/50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#00A5D9] text-gray-900 placeholder-gray-400 font-medium text-[14px] px-3 py-2"
+              />
+              <input 
+                type="text" 
+                placeholder="지역명 또는 노회명" 
+                value={searchRegionInput}
+                onChange={(e) => setSearchRegionInput(e.target.value)}
+                className="flex-1 bg-gray-100/50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#00A5D9] text-gray-900 placeholder-gray-400 font-medium text-[14px] px-3 py-2"
+              />
+              {(searchChurchInput || searchRegionInput) && (
+                <button type="button" onClick={handleClearSearch} className="shrink-0 text-gray-400 hover:text-gray-700 transition-colors p-1">
+                  <X size={18} />
+                </button>
+              )}
+              <button type="submit" style={{ background: 'linear-gradient(135deg, #00A5D9, #0084a8)', borderRadius: '14px', padding: '10px', boxShadow: '0 4px 12px rgba(0, 165, 217, 0.25)' }} className="shrink-0 hover:scale-105 active:scale-95 transition-transform text-white">
+                <Search size={18} />
               </button>
-            )}
-            <input 
-              type="text" 
-              placeholder="교회명, 지역, 노회 검색" 
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="flex-1 bg-transparent border-none focus:outline-none text-gray-900 placeholder-gray-400 font-medium text-[15px] px-3"
-            />
-            <button type="submit" style={{ background: 'linear-gradient(135deg, #00A5D9, #0084a8)', borderRadius: '18px', padding: '10px', boxShadow: '0 4px 12px rgba(0, 165, 217, 0.25)' }} className="hover:scale-105 active:scale-95 transition-transform text-white">
-              <Search size={20} />
-            </button>
+            </div>
           </form>
 
           {/* Nearby Churches Button */}
@@ -351,7 +366,7 @@ function App() {
         )}
 
         {/* Zoom Level Indicator */}
-        {!selectedChurch && !nearbyMode && !searchQuery && (
+        {!selectedChurch && !nearbyMode && !searchQuery.church && !searchQuery.region && (
           <div className="mx-auto flex flex-col items-center gap-1 opacity-90 animate-in slide-in-from-top-2 duration-500">
             <div className="flex items-center gap-2 pointer-events-auto" style={{ background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(20px)', padding: '6px 16px', borderRadius: '999px', border: '1px solid rgba(43, 57, 144, 0.15)', boxShadow: '0 4px 20px rgba(43, 57, 144, 0.08)' }}>
               <Layers size={14} style={{ color: '#2B3990' }} />
@@ -496,7 +511,7 @@ function App() {
       )}
       
       {/* Scroll/Zoom Hint - hidden in directions mode */}
-      {!isDirectionsMode && !selectedChurch && viewLevel !== 'ALL' && !searchQuery && !nearbyMode && (
+      {!isDirectionsMode && !selectedChurch && viewLevel !== 'ALL' && !searchQuery.church && !searchQuery.region && !nearbyMode && (
         <div className="absolute bottom-[28px] left-0 w-full flex justify-center z-10 pointer-events-none">
           <div className="pointer-events-auto cursor-pointer" style={{ background: 'rgba(38,37,40,0.85)', backdropFilter: 'blur(20px)', padding: '12px 24px', borderRadius: '999px', border: '1px solid rgba(72,71,74,0.2)', boxShadow: '0 8px 40px rgba(149,170,255,0.1)' }}>
             <div className="flex items-center gap-2.5">

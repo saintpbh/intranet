@@ -4,14 +4,18 @@ import { useState, useEffect } from 'react';
 const AdminDashboard = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
 
   const fetchRequests = async () => {
     try {
       const response = await fetch(`${API_BASE}/api/admin/requests`);
+      if (!response.ok) throw new Error('Network response was not ok');
       const data = await response.json();
       setRequests(data);
+      setIsOffline(false);
     } catch (err) {
       console.error(err);
+      setIsOffline(true);
     } finally {
       setLoading(false);
     }
@@ -35,6 +39,17 @@ const AdminDashboard = () => {
   };
 
   if (loading) return <div className="loading">불러오는 중...</div>;
+  if (isOffline) return (
+    <div style={{padding: '40px', textAlign: 'center'}}>
+      <span className="material-symbols-outlined" style={{fontSize: 48, color: '#ef4444', marginBottom: 16}}>cloud_off</span>
+      <h2 style={{color: '#ef4444', margin: '0 0 8px 0'}}>관리자 서버가 오프라인 상태입니다</h2>
+      <p style={{color: 'var(--text-secondary)', lineHeight: 1.6}}>
+        관리자 기능은 실시간 데이터베이스 연동이 필요합니다.<br/>
+        <strong>목사님 PC에서 서버(start_prok_api.ps1)를 켜주세요.</strong><br/>
+        <button onClick={() => fetchRequests()} style={{marginTop: 16, padding: '8px 16px', background: '#007AFF', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer'}}>다시 시도</button>
+      </p>
+    </div>
+  );
 
   return (
     <div style={{padding: '16px'}}>
