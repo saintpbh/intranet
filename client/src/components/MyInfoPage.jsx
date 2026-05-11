@@ -3,6 +3,7 @@ import SimpleLogin from './SimpleLogin';
 import MyProfile from './MyProfile';
 import MyHistory from './MyHistory';
 import CertRequest from './CertRequest';
+import InsuranceStatus from './InsuranceStatus';
 import { useState, useCallback, useEffect } from 'react';
 import { useBackButton } from '../useBackButton';
 import MobileHeader from './mobile/MobileHeader';
@@ -95,10 +96,14 @@ const MyInfoPage = () => {
       <div className="pt-24"><CertRequest user={user} onBack={goBack} /></div>
     </div>
   );
+  if (view === 'insurance') return (
+    <InsuranceStatus user={user} onBack={goBack} />
+  );
 
   const menuItems = [
     { id: 'profile', label: '현재 정보', icon: 'person', desc: '내 등록 정보 확인 및 수정 요청' },
     { id: 'history', label: '사역 이력', icon: 'history', desc: '교회 배정 이력 조회' },
+    { id: 'insurance', label: '생보납입 현황', icon: 'account_balance', desc: '생명보험 납입 이력 조회' },
   ];
 
   return (

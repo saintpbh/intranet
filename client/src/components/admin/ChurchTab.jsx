@@ -4,6 +4,7 @@ import { RequestList, RequestDetail } from './SharedAdmin';
 import ChurchReportForm from './ChurchReportForm';
 import AdminDocumentBrowser from './AdminDocumentBrowser';
 import SubmissionInbox from './SubmissionInbox';
+import ChurchList from '../ChurchList';
 
 /* ── Stitch design tokens ── */
 const S = {
@@ -49,14 +50,29 @@ const ChurchTab = ({ user }) => {
   const [replyTexts, setReplyTexts] = useState({});
   const [newPhotoUrl, setNewPhotoUrl] = useState('');
   const [churchToast, setChurchToast] = useState('');
+  
+  // ── 관리자 검색 state ──
+  const [adminSelectedChurch, setAdminSelectedChurch] = useState(null);
+  const [adminSearchTerm, setAdminSearchTerm] = useState('');
+  const [debouncedAdminSearch, setDebouncedAdminSearch] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => { setDebouncedAdminSearch(adminSearchTerm); }, 500);
+    return () => clearTimeout(handler);
+  }, [adminSearchTerm]);
+
+  const isAdmin = user?.role === 'assembly' || user?.id === 'admin';
+  const targetCode = isAdmin ? adminSelectedChurch?.ChrCode : user?.chr_code;
 
   const showChurchToast = (msg) => { setChurchToast(msg); setTimeout(() => setChurchToast(''), 2500); };
 
   const fetchChurch = () => {
-    const code = user?.chr_code;
-    if (!code) { setChurchError('교회코드(chr_code)가 없습니다.'); return; }
+    if (!targetCode) { 
+      if (!isAdmin) setChurchError('교회코드(chr_code)가 없습니다.'); 
+      return; 
+    }
     setChurchLoading(true);
-    fetch(`${API_BASE}/api/church-manage/${code}`)
+    fetch(`${API_BASE}/api/church-manage/${targetCode}`)
       .then(r => r.ok ? r.json() : Promise.reject('not found'))
       .then(d => {
         setChurch(d);
@@ -74,18 +90,18 @@ const ChurchTab = ({ user }) => {
   };
 
   const fetchInquiries = () => {
-    const code = user?.chr_code;
-    if (!code) return;
+    if (!targetCode) return;
     setInqLoading(true);
-    fetch(`${API_BASE}/api/church-manage/${code}/inquiries`)
+    fetch(`${API_BASE}/api/church-manage/${targetCode}/inquiries`)
       .then(r => r.ok ? r.json() : []).then(d => setInquiries(d)).finally(() => setInqLoading(false));
   };
 
-  useEffect(() => { if (activeMenu === 'map-church') { fetchChurch(); fetchInquiries(); } }, [activeMenu]);
+  useEffect(() => { if (activeMenu === 'map-church' && targetCode) { fetchChurch(); fetchInquiries(); } }, [activeMenu, targetCode]);
 
   const saveChurch = () => {
+    if (!targetCode) return;
     setChurchSaving(true);
-    fetch(`${API_BASE}/api/church-manage/${user.chr_code}`, {
+    fetch(`${API_BASE}/api/church-manage/${targetCode}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(churchForm),
     }).then(r => r.ok ? r.json() : Promise.reject()).then(d => { setChurch(d); showChurchToast('✅ 저장 완료'); })
       .catch(() => alert('저장 실패')).finally(() => setChurchSaving(false));
@@ -181,11 +197,38 @@ const ChurchTab = ({ user }) => {
       {activeMenu === 'map-church' && (
         <>
           {churchToast && <div style={{ position:'fixed',top:80,left:'50%',transform:'translateX(-50%)',zIndex:99,padding:'8px 20px',background:'#059669',color:'#fff',borderRadius:12,fontWeight:700,fontSize:13,boxShadow:'0 8px 24px rgba(0,0,0,0.15)' }}>{churchToast}</div>}
-          <h3 style={{ ...S.heading, fontSize: 18, marginBottom: 4 }}>기장지도 — 내 교회 정보 관리</h3>
-          <p style={{ ...S.subText, marginBottom: 20 }}>기장지도 앱에 표시되는 교회 정보를 수정합니다.</p>
-          {churchLoading ? <div style={{ textAlign:'center',padding:40,color:'#94a3b8' }}>불러오는 중...</div>
-           : churchError ? <div style={{ ...S.card, textAlign:'center',padding:40,color:'#ef4444' }}>{churchError}</div>
-           : church && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20 }}>
+            <div>
+              <h3 style={{ ...S.heading, fontSize: 18, marginBottom: 4 }}>기장지도 — {isAdmin ? '교회 정보 관리 (총회 관리자)' : '내 교회 정보 관리'}</h3>
+              <p style={S.subText}>기장지도 앱에 표시되는 교회 정보를 수정합니다.</p>
+            </div>
+            {isAdmin && targetCode && (
+              <button style={{ ...S.ghostBtn, fontSize: 12, padding: '6px 12px' }} onClick={() => { setAdminSelectedChurch(null); setChurch(null); }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 14, verticalAlign: 'middle', marginRight: 4 }}>search</span>
+                다른 교회 검색
+              </button>
+            )}
+          </div>
+
+          {isAdmin && !targetCode ? (
+             <div style={S.card}>
+                <div style={{ marginBottom: 16 }}>
+                  <input
+                    type="text"
+                    placeholder="관리할 교회명 또는 노회명 검색..."
+                    value={adminSearchTerm}
+                    onChange={(e) => setAdminSearchTerm(e.target.value)}
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 15, background: '#f8fafc' }}
+                  />
+                </div>
+                <div style={{ background: '#f8fafc', borderRadius: 12, overflow: 'hidden' }}>
+                  <ChurchList searchTerm={debouncedAdminSearch} onSelect={setAdminSelectedChurch} />
+                </div>
+             </div>
+          ) : (
+            churchLoading ? <div style={{ textAlign:'center',padding:40,color:'#94a3b8' }}>불러오는 중...</div>
+            : churchError ? <div style={{ ...S.card, textAlign:'center',padding:40,color:'#ef4444' }}>{churchError}</div>
+            : church && (
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
               {/* 왼쪽: 기본정보 */}
               <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -262,6 +305,7 @@ const ChurchTab = ({ user }) => {
                 </div>
               </div>
             </div>
+            )
           )}
         </>
       )}

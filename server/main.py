@@ -718,6 +718,105 @@ def get_elder_detail(priest_code: str):
     finally:
         conn.close()
 
+# ── 생보납입 현황 API ──────────────────────────────────────────────
+
+@app.get("/api/insurance/{minister_code}/summary")
+def get_insurance_summary(minister_code: str):
+    """목사 코드로 생보납입 연도별 요약 조회"""
+    conn = get_connection()
+    cursor = conn.cursor(as_dict=True)
+    try:
+        # 목사 이름 조회
+        cursor.execute("SELECT TOP 1 MinisterName FROM TB_Chr200 WHERE MinisterCode = %s", (minister_code,))
+        minister = cursor.fetchone()
+        minister_name = minister['MinisterName'].strip() if minister else ''
+
+        # 연도별 요약
+        cursor.execute("""
+            SELECT LEFT(YM, 4) AS year,
+                   COUNT(DISTINCT RIGHT(YM, 2)) AS months_paid,
+                   SUM(Amt) AS total_amt,
+                   MIN(Amt) AS min_amt,
+                   MAX(Amt) AS max_amt
+            FROM TB_SEN100
+            WHERE MinisterCode = %s
+            GROUP BY LEFT(YM, 4)
+            ORDER BY LEFT(YM, 4) DESC
+        """, (minister_code,))
+        yearly = cursor.fetchall()
+
+        total_amount = sum(r['total_amt'] for r in yearly) if yearly else 0
+        return {
+            "minister_code": minister_code.strip(),
+            "minister_name": minister_name,
+            "summary": yearly,
+            "total_years": len(yearly),
+            "total_amount": total_amount,
+        }
+    except Exception as e:
+        logging.error(f'[Insurance] Summary error: {e}')
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
+
+@app.get("/api/insurance/{minister_code}/detail")
+def get_insurance_detail(minister_code: str, year: str = ""):
+    """목사 코드 + 연도로 월별 납입 상세 조회"""
+    if not year:
+        year = str(datetime.now().year)
+
+    conn = get_connection()
+    cursor = conn.cursor(as_dict=True)
+    try:
+        cursor.execute("""
+            SELECT YM,
+                   SUM(Amt) AS amt,
+                   MIN(RealDate) AS real_date,
+                   MIN(RTRIM(InGubun)) AS method
+            FROM TB_SEN100
+            WHERE MinisterCode = %s AND LEFT(YM, 4) = %s
+            GROUP BY YM
+            ORDER BY YM
+        """, (minister_code, year))
+        rows = cursor.fetchall()
+
+        # 12개월 매트릭스 구성
+        paid_map = {}
+        for r in rows:
+            month = r['YM'].strip()[4:6] if r['YM'] else ''
+            paid_map[month] = {
+                "month": month,
+                "amt": r['amt'] or 0,
+                "method": r['method'].strip() if r['method'] else '',
+                "real_date": r['real_date'].strip() if r['real_date'] else '',
+                "paid": True,
+            }
+
+        monthly = []
+        for m in range(1, 13):
+            ms = f"{m:02d}"
+            if ms in paid_map:
+                monthly.append(paid_map[ms])
+            else:
+                monthly.append({"month": ms, "amt": 0, "method": "", "real_date": "", "paid": False})
+
+        year_total = sum(item['amt'] for item in monthly)
+        months_paid = sum(1 for item in monthly if item['paid'])
+
+        return {
+            "year": year,
+            "monthly": monthly,
+            "year_total": year_total,
+            "months_paid": months_paid,
+        }
+    except Exception as e:
+        logging.error(f'[Insurance] Detail error: {e}')
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
+
 import sqlite3
 import json
 from datetime import datetime
