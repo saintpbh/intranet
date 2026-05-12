@@ -113,7 +113,10 @@ export async function getCachedSearch(type, searchTerm) {
         item.MinisterName, item.MINISTERNAME, item.PriestName,
         item.CHRNAME, item.ChrName, item.chrname,
         item.NOHNAME, item.NohName, item.nohname,
-      ].filter(Boolean).map((s) => s.toLowerCase());
+        // 코드 필드도 검색 대상에 포함 (chrCode로 검색 시 매칭 필요)
+        item.ChrCode, item.MinisterCode, item.MINISTERCODE,
+        item.PriestCode, item.chr_code,
+      ].filter(Boolean).map((s) => String(s).toLowerCase().trim());
       return searchables.some((s) => s.includes(term));
     });
     return filtered;
@@ -162,7 +165,9 @@ export async function offlineLocalSearch(searchTerm) {
           item.MinisterName, item.MINISTERNAME, item.PriestName,
           item.CHRNAME, item.ChrName, item.chrname,
           item.NOHNAME, item.NohName, item.nohname,
-        ].filter(Boolean).map((s) => s.toLowerCase());
+          item.ChrCode, item.MinisterCode, item.MINISTERCODE,
+          item.PriestCode, item.chr_code,
+        ].filter(Boolean).map((s) => String(s).toLowerCase().trim());
         
         if (searchables.some((s) => s.includes(term))) {
           seen.add(key);

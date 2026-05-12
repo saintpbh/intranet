@@ -6,6 +6,7 @@
 
 const SUPABASE_URL = 'https://wfpacsoyoalkdzksnmdg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_OE__Egoq2JlJASb3QnqrbA_lnpaaTd6';
+const REQUEST_TIMEOUT_MS = 8000; // 8초 타임아웃 (DNS 실패 시 빠르게 포기)
 
 function headers(extra = {}) {
   return {
@@ -17,6 +18,14 @@ function headers(extra = {}) {
   };
 }
 
+/** 타임아웃 적용 fetch wrapper */
+function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+}
+
 /**
  * 교회코드(chr_code)로 Supabase churches 테이블에서 교회 정보 조회
  * @param {string} chrCode - 교회코드 (예: "100432")
@@ -24,7 +33,7 @@ function headers(extra = {}) {
  */
 export async function getChurchByChrCode(chrCode) {
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${SUPABASE_URL}/rest/v1/churches?chr_code=eq.${chrCode}&select=*`,
       { headers: headers() }
     );
@@ -45,7 +54,7 @@ export async function getChurchByChrCode(chrCode) {
  */
 export async function updateChurchByChrCode(chrCode, updates) {
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${SUPABASE_URL}/rest/v1/churches?chr_code=eq.${chrCode}`,
       {
         method: 'PATCH',
@@ -73,7 +82,7 @@ export async function updateChurchByChrCode(chrCode, updates) {
  */
 export async function insertChurch(churchData) {
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${SUPABASE_URL}/rest/v1/churches`,
       {
         method: 'POST',
