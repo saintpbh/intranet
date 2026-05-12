@@ -128,6 +128,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Health-check / heartbeat (프론트엔드 OfflineIndicator 용) ──
+@app.get("/api/system/heartbeat")
+async def system_heartbeat():
+    return {"status": "ok"}
+
 # ── Global Exception Handler: DB 연결 오류를 안전하게 JSON으로 반환 ──
 @app.exception_handler(pymssql.OperationalError)
 async def mssql_operational_error_handler(request: Request, exc: pymssql.OperationalError):
@@ -731,6 +736,18 @@ def get_insurance_summary(minister_code: str):
         minister = cursor.fetchone()
         minister_name = minister['MinisterName'].strip() if minister else ''
 
+        # 월부담금 조회 (TB_Sen920)
+        cursor.execute("SELECT TOP 1 Amt FROM TB_Sen920 WHERE MinisterCode = %s", (minister_code,))
+        charge_row = cursor.fetchone()
+        monthly_charge = charge_row['Amt'] if charge_row and charge_row['Amt'] else 0
+
+        # TB_Sen920 Amt가 0이면 가장 최근 납입액을 월부담금으로 사용
+        if monthly_charge == 0:
+            cursor.execute("SELECT TOP 1 Amt FROM TB_SEN100 WHERE MinisterCode = %s ORDER BY YM DESC", (minister_code,))
+            latest = cursor.fetchone()
+            if latest and latest['Amt']:
+                monthly_charge = latest['Amt']
+
         # 연도별 요약
         cursor.execute("""
             SELECT LEFT(YM, 4) AS year,
@@ -749,6 +766,7 @@ def get_insurance_summary(minister_code: str):
         return {
             "minister_code": minister_code.strip(),
             "minister_name": minister_name,
+            "monthly_charge": monthly_charge,
             "summary": yearly,
             "total_years": len(yearly),
             "total_amount": total_amount,

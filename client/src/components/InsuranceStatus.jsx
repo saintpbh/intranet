@@ -96,7 +96,7 @@ const InsuranceStatus = ({ user, onBack }) => {
                     <span className="material-symbols-outlined text-xl">account_balance</span>
                   </div>
                   <div>
-                    <p className="text-white/70 text-xs font-semibold uppercase tracking-wider">생명보험 누적 납입</p>
+                    <p className="text-white/70 text-xs font-semibold uppercase tracking-wider">생보납입</p>
                     <p className="text-white/60 text-[11px]">{summary.minister_name} ({summary.minister_code})</p>
                   </div>
                 </div>
@@ -108,6 +108,27 @@ const InsuranceStatus = ({ user, onBack }) => {
                 </p>
               </div>
             </section>
+
+            {/* ─── Monthly Charge Banner ─── */}
+            {summary.monthly_charge > 0 && (
+              <section className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl px-5 py-4 shadow-sm border border-amber-200/60 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-amber-600 text-lg">payments</span>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-amber-700/70 font-semibold">매월 부담금</p>
+                    <p className="text-lg font-extrabold text-amber-800 font-['Manrope',_'Pretendard'] tracking-tight">
+                      {formatAmt(summary.monthly_charge)}<span className="text-xs font-bold ml-0.5 text-amber-600/70">원</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-amber-600/60">납입방법</p>
+                  <p className="text-xs font-bold text-amber-700">{summary.monthly_charge > 0 ? '지로/계좌' : '-'}</p>
+                </div>
+              </section>
+            )}
 
             {/* ─── Year Navigator ─── */}
             <section className="flex items-center justify-between bg-surface-container-lowest rounded-2xl px-4 py-3 shadow-sm">
@@ -231,7 +252,7 @@ const InsuranceStatus = ({ user, onBack }) => {
             <div className="bg-surface-container-low rounded-xl p-4 border border-surface-variant/50 flex items-start gap-3">
               <span className="material-symbols-outlined text-secondary text-lg shrink-0 mt-0.5">info</span>
               <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                본 화면은 총회 생명보험(상호부조) 납입 기록입니다. 문의사항은 총회 사무국으로 연락해 주세요.
+                본 화면은 총회 생보납입 기록입니다. 문의사항은 총회 사무국으로 연락해 주세요.
               </p>
             </div>
           </>
