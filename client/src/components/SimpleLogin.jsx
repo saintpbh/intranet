@@ -36,7 +36,14 @@ const SimpleLogin = () => {
           if (histRes.ok) {
             const hist = await histRes.json();
             if (Array.isArray(hist)) {
-              const current = hist.find(h => h.is_current);
+              const currentEntries = hist.filter(h => h.is_current);
+              // 현재 이력이 여러 개인 경우 (기관목사 등):
+              // VI_MIN_INFO의 CHRNAME(현재 실제 소속 교회)과 일치하는 이력 우선
+              const churchName = (data.CHRNAME || '').trim();
+              const bestMatch = currentEntries.find(h =>
+                (h.ChrName || '').trim() === churchName
+              );
+              const current = bestMatch || currentEntries[0];
               if (current) {
                 nohCode = current.NohCode || '';
                 chrCode = current.ChrCode || '';
