@@ -1,5 +1,6 @@
 import API_BASE from '../api';
 import { useState, useEffect } from 'react';
+import SyncDateLabel from './SyncDateLabel';
 
 const ElderList = ({ searchTerm, onSelect }) => {
   const [data, setData] = useState([]);
@@ -74,6 +75,7 @@ const ElderList = ({ searchTerm, onSelect }) => {
           <h3 className="font-['Manrope',_'Pretendard'] font-bold text-2xl text-primary">장로 <span className="text-sm font-medium text-outline ml-2">{data.length}명</span></h3>
         </div>
       </div>
+      <SyncDateLabel />
       
       <div className="divide-y divide-surface-container-high border-t border-surface-container-high">
         {data.map((item, idx) => {

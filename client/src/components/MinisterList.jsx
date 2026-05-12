@@ -1,6 +1,7 @@
 import API_BASE from '../api';
 import { useState, useEffect } from 'react';
 import ApiImage from './ApiImage';
+import SyncDateLabel from './SyncDateLabel';
 
 const MinisterList = ({ searchTerm, onSelect }) => {
   const [data, setData] = useState([]);
@@ -75,6 +76,7 @@ const MinisterList = ({ searchTerm, onSelect }) => {
           <h3 className="font-['Manrope',_'Pretendard'] font-bold text-2xl text-primary">Pastors <span className="text-sm font-medium text-outline ml-2">{data.length}명</span></h3>
         </div>
       </div>
+      <SyncDateLabel />
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {data.map((item, idx) => {

@@ -222,6 +222,11 @@ export async function syncFullDirectory() {
     
     if (data.error) throw new Error(data.error);
 
+    // Save synced_at date (서버에서 DB 동기화한 시점)
+    if (data.synced_at) {
+      localStorage.setItem('directory_synced_at', data.synced_at);
+    }
+
     // Save to IndexedDB (as single __ALL__ entries)
     if (data.ministers) await cacheSearchResult('ministers', '__all__', data.ministers);
     if (data.churches) await cacheSearchResult('churches', '__all__', data.churches);
@@ -237,4 +242,12 @@ export async function syncFullDirectory() {
     console.warn('[OfflineDB] Full directory sync failed:', err);
     return false;
   }
+}
+
+/**
+ * 동기화 날짜 조회
+ * @returns {string|null} "2026-05-12 15:00" 형식 또는 null
+ */
+export function getSyncDate() {
+  return localStorage.getItem('directory_synced_at');
 }

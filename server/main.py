@@ -541,6 +541,7 @@ def sync_directory():
         addressbook = cursor.fetchall()
 
         return {
+            "synced_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
             "ministers": ministers,
             "churches": churches,
             "elders": elders,

@@ -1,5 +1,6 @@
 import API_BASE from '../api';
 import { useState, useEffect, useRef } from 'react';
+import SyncDateLabel from './SyncDateLabel';
 
 /**
  * 주소 → 좌표 변환 캐시 (세션 내 중복 요청 방지)
@@ -169,6 +170,17 @@ const ChurchList = ({ searchTerm, onSelect }) => {
     const fetchData = async () => {
       setLoading(true); setError(null);
       try {
+        // Try cached data first (IndexedDB)
+        const { getCachedSearch } = await import('../utils/offlineDb');
+        const cached = await getCachedSearch('churches', searchTerm);
+        
+        if (cached !== null) {
+          setData(cached);
+          setLoading(false);
+          return;
+        }
+
+        // Fallback to API
         const response = await fetch(`${API_BASE}/api/churches?search=${encodeURIComponent(searchTerm)}`);
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}));
@@ -222,6 +234,7 @@ const ChurchList = ({ searchTerm, onSelect }) => {
           <h3 className="font-['Manrope',_'Pretendard'] font-bold text-2xl text-primary">교회 목록 <span className="text-sm font-medium text-outline ml-2">{data.length}개</span></h3>
         </div>
       </div>
+      <SyncDateLabel />
       
       <div className="space-y-4">
         {data.map((item, idx) => {
