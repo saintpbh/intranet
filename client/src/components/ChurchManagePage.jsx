@@ -93,38 +93,46 @@ const ChurchManagePage = () => {
       const { getCachedSearch, syncFullDirectory } = await import('../utils/offlineDb');
       let found = null;
 
-      // 1차: IndexedDB 캐시에서 검색
-      if (user?.chrCode) {
-        const res = await getCachedSearch('churches', user.chrCode);
-        if (res?.length) found = res[0];
+      // "총회본부" 등 교회 DB에 없는 소속 감지
+      const churchName = (user?.church || '').trim();
+      const isHeadquarters = !churchName || churchName.includes('총회') || churchName.includes('본부');
+      const userChrCode = (user?.chrCode || '').trim();
+
+      // 1차: IndexedDB 캐시에서 검색 (유효한 chrCode가 있는 경우만)
+      if (userChrCode && !isHeadquarters) {
+        const res = await getCachedSearch('churches', userChrCode);
+        if (res?.length) {
+          // chrCode 정확 매칭 확인
+          found = res.find(c => (c.ChrCode || '').trim() === userChrCode) || null;
+        }
       }
-      if (!found && user?.church) {
-        const res = await getCachedSearch('churches', user.church);
+      if (!found && churchName && !isHeadquarters) {
+        const res = await getCachedSearch('churches', churchName);
         if (res?.length) {
           found = res.find(c => {
             const n = (c.CHRNAME || '').trim();
-            return n === user.church || n === user.church + '교회' || user.church === n + '교회';
-          }) || res[0];
+            return n === churchName || n === churchName + '교회' || churchName === n + '교회';
+          }) || null; // 정확 매칭 없으면 null (잘못된 교회 방지)
         }
       }
 
       // 2차: IndexedDB에 없으면 로컬 서버 API 직접 호출 시도
-      if (!found && navigator.onLine) {
+      if (!found && navigator.onLine && !isHeadquarters) {
         try {
-          const searchTerm = user?.chrCode || user?.church || '';
+          const searchTerm = userChrCode || churchName;
           if (searchTerm) {
             const apiRes = await fetch(`${API_BASE}/api/churches?search=${encodeURIComponent(searchTerm)}`);
             if (apiRes.ok) {
               const apiData = await apiRes.json();
               const churches = Array.isArray(apiData) ? apiData : (apiData.data || []);
               if (churches.length) {
-                if (user?.chrCode) {
-                  found = churches.find(c => (c.ChrCode || '').trim() === user.chrCode.trim()) || churches[0];
+                if (userChrCode) {
+                  found = churches.find(c => (c.ChrCode || '').trim() === userChrCode) || null;
                 } else {
                   found = churches.find(c => {
                     const n = (c.CHRNAME || '').trim();
-                    return n === user.church || n === user.church + '교회';
-                  }) || churches[0];
+                    return n === churchName || n === churchName + '교회';
+                  }) || null;
                 }
               }
             }
@@ -134,20 +142,21 @@ const ChurchManagePage = () => {
         }
       }
 
-      // 3차: 아무것도 없으면 백그라운드 동기화 시도 + user 정보로 최소 데이터 구성
+      // 3차: 아무것도 없으면 user 정보로 최소 데이터 구성
       if (!found) {
         // 백그라운드 동기화 트리거 (다음번에는 사용 가능하도록)
         syncFullDirectory().catch(() => {});
         
         // user 정보만으로 최소한의 교회 객체 구성 (완전 빈 화면 방지)
-        if (user?.church || user?.chrCode) {
+        if (churchName || userChrCode) {
           found = {
-            ChrCode: user.chrCode || '',
-            CHRNAME: user.church || '',
+            ChrCode: userChrCode || '',
+            CHRNAME: churchName || '',
             NOHNAME: user.NOHNAME || user.noh_name || user.presbytery || '',
             SICHALNAME: user.SICHALNAME || user.sichal_name || '',
             MOCKNAME: user.name || '',
             _isMinimal: true,  // 최소 데이터 플래그
+            _isHeadquarters: isHeadquarters,
           };
         }
       }

@@ -31,26 +31,30 @@ const SimpleLogin = () => {
         setError(data.error === 'db_connection_failed' ? 'DB연결 오류! 데이터베이스에 접속할 수 없습니다.' : '해당 코드로 등록된 정보를 찾을 수 없습니다.');
       } else {
         let nohCode = '', chrCode = '';
-        try {
-          const histRes = await fetch(`${API_BASE}/api/myinfo/${code.trim()}/history`);
-          if (histRes.ok) {
-            const hist = await histRes.json();
-            if (Array.isArray(hist)) {
-              const currentEntries = hist.filter(h => h.is_current);
-              // 현재 이력이 여러 개인 경우 (기관목사 등):
-              // VI_MIN_INFO의 CHRNAME(현재 실제 소속 교회)과 일치하는 이력 우선
-              const churchName = (data.CHRNAME || '').trim();
-              const bestMatch = currentEntries.find(h =>
-                (h.ChrName || '').trim() === churchName
-              );
-              const current = bestMatch || currentEntries[0];
-              if (current) {
-                nohCode = current.NohCode || '';
-                chrCode = current.ChrCode || '';
+        // 총회본부/기관 소속은 교회 이력으로 chrCode를 매핑하지 않음
+        const churchName = (data.CHRNAME || '').trim();
+        const isHeadquarters = churchName.includes('총회') || churchName.includes('본부');
+        
+        if (!isHeadquarters) {
+          try {
+            const histRes = await fetch(`${API_BASE}/api/myinfo/${code.trim()}/history`);
+            if (histRes.ok) {
+              const hist = await histRes.json();
+              if (Array.isArray(hist)) {
+                const currentEntries = hist.filter(h => h.is_current);
+                // VI_MIN_INFO의 CHRNAME과 일치하는 이력 우선
+                const bestMatch = currentEntries.find(h =>
+                  (h.ChrName || '').trim() === churchName
+                );
+                const current = bestMatch || currentEntries[0];
+                if (current) {
+                  nohCode = current.NohCode || '';
+                  chrCode = current.ChrCode || '';
+                }
               }
             }
-          }
-        } catch(e) {}
+          } catch(e) {}
+        }
 
         login({
           code: data.MinisterCode,
