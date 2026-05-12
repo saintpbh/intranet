@@ -2,43 +2,35 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../AuthContext';
 import SimpleLogin from './SimpleLogin';
 import MobileHeader from './mobile/MobileHeader';
+import SyncDateLabel from './SyncDateLabel';
 import API_BASE from '../api';
+
+/**
+ * 환경 코드 → 한글 매핑
+ */
+const ENV_MAP = {
+  '1': '도시',
+  '2': '읍',
+  '3': '면',
+  '4': '농어촌',
+};
+
+/**
+ * 설립일 포맷팅: "19561104" → "1956년 11월 04일"
+ */
+function formatEstDate(raw) {
+  if (!raw || raw.length < 8) return raw || '';
+  return `${raw.slice(0, 4)}년 ${raw.slice(4, 6)}월 ${raw.slice(6, 8)}일`;
+}
 
 const ChurchManagePage = () => {
   const { user, isLoggedIn } = useAuth();
   const [church, setChurch] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [activeSection, setActiveSection] = useState('info');
-  const [inquiries, setInquiries] = useState([]);
-  const [inquiryLoading, setInquiryLoading] = useState(false);
-  const [replyTexts, setReplyTexts] = useState({});
-  const [toast, setToast] = useState('');
+  const [ministers, setMinisters] = useState([]); // 소속 교역자 목록
 
-  // 편집 폼 상태
-  const [form, setForm] = useState({
-    youtube_video_id: '',
-    youtube_channel_id: '',
-    main_photo_url: '',
-    photo_urls: [],
-    homepage_url: '',
-    intro_text: '',
-    worship_times: [],
-    address: '',
-    phone: '',
-    parking_info: '',
-    transport_info: '',
-  });
-
-  const [newPhotoUrl, setNewPhotoUrl] = useState('');
-
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 2500);
-  };
-
-  // 교회명 표시 (총회는 "총회본부")
+  // 교회명 표시
   const getChurchDisplayName = () => {
     if (!user) return '';
     const name = user.church || '';
@@ -46,164 +38,148 @@ const ChurchManagePage = () => {
     return name.endsWith('교회') ? name : name + '교회';
   };
 
+  // IndexedDB 캐시에서 교회 검색
+  const findChurchInCache = useCallback(async () => {
+    try {
+      const { getCachedSearch } = await import('../utils/offlineDb');
+      
+      // ChrCode가 있으면 그걸로 찾기
+      if (user?.chrCode) {
+        const churches = await getCachedSearch('churches', user.chrCode);
+        if (churches && churches.length > 0) {
+          return churches[0];
+        }
+      }
+      
+      // 교회명으로 찾기
+      const churchName = user?.church;
+      if (churchName) {
+        const churches = await getCachedSearch('churches', churchName);
+        if (churches && churches.length > 0) {
+          // 정확한 이름 매칭 우선
+          const exact = churches.find(c => {
+            const name = (c.CHRNAME || '').trim();
+            return name === churchName || name === churchName + '교회' || churchName === name + '교회';
+          });
+          return exact || churches[0];
+        }
+      }
+      
+      return null;
+    } catch (err) {
+      console.warn('[ChurchManage] Cache search failed:', err);
+      return null;
+    }
+  }, [user]);
+
+  // 소속 교역자 검색
+  const findMinistersInCache = useCallback(async (chrCode) => {
+    if (!chrCode) return [];
+    try {
+      const { getCachedSearch } = await import('../utils/offlineDb');
+      // ministers 캐시에서 교회코드로 검색
+      const allMinisters = await getCachedSearch('ministers', '');
+      if (allMinisters && allMinisters.length > 0) {
+        // Note: ministers in the cache don't have ChrCode directly, 
+        // but they have CHRNAME. We can match by church name.
+        return [];
+      }
+    } catch (err) {
+      console.warn('[ChurchManage] Minister search failed:', err);
+    }
+    return [];
+  }, []);
+
   // 교회 정보 로드
   const fetchChurch = useCallback(async () => {
-    if (!user?.chrCode) {
-      setLoading(false);
-      setError('교회코드가 없습니다. 사역 이력에서 현재 교회 정보를 확인해주세요.');
-      return;
-    }
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/church-manage/${user.chrCode}`);
-      if (res.status === 404) {
-        setError('기장지도에 등록되지 않은 교회입니다.');
+      // 1. IndexedDB 캐시에서 먼저 찾기
+      const cached = await findChurchInCache();
+      if (cached) {
+        setChurch(cached);
         setLoading(false);
         return;
       }
-      if (!res.ok) throw new Error('서버 오류');
-      const data = await res.json();
-      setChurch(data);
-      setForm({
-        youtube_video_id: data.youtube_video_id || '',
-        youtube_channel_id: data.youtube_channel_id || '',
-        main_photo_url: data.main_photo_url || '',
-        photo_urls: Array.isArray(data.photo_urls) ? data.photo_urls : [],
-        homepage_url: data.homepage_url || '',
-        intro_text: data.intro_text || '',
-        worship_times: Array.isArray(data.worship_times) ? data.worship_times : [],
-        address: data.address || '',
-        phone: data.phone || '',
-        parking_info: data.parking_info || '',
-        transport_info: data.transport_info || '',
-      });
-      setError(null);
+
+      // 2. 로컬 API 폴백 — chrCode가 있는 경우
+      if (user?.chrCode) {
+        try {
+          const res = await fetch(`${API_BASE}/api/churches/${user.chrCode}`);
+          if (res.ok) {
+            const data = await res.json();
+            setChurch(data);
+            setLoading(false);
+            return;
+          }
+        } catch (apiErr) {
+          console.warn('[ChurchManage] API fallback failed:', apiErr);
+        }
+      }
+
+      // 3. 교회명으로 API 검색 폴백
+      if (user?.church) {
+        try {
+          const res = await fetch(`${API_BASE}/api/churches?search=${encodeURIComponent(user.church)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+              const exact = data.find(c => (c.CHRNAME || '').trim() === user.church);
+              setChurch(exact || data[0]);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (apiErr) {
+          console.warn('[ChurchManage] Church name search failed:', apiErr);
+        }
+      }
+
+      setError('교회 데이터를 찾을 수 없습니다. 데이터 동기화 후 다시 시도해 주세요.');
     } catch (e) {
       setError('교회 정보를 불러올 수 없습니다: ' + e.message);
     } finally {
       setLoading(false);
     }
-  }, [user]);
-
-  // 문의 목록 로드
-  const fetchInquiries = useCallback(async () => {
-    if (!user?.chrCode) return;
-    setInquiryLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/church-manage/${user.chrCode}/inquiries`);
-      if (res.ok) {
-        const data = await res.json();
-        setInquiries(data);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setInquiryLoading(false);
-    }
-  }, [user]);
+  }, [user, findChurchInCache]);
 
   useEffect(() => {
     if (isLoggedIn) fetchChurch();
   }, [isLoggedIn, fetchChurch]);
-
-  useEffect(() => {
-    if (activeSection === 'inquiry' && isLoggedIn) fetchInquiries();
-  }, [activeSection, isLoggedIn, fetchInquiries]);
-
-  // 저장
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/church-manage/${user.chrCode}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      if (!res.ok) throw new Error('저장 실패');
-      const data = await res.json();
-      setChurch(data);
-      showToast('✅ 저장되었습니다!');
-    } catch (e) {
-      alert('저장 중 오류: ' + e.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // 문의 답변
-  const handleReply = async (inquiryId) => {
-    const text = replyTexts[inquiryId];
-    if (!text?.trim()) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/church-manage/inquiries/${inquiryId}/reply`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reply: text }),
-      });
-      if (!res.ok) throw new Error('답변 저장 실패');
-      showToast('✅ 답변이 저장되었습니다.');
-      setReplyTexts(prev => ({ ...prev, [inquiryId]: '' }));
-      fetchInquiries();
-    } catch (e) {
-      alert('답변 저장 오류: ' + e.message);
-    }
-  };
-
-  // 예배시간 관리
-  const addWorship = () => {
-    setForm(p => ({ ...p, worship_times: [...p.worship_times, { title: '', time: '', location: '' }] }));
-  };
-  const updateWorship = (i, field, val) => {
-    const arr = [...form.worship_times];
-    arr[i] = { ...arr[i], [field]: val };
-    setForm(p => ({ ...p, worship_times: arr }));
-  };
-  const removeWorship = (i) => {
-    setForm(p => ({ ...p, worship_times: p.worship_times.filter((_, idx) => idx !== i) }));
-  };
-
-  // 사진 URL 관리
-  const addPhoto = () => {
-    if (!newPhotoUrl.trim()) return;
-    setForm(p => ({ ...p, photo_urls: [...p.photo_urls, newPhotoUrl.trim()] }));
-    setNewPhotoUrl('');
-  };
-  const removePhoto = (i) => {
-    setForm(p => ({ ...p, photo_urls: p.photo_urls.filter((_, idx) => idx !== i) }));
-  };
 
   if (!isLoggedIn) return <SimpleLogin />;
 
   // 스타일 토큰
   const S = {
     card: 'bg-white rounded-2xl shadow-[0_4px_24px_rgba(10,37,64,0.06)] border border-slate-100 overflow-hidden',
-    sectionTitle: "font-['Manrope','Pretendard'] text-[15px] font-bold text-slate-800 flex items-center gap-2 mb-3",
-    label: 'text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-1.5',
-    input: 'w-full px-4 py-3 bg-slate-50 rounded-xl text-[14px] text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white border border-slate-100 transition-all',
-    textarea: 'w-full px-4 py-3 bg-slate-50 rounded-xl text-[14px] text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white border border-slate-100 transition-all resize-none',
-    btnPrimary: 'w-full py-3.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2',
-    btnSecondary: 'px-3 py-1.5 bg-blue-50 text-blue-600 font-bold text-[12px] rounded-lg active:scale-95 transition-all flex items-center gap-1',
-    btnDanger: 'p-1.5 bg-red-50 text-red-400 rounded-lg hover:bg-red-100 transition-colors',
+    sectionTitle: "font-['Manrope','Pretendard'] text-[15px] font-bold text-slate-800 flex items-center gap-2 mb-4",
+    label: 'text-[11px] font-bold text-slate-400 uppercase tracking-wider',
+    value: 'text-[14px] font-semibold text-slate-800 mt-0.5',
+    row: 'flex justify-between items-start py-3 border-b border-slate-50 last:border-b-0',
   };
 
-  const tabs = [
-    { key: 'info', label: '교회 정보', icon: 'church' },
-    { key: 'media', label: '영상·사진', icon: 'photo_camera' },
-    { key: 'inquiry', label: '비밀 문의', icon: 'mail' },
-  ];
+  // 데이터 행 렌더링 헬퍼
+  const DataRow = ({ icon, label, value, highlight = false }) => {
+    if (!value || (typeof value === 'string' && !value.trim())) return null;
+    return (
+      <div className={S.row}>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="material-symbols-outlined text-[16px] text-blue-400 flex-shrink-0">{icon}</span>
+          <div className="min-w-0 flex-1">
+            <p className={S.label}>{label}</p>
+            <p className={`${S.value} ${highlight ? 'text-blue-600' : ''} break-all`}>{value}</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="bg-surface text-on-surface min-h-screen pb-32 font-['Plus_Jakarta_Sans','Pretendard']">
       <MobileHeader title="교회" />
 
       <main className="pt-24 px-5 max-w-2xl mx-auto space-y-5">
-        {/* Toast */}
-        {toast && (
-          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-5 py-3 bg-emerald-500 text-white font-bold text-[13px] rounded-2xl shadow-xl animate-fade-in">
-            {toast}
-          </div>
-        )}
-
         {/* Church Header Card */}
         <div className="rounded-[2rem] text-white shadow-[0_20px_40px_rgba(10,37,64,0.15)] relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-500"></div>
@@ -235,273 +211,92 @@ const ChurchManagePage = () => {
             <span className="material-symbols-outlined text-4xl text-slate-300 mb-3 block">warning</span>
             <p className="text-slate-600 text-sm font-medium">{error}</p>
           </div>
-        ) : (
+        ) : church ? (
           <>
-            {/* Tab Navigation */}
-            <div className={S.card + ' p-1.5 flex gap-1'}>
-              {tabs.map(tab => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveSection(tab.key)}
-                  className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all ${
-                    activeSection === tab.key
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[18px]">{tab.icon}</span>
-                  {tab.label}
-                </button>
-              ))}
+            {/* 동기화 날짜 */}
+            <SyncDateLabel />
+
+            {/* ─── 기본 정보 ─── */}
+            <div className={S.card + ' p-5'}>
+              <h3 className={S.sectionTitle}>
+                <span className="material-symbols-outlined text-blue-500">info</span>
+                기본 정보
+              </h3>
+              <div className="divide-y divide-slate-50">
+                <DataRow icon="tag" label="교회코드" value={(church.ChrCode || '').trim()} />
+                <DataRow icon="church" label="교회명" value={(church.CHRNAME || '').trim()} highlight />
+                <DataRow icon="groups" label="노회" value={(church.NOHNAME || '').trim()} />
+                <DataRow icon="account_tree" label="노회코드" value={(church.NohCode || '').trim()} />
+                <DataRow icon="map" label="시찰" value={(church.SICHALNAME || '').trim()} />
+                <DataRow icon="pin" label="시찰코드" value={(church.SichalCode || '').trim()} />
+                <DataRow icon="person" label="담임목사" value={(church.MOCKNAME || '').trim()} highlight />
+                <DataRow icon="calendar_month" label="설립일" value={formatEstDate((church.EstDate || '').trim())} />
+                {(church.EndDate || '').trim() && (
+                  <DataRow icon="event_busy" label="폐지일" value={formatEstDate((church.EndDate || '').trim())} />
+                )}
+                <DataRow icon="landscape" label="환경" value={ENV_MAP[(church.Environment || '').trim()] || (church.Environment || '').trim()} />
+                <DataRow icon="verified" label="조직유무" value={(church.OrgYN || '').trim() === '1' ? '조직교회' : (church.OrgYN || '').trim() === '0' ? '미조직' : (church.OrgYN || '').trim()} />
+                <DataRow icon="numbers" label="일련번호(Cnt)" value={(church.Cnt || '').toString().trim()} />
+                <DataRow icon="fingerprint" label="HJ코드" value={(church.HJcode || '').toString().trim()} />
+              </div>
             </div>
 
-            {/* ─── 교회 정보 섹션 ─── */}
-            {activeSection === 'info' && (
-              <div className="space-y-4 animate-fade-in">
-                {/* 인삿말 */}
-                <div className={S.card + ' p-5'}>
-                  <h3 className={S.sectionTitle}>
-                    <span className="material-symbols-outlined text-blue-500">chat</span>
-                    교회 인삿말
-                  </h3>
-                  <textarea
-                    className={S.textarea}
-                    rows={4}
-                    value={form.intro_text}
-                    onChange={e => setForm(p => ({ ...p, intro_text: e.target.value }))}
-                    placeholder="교회를 방문하시는 분들께 보여지는 환영 인삿말을 입력하세요."
-                  />
-                </div>
+            {/* ─── 연락처 ─── */}
+            <div className={S.card + ' p-5'}>
+              <h3 className={S.sectionTitle}>
+                <span className="material-symbols-outlined text-green-500">call</span>
+                연락처
+              </h3>
+              <div className="divide-y divide-slate-50">
+                <DataRow icon="phone" label="교회 전화" value={(church.Tel_Church || '').trim()} />
+                <DataRow icon="phone_android" label="핸드폰" value={(church.Tel_Mobile || '').trim()} />
+                <DataRow icon="phone_in_talk" label="자택 전화" value={(church.Tel_Home || '').trim()} />
+                <DataRow icon="fax" label="팩스" value={(church.Tel_Fax || '').trim()} />
+                <DataRow icon="mail" label="이메일" value={(church.Email || '').trim()} />
+                <DataRow icon="language" label="홈페이지" value={(church.HomePage || '').trim()} />
+              </div>
+            </div>
 
-                {/* 예배시간 */}
-                <div className={S.card + ' p-5'}>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className={S.sectionTitle + ' !mb-0'}>
-                      <span className="material-symbols-outlined text-blue-500">schedule</span>
-                      예배시간 안내
-                    </h3>
-                    <button onClick={addWorship} className={S.btnSecondary}>
-                      <span className="material-symbols-outlined text-[14px]">add</span> 추가
-                    </button>
-                  </div>
-                  {form.worship_times.length === 0 && (
-                    <p className="text-center text-slate-300 text-sm py-4">등록된 예배가 없습니다.</p>
-                  )}
-                  <div className="space-y-3">
-                    {form.worship_times.map((wt, i) => (
-                      <div key={i} className="flex items-start gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        <div className="flex-1 space-y-2">
-                          <input
-                            className="w-full px-3 py-2 bg-white rounded-lg text-[13px] font-bold text-slate-800 border border-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                            value={wt.title}
-                            onChange={e => updateWorship(i, 'title', e.target.value)}
-                            placeholder="예배명 (예: 주일예배 1부)"
-                          />
-                          <div className="flex gap-2">
-                            <input
-                              className="flex-1 px-3 py-2 bg-white rounded-lg text-[12px] text-slate-600 border border-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                              value={wt.time}
-                              onChange={e => updateWorship(i, 'time', e.target.value)}
-                              placeholder="시간 (예: 오전 11:00)"
-                            />
-                            <input
-                              className="flex-1 px-3 py-2 bg-white rounded-lg text-[12px] text-slate-600 border border-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                              value={wt.location || ''}
-                              onChange={e => updateWorship(i, 'location', e.target.value)}
-                              placeholder="장소 (예: 본당)"
-                            />
-                          </div>
-                        </div>
-                        <button onClick={() => removeWorship(i)} className={S.btnDanger}>
-                          <span className="material-symbols-outlined text-[16px]">delete</span>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+            {/* ─── 주소 ─── */}
+            <div className={S.card + ' p-5'}>
+              <h3 className={S.sectionTitle}>
+                <span className="material-symbols-outlined text-orange-500">location_on</span>
+                주소 정보
+              </h3>
+              <div className="divide-y divide-slate-50">
+                <DataRow icon="markunread_mailbox" label="우편번호" value={(church.PostNo || '').trim()} />
+                <DataRow icon="home" label="주소 (구주소)" value={(church.ADDRESS || '').trim()} />
+                <DataRow icon="edit_location" label="주소 (도로명)" value={(church.JUSO || '').trim()} />
+              </div>
+            </div>
 
-                {/* 주소 & 전화번호 */}
-                <div className={S.card + ' p-5 space-y-4'}>
-                  <h3 className={S.sectionTitle}>
-                    <span className="material-symbols-outlined text-blue-500">location_on</span>
-                    연락처 및 위치
-                  </h3>
-                  <div>
-                    <label className={S.label}>주소</label>
-                    <input className={S.input} value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} placeholder="교회 주소" />
-                  </div>
-                  <div>
-                    <label className={S.label}>전화번호</label>
-                    <input className={S.input} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="02-000-0000" />
-                  </div>
-                  <div>
-                    <label className={S.label}>주차 안내</label>
-                    <input className={S.input} value={form.parking_info || ''} onChange={e => setForm(p => ({ ...p, parking_info: e.target.value }))} placeholder="예: 50대 주차 가능" />
-                  </div>
-                  <div>
-                    <label className={S.label}>대중교통 안내</label>
-                    <input className={S.input} value={form.transport_info || ''} onChange={e => setForm(p => ({ ...p, transport_info: e.target.value }))} placeholder="예: 지하철 2호선 3번 출구" />
-                  </div>
-                  <div>
-                    <label className={S.label}>홈페이지</label>
-                    <input className={S.input} value={form.homepage_url} onChange={e => setForm(p => ({ ...p, homepage_url: e.target.value }))} placeholder="https://..." />
-                  </div>
+            {/* ─── 비고(메모) ─── */}
+            {(church.Remark || '').trim() && (
+              <div className={S.card + ' p-5'}>
+                <h3 className={S.sectionTitle}>
+                  <span className="material-symbols-outlined text-purple-500">sticky_note_2</span>
+                  비고 / 메모
+                </h3>
+                <div className="bg-slate-50 rounded-xl p-4 text-[13px] text-slate-700 leading-relaxed whitespace-pre-wrap break-all">
+                  {(church.Remark || '').trim()}
                 </div>
-
-                <button onClick={handleSave} disabled={saving} className={S.btnPrimary}>
-                  {saving ? (
-                    <><span className="material-symbols-outlined animate-spin text-lg">progress_activity</span> 저장 중...</>
-                  ) : (
-                    <><span className="material-symbols-outlined text-lg">save</span> 변경사항 저장</>
-                  )}
-                </button>
               </div>
             )}
 
-            {/* ─── 영상·사진 섹션 ─── */}
-            {activeSection === 'media' && (
-              <div className="space-y-4 animate-fade-in">
-                {/* 유튜브 영상 */}
-                <div className={S.card + ' p-5'}>
-                  <h3 className={S.sectionTitle}>
-                    <span className="material-symbols-outlined text-red-500">play_circle</span>
-                    대표 영상 (유튜브)
-                  </h3>
-                  <div className="space-y-3">
-                    <div>
-                      <label className={S.label}>유튜브 영상 ID</label>
-                      <input className={S.input} value={form.youtube_video_id} onChange={e => setForm(p => ({ ...p, youtube_video_id: e.target.value }))} placeholder="예: dQw4w9WgXcQ" />
-                      <p className="text-[11px] text-slate-400 mt-1 ml-1">유튜브 URL에서 v= 뒤의 코드를 입력하세요</p>
-                    </div>
-                    {form.youtube_video_id && (
-                      <div className="aspect-video rounded-xl overflow-hidden bg-slate-100 border border-slate-100">
-                        <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${form.youtube_video_id}`} title="Preview" allowFullScreen />
-                      </div>
-                    )}
-                    <div>
-                      <label className={S.label}>유튜브 채널 ID</label>
-                      <input className={S.input} value={form.youtube_channel_id} onChange={e => setForm(p => ({ ...p, youtube_channel_id: e.target.value }))} placeholder="예: UCxxxxxxxxxxxxxx" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* 대표 사진 */}
-                <div className={S.card + ' p-5'}>
-                  <h3 className={S.sectionTitle}>
-                    <span className="material-symbols-outlined text-emerald-500">image</span>
-                    대표 사진
-                  </h3>
-                  <div>
-                    <label className={S.label}>대표 사진 URL</label>
-                    <input className={S.input} value={form.main_photo_url} onChange={e => setForm(p => ({ ...p, main_photo_url: e.target.value }))} placeholder="https://..." />
-                  </div>
-                  {form.main_photo_url && (
-                    <div className="mt-3 aspect-video rounded-xl overflow-hidden bg-slate-100 border border-slate-100">
-                      <img src={form.main_photo_url} alt="대표 사진" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none'; }} />
-                    </div>
-                  )}
-                </div>
-
-                {/* 사진 캐러셀 */}
-                <div className={S.card + ' p-5'}>
-                  <h3 className={S.sectionTitle}>
-                    <span className="material-symbols-outlined text-purple-500">collections</span>
-                    사진 갤러리 ({form.photo_urls.length}장)
-                  </h3>
-                  <div className="flex gap-2 mb-3">
-                    <input className={S.input + ' !flex-1'} value={newPhotoUrl} onChange={e => setNewPhotoUrl(e.target.value)} placeholder="사진 URL 입력 후 추가" onKeyDown={e => e.key === 'Enter' && addPhoto()} />
-                    <button onClick={addPhoto} className={S.btnSecondary}>
-                      <span className="material-symbols-outlined text-[14px]">add</span>
-                    </button>
-                  </div>
-                  {form.photo_urls.length > 0 && (
-                    <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollSnapType: 'x mandatory' }}>
-                      {form.photo_urls.map((url, i) => (
-                        <div key={i} className="relative shrink-0 w-32 h-24 rounded-xl overflow-hidden bg-slate-100 border border-slate-100" style={{ scrollSnapAlign: 'start' }}>
-                          <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" onError={e => { e.target.src = ''; e.target.alt = '로드 실패'; }} />
-                          <button onClick={() => removePhoto(i)} className="absolute top-1 right-1 w-6 h-6 bg-red-500/80 text-white rounded-full flex items-center justify-center text-[10px] font-bold backdrop-blur-sm">✕</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {form.photo_urls.length === 0 && (
-                    <p className="text-center text-slate-300 text-sm py-4">등록된 사진이 없습니다.</p>
-                  )}
-                </div>
-
-                <button onClick={handleSave} disabled={saving} className={S.btnPrimary}>
-                  {saving ? (
-                    <><span className="material-symbols-outlined animate-spin text-lg">progress_activity</span> 저장 중...</>
-                  ) : (
-                    <><span className="material-symbols-outlined text-lg">save</span> 변경사항 저장</>
-                  )}
-                </button>
+            {/* ─── 전체 Raw 데이터 (디버그용) ─── */}
+            <details className={S.card + ' overflow-hidden'}>
+              <summary className="p-5 cursor-pointer flex items-center gap-2 text-slate-400 hover:text-slate-600 transition-colors">
+                <span className="material-symbols-outlined text-[18px]">data_object</span>
+                <span className="text-[13px] font-bold">전체 데이터 (Raw JSON)</span>
+              </summary>
+              <div className="px-5 pb-5">
+                <pre className="bg-slate-50 rounded-xl p-4 text-[11px] text-slate-600 overflow-x-auto whitespace-pre-wrap break-all max-h-96 overflow-y-auto">
+                  {JSON.stringify(church, null, 2)}
+                </pre>
               </div>
-            )}
-
-            {/* ─── 비밀 문의 섹션 ─── */}
-            {activeSection === 'inquiry' && (
-              <div className="space-y-3 animate-fade-in">
-                <div className="flex items-center justify-between">
-                  <h3 className={S.sectionTitle + ' !mb-0'}>
-                    <span className="material-symbols-outlined text-amber-500">lock</span>
-                    비밀 문의 ({inquiries.length}건)
-                  </h3>
-                  <button onClick={fetchInquiries} className={S.btnSecondary}>
-                    <span className="material-symbols-outlined text-[14px]">refresh</span> 새로고침
-                  </button>
-                </div>
-
-                {inquiryLoading ? (
-                  <div className="flex items-center justify-center py-10">
-                    <span className="material-symbols-outlined animate-spin text-2xl text-blue-500">progress_activity</span>
-                  </div>
-                ) : inquiries.length === 0 ? (
-                  <div className={S.card + ' p-8 text-center'}>
-                    <span className="material-symbols-outlined text-4xl text-slate-200 block mb-2">inbox</span>
-                    <p className="text-slate-400 text-sm">접수된 문의가 없습니다.</p>
-                  </div>
-                ) : (
-                  inquiries.map(inq => (
-                    <div key={inq.id} className={S.card + ' p-4'}>
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <span className="font-bold text-[14px] text-slate-800">{inq.name}</span>
-                          <span className="ml-2 text-[11px] text-slate-400">{inq.phone}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${inq.is_read ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                            {inq.is_read ? '답변완료' : '미확인'}
-                          </span>
-                          <span className="text-[10px] text-slate-300">{new Date(inq.created_at).toLocaleDateString('ko-KR')}</span>
-                        </div>
-                      </div>
-                      <p className="text-[13px] text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl mb-2 whitespace-pre-wrap">{inq.content}</p>
-                      {inq.reply && (
-                        <div className="bg-blue-50 p-3 rounded-xl mb-2 border border-blue-100">
-                          <p className="text-[11px] font-bold text-blue-600 mb-1">↳ 답변</p>
-                          <p className="text-[13px] text-blue-800 whitespace-pre-wrap">{inq.reply}</p>
-                        </div>
-                      )}
-                      <div className="flex gap-2 mt-2">
-                        <input
-                          className="flex-1 px-3 py-2 bg-slate-50 rounded-lg text-[13px] border border-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                          value={replyTexts[inq.id] || ''}
-                          onChange={e => setReplyTexts(p => ({ ...p, [inq.id]: e.target.value }))}
-                          placeholder={inq.reply ? '답변 수정...' : '답변 작성...'}
-                          onKeyDown={e => e.key === 'Enter' && handleReply(inq.id)}
-                        />
-                        <button onClick={() => handleReply(inq.id)} className="px-4 py-2 bg-blue-600 text-white text-[12px] font-bold rounded-lg active:scale-95 transition-all">
-                          <span className="material-symbols-outlined text-[16px]">send</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
+            </details>
           </>
-        )}
+        ) : null}
       </main>
     </div>
   );

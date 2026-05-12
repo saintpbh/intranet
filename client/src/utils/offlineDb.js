@@ -211,11 +211,23 @@ export async function syncFullDirectory() {
       return false;
     }
     
-    // Fetch the latest directory.json from Firebase Storage
+    // Fetch the latest directory.json from Firebase Storage via SDK (CORS-safe)
     console.log('[OfflineDB] Fetching directory.json from Firebase Storage...');
-    const fbStorageUrl = 'https://storage.googleapis.com/prok-ga.firebasestorage.app/directory.json';
-    // Add cache busting query param
-    const res = await fetch(`${fbStorageUrl}?t=${Date.now()}`);
+    
+    let res;
+    try {
+      // Use Firebase SDK to get a download URL (bypasses CORS issues)
+      const { ref, getDownloadURL } = await import('firebase/storage');
+      const { storage } = await import('../firebase');
+      const fileRef = ref(storage, 'directory.json');
+      const downloadUrl = await getDownloadURL(fileRef);
+      res = await fetch(downloadUrl);
+    } catch (sdkErr) {
+      console.warn('[OfflineDB] Firebase SDK download failed, trying direct URL:', sdkErr);
+      // Fallback to direct URL
+      const fbStorageUrl = 'https://storage.googleapis.com/prok-ga.firebasestorage.app/directory.json';
+      res = await fetch(`${fbStorageUrl}?t=${Date.now()}`);
+    }
     if (!res.ok) throw new Error('Failed to fetch from Firebase Storage');
     
     const data = await res.json();

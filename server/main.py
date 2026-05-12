@@ -504,12 +504,15 @@ def sync_directory():
                 row["status_message"] = profiles[code]["status_message"]
                 row["background_image"] = profiles[code]["background_image_url"]
 
-        # Fetch all churches
+        # Fetch all churches (with full detail fields)
         duty_term = "%담임%".encode('cp949')
         cursor.execute("""
             SELECT 
-                c.ChrCode, c.ChrName AS CHRNAME, n.NohName AS NOHNAME, s.SichalName AS SICHALNAME, 
-                c.Tel_Church, c.Tel_Mobile, c.Tel_Fax, c.Address AS ADDRESS, c.Juso AS JUSO, c.PostNo, c.Email,
+                c.ChrCode, c.ChrName AS CHRNAME, c.NohCode, n.NohName AS NOHNAME, 
+                c.SichalCode, s.SichalName AS SICHALNAME, 
+                c.OrgYN, c.Environment, c.PostNo, c.Address AS ADDRESS, c.Juso AS JUSO,
+                c.EstDate, c.EndDate, c.Tel_Church, c.Tel_Home, c.Tel_Mobile, c.Tel_Fax, 
+                c.HomePage, c.Email, c.Remark, c.Cnt, c.HJcode,
                 (SELECT TOP 1 m.MinisterName FROM VI_MIN_INFO m WHERE m.ChrCode = c.ChrCode AND m.DUTYNAME LIKE %s) AS MOCKNAME 
             FROM TB_Chr100 c 
             LEFT JOIN TB_Chr910 n ON c.NohCode = n.NohCode 
