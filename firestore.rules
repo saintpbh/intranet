@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 광고 배너: 모든 사용자 읽기 가능, 쓰기는 인증 불필요 (관리자 앱에서 직접 관리)
+    match /ads/{adId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // 기타 컬렉션 기본 규칙
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

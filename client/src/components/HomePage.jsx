@@ -4,9 +4,9 @@ import API_BASE from '../api';
 import { useBackButton } from '../useBackButton';
 import MobileHeader from './mobile/MobileHeader';
 import { useAuth } from '../AuthContext';
-import ApiImage from './ApiImage';
 import { LinkifyText } from '../utils/linkify';
 import { requestNotificationPermission, isTokenRegistered, onForegroundMessage } from '../firebase';
+import { getActiveAds } from '../utils/adService';
 
 const isNew = (dateStr) => {
   if (!dateStr) return false;
@@ -18,6 +18,221 @@ const scopeOrder = { assembly: 0, presbytery: 1, sichal: 2 };
 const scopeLabel = { assembly: '총회', presbytery: '노회', sichal: '시찰' };
 const scopeColor = { assembly: '#0a2540', presbytery: '#0058bc', sichal: '#34C759' };
 
+/* ─────────────── 광고 상세 뷰 (프리미엄 디자인) ─────────────── */
+const AdDetailView = ({ ad, onBack }) => {
+  if (!ad) return null;
+
+  const daysLeft = (() => {
+    const end = new Date(ad.end_date);
+    const now = new Date();
+    const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+    return diff;
+  })();
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: '#f8f9fc',
+      fontFamily: "'Plus Jakarta Sans', 'Pretendard', sans-serif",
+    }}>
+      <MobileHeader showBack={true} onBack={onBack} title="" />
+
+      {/* Hero Image */}
+      <div style={{
+        position: 'relative',
+        width: '100%',
+        maxHeight: 320,
+        overflow: 'hidden',
+        background: 'linear-gradient(135deg, #0a2540, #0058bc)',
+      }}>
+        {ad.image_url && (
+          <img
+            src={ad.image_url}
+            alt={ad.title}
+            style={{
+              width: '100%',
+              height: 320,
+              objectFit: 'cover',
+              display: 'block',
+            }}
+          />
+        )}
+        {/* Gradient overlay */}
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 120,
+          background: 'linear-gradient(transparent, rgba(0,0,0,0.6))',
+        }} />
+        {/* Title overlay */}
+        <div style={{
+          position: 'absolute',
+          bottom: 20,
+          left: 20,
+          right: 20,
+        }}>
+          <h1 style={{
+            color: '#fff',
+            fontSize: 26,
+            fontWeight: 900,
+            lineHeight: 1.3,
+            textShadow: '0 2px 16px rgba(0,0,0,0.3)',
+            margin: 0,
+            fontFamily: "'Manrope', 'Pretendard', sans-serif",
+          }}>
+            {ad.title}
+          </h1>
+        </div>
+      </div>
+
+      {/* Content Area */}
+      <div style={{ padding: '0 20px', maxWidth: 640, margin: '0 auto' }}>
+
+        {/* Meta Info Bar */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '16px 0',
+          borderBottom: '1px solid rgba(10,37,64,0.06)',
+          flexWrap: 'wrap',
+        }}>
+          {ad.advertiser && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}>
+              <div style={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #0058bc, #0070eb)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontSize: 14,
+                fontWeight: 800,
+              }}>
+                {ad.advertiser.charAt(0)}
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#0a2540' }}>
+                {ad.advertiser}
+              </span>
+            </div>
+          )}
+          <div style={{ flex: 1 }} />
+          <span style={{
+            fontSize: 11,
+            fontWeight: 600,
+            padding: '4px 10px',
+            borderRadius: 20,
+            background: daysLeft > 7 ? '#E8F5E9' : daysLeft > 0 ? '#FFF3E0' : '#F2F2F7',
+            color: daysLeft > 7 ? '#34C759' : daysLeft > 0 ? '#FF9500' : '#8E8E93',
+          }}>
+            {daysLeft > 0 ? `D-${daysLeft}` : '기간 만료'}
+          </span>
+          <span style={{
+            fontSize: 11,
+            color: '#74777e',
+            fontWeight: 500,
+          }}>
+            {ad.start_date} ~ {ad.end_date}
+          </span>
+        </div>
+
+        {/* Article Content */}
+        {ad.content && (
+          <div style={{
+            padding: '24px 0',
+            lineHeight: 1.9,
+            fontSize: 15,
+            color: '#1a1a2e',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'keep-all',
+          }}>
+            <LinkifyText text={ad.content} />
+          </div>
+        )}
+
+        {/* No content fallback */}
+        {!ad.content && (
+          <div style={{
+            padding: '40px 0',
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>📢</div>
+            <p style={{ color: '#74777e', fontSize: 14, lineHeight: 1.6 }}>
+              광고 상세 내용이 등록되지 않았습니다.
+            </p>
+          </div>
+        )}
+
+        {/* CTA Section */}
+        <div style={{
+          padding: '20px 0 40px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+        }}>
+          {ad.link_url && (
+            <a
+              href={ad.link_url}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '14px 24px',
+                background: 'linear-gradient(135deg, #0058bc, #0070eb)',
+                color: '#fff',
+                borderRadius: 16,
+                textDecoration: 'none',
+                fontWeight: 700,
+                fontSize: 15,
+                boxShadow: '0 8px 24px rgba(0,112,235,0.25)',
+                transition: 'transform 0.2s',
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 20, fontVariationSettings: "'FILL' 0, 'wght' 400" }}>open_in_new</span>
+              자세히 보기
+            </a>
+          )}
+          {ad.contact && (
+            <a
+              href={`tel:${ad.contact.replace(/[^0-9+]/g, '')}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '14px 24px',
+                background: '#fff',
+                color: '#0a2540',
+                borderRadius: 16,
+                textDecoration: 'none',
+                fontWeight: 700,
+                fontSize: 15,
+                border: '1.5px solid rgba(10,37,64,0.1)',
+                boxShadow: '0 4px 12px rgba(10,37,64,0.04)',
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 20, fontVariationSettings: "'FILL' 0, 'wght' 400" }}>call</span>
+              문의하기 ({ad.contact})
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ─────────────── HomePage ─────────────── */
 const HomePage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -26,19 +241,26 @@ const HomePage = () => {
   const [ads, setAds] = useState([]);
   const [adIdx, setAdIdx] = useState(0);
   const [selectedNotice, setSelectedNotice] = useState(null);
+  const [selectedAd, setSelectedAd] = useState(null);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
   const [fgToast, setFgToast] = useState(null);
   const fcmInitRef = useRef(false);
+  const touchStartRef = useRef(null);
 
   useEffect(() => {
     const nohName = user?.NOHNAME || user?.noh_name || '';
     const sichalName = user?.SICHALNAME || user?.sichal_name || '';
     
-    Promise.all([
-      fetch(`${API_BASE}/api/notices?target_noh=${encodeURIComponent(nohName)}&target_sichal=${encodeURIComponent(sichalName)}`).then(r => r.ok ? r.json() : []),
-      fetch(`${API_BASE}/api/ads?active_only=true`).then(r => r.ok ? r.json() : [])
-    ]).then(([noticeData, adData]) => {
+    // 공지사항: 로컬 서버 API
+    const noticePromise = fetch(`${API_BASE}/api/notices?target_noh=${encodeURIComponent(nohName)}&target_sichal=${encodeURIComponent(sichalName)}`)
+      .then(r => r.ok ? r.json() : [])
+      .catch(() => []);
+
+    // 광고 배너: Firestore (온라인 직접)
+    const adPromise = getActiveAds().catch(() => []);
+
+    Promise.all([noticePromise, adPromise]).then(([noticeData, adData]) => {
       const sorted = (Array.isArray(noticeData) ? noticeData : [])
         .sort((a, b) => (scopeOrder[a.scope] ?? 99) - (scopeOrder[b.scope] ?? 99));
       setNotices(sorted);
@@ -99,7 +321,30 @@ const HomePage = () => {
   }, [ads.length]);
 
   const clearNotice = useCallback(() => setSelectedNotice(null), []);
-  useBackButton(!!selectedNotice, clearNotice);
+  const clearAd = useCallback(() => setSelectedAd(null), []);
+  useBackButton(!!selectedNotice || !!selectedAd, selectedAd ? clearAd : clearNotice);
+
+  // Ad swipe handlers
+  const handleTouchStart = (e) => {
+    touchStartRef.current = e.touches[0].clientX;
+  };
+  const handleTouchEnd = (e) => {
+    if (touchStartRef.current === null || ads.length <= 1) return;
+    const diff = touchStartRef.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) {
+        setAdIdx(p => (p + 1) % ads.length);
+      } else {
+        setAdIdx(p => (p - 1 + ads.length) % ads.length);
+      }
+    }
+    touchStartRef.current = null;
+  };
+
+  // Ad Detail View
+  if (selectedAd) {
+    return <AdDetailView ad={selectedAd} onBack={clearAd} />;
+  }
 
   // Notice Detail View
   if (selectedNotice) {
@@ -194,29 +439,73 @@ const HomePage = () => {
         {ads.length > 0 && (
           <section className="relative mt-2 mb-2">
             <div 
-              className="rounded-[20px] overflow-hidden relative transform transition-all duration-300 hover:-translate-y-1" 
+              className="rounded-[20px] overflow-hidden relative transform transition-all duration-300 hover:-translate-y-1"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
               style={{ 
-                height: 130, 
+                height: 140, 
                 backgroundColor: '#ffffff',
                 boxShadow: '0 20px 40px rgba(10,37,64,0.12), 0 8px 16px rgba(10,37,64,0.08), inset 0 2px 0 rgba(255,255,255,0.8)',
                 border: '1px solid rgba(10,37,64,0.05)'
               }}
             >
               {ads.map((ad, i) => (
-                <a
+                <div
                   key={ad.id}
-                  href={ad.link_url || '#'}
-                  target={ad.link_url ? '_blank' : '_self'}
-                  rel="noreferrer"
-                  className="absolute inset-0 transition-opacity duration-700"
+                  onClick={() => setSelectedAd(ad)}
+                  className="absolute inset-0 transition-opacity duration-700 cursor-pointer"
                   style={{ opacity: i === adIdx ? 1 : 0, pointerEvents: i === adIdx ? 'auto' : 'none' }}
                 >
-                  <ApiImage
-                    src={`${API_BASE}${ad.image_url}`}
-                    alt={ad.title}
-                    className="w-full h-full object-cover"
-                  />
-                </a>
+                  {ad.image_url ? (
+                    <img
+                      src={ad.image_url}
+                      alt={ad.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      background: 'linear-gradient(135deg, #0058bc, #0070eb)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 20,
+                    }}>
+                      <span style={{ color: '#fff', fontSize: 18, fontWeight: 800, textAlign: 'center' }}>
+                        {ad.title}
+                      </span>
+                    </div>
+                  )}
+                  {/* Title overlay */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    padding: '24px 16px 12px',
+                    background: 'linear-gradient(transparent, rgba(0,0,0,0.5))',
+                  }}>
+                    <span style={{
+                      color: '#fff',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      textShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                    }}>
+                      {ad.title}
+                    </span>
+                    {ad.advertiser && (
+                      <span style={{
+                        color: 'rgba(255,255,255,0.8)',
+                        fontSize: 11,
+                        fontWeight: 500,
+                        marginLeft: 8,
+                      }}>
+                        {ad.advertiser}
+                      </span>
+                    )}
+                  </div>
+                </div>
               ))}
               {/* Dots */}
               {ads.length > 1 && (
@@ -224,12 +513,25 @@ const HomePage = () => {
                   {ads.map((_, i) => (
                     <button
                       key={i}
-                      onClick={(e) => { e.preventDefault(); setAdIdx(i); }}
+                      onClick={(e) => { e.stopPropagation(); setAdIdx(i); }}
                       className={`rounded-full transition-all duration-300 ${i === adIdx ? 'w-4 h-1.5 bg-white shadow-sm' : 'w-1.5 h-1.5 bg-white/60 hover:bg-white/80'}`}
                     />
                   ))}
                 </div>
               )}
+              {/* AD label */}
+              <div style={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                padding: '2px 8px',
+                background: 'rgba(0,0,0,0.4)',
+                backdropFilter: 'blur(8px)',
+                borderRadius: 8,
+                zIndex: 5,
+              }}>
+                <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>AD</span>
+              </div>
             </div>
           </section>
         )}
