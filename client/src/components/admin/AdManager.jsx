@@ -57,7 +57,8 @@ const AdManager = () => {
 
   const handleSave = async () => {
     if (!form.title || !form.start_date || !form.end_date) { alert('제목, 시작일, 종료일은 필수입니다.'); return; }
-    if (!form.image_url) { alert('광고 이미지를 업로드해주세요.'); return; }
+    // 신규 등록 시만 이미지 필수, 수정 시에는 기존 이미지 유지 가능
+    if (!form.image_url && editing === 'new') { alert('광고 이미지를 업로드해주세요.'); return; }
     
     setSaving(true);
     try {
@@ -188,8 +189,15 @@ const AdManager = () => {
             </div>
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: '#43474d', display: 'block', marginBottom: 6 }}>
-                광고 이미지 * <span style={{color: '#0070eb', fontWeight: 700}}>(권장: 1200×400px, 3:1)</span>
+                광고 이미지 {editing === 'new' ? '*' : ''} <span style={{color: '#0070eb', fontWeight: 700}}>(권장: 1200×400px, 3:1)</span>
               </label>
+              {/* 수정 모드: 기존 이미지 미리보기 */}
+              {editing !== 'new' && form.image_url && (
+                <div style={{ marginBottom: 8, borderRadius: 8, overflow: 'hidden', background: '#f3f3f8' }}>
+                  <img src={form.image_url} alt="현재 이미지" style={{ width: '100%', height: 60, objectFit: 'cover', display: 'block' }} />
+                  <div style={{ padding: '4px 8px', fontSize: 11, color: '#34C759', fontWeight: 600, background: '#E8F5E9' }}>✅ 기존 이미지 유지됨 (변경하려면 아래에서 새 이미지 선택)</div>
+                </div>
+              )}
               <input type="file" accept="image/*" onChange={handleImageUpload}
                 style={{ width: '100%', padding: '8px 14px', background: '#f3f3f8', border: 'none', borderRadius: 12, fontSize: 13, boxSizing: 'border-box' }} />
               {uploading && <span style={{ fontSize: 12, color: '#007AFF' }}>☁️ Firebase Storage 업로드 중...</span>}
