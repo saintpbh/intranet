@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "@google-cloud/storage": "^7.19.0"
+  }
+}

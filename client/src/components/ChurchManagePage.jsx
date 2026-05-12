@@ -3,6 +3,7 @@ import { useAuth } from '../AuthContext';
 import SimpleLogin from './SimpleLogin';
 import MobileHeader from './mobile/MobileHeader';
 import SyncDateLabel from './SyncDateLabel';
+import API_BASE from '../api';
 import { getChurchByChrCode, updateChurchByChrCode, insertChurch } from '../utils/supabaseRest';
 
 const ENV_MAP = { '1': '도시', '2': '읍', '3': '면', '4': '농어촌' };
@@ -62,8 +63,9 @@ const WorshipEditModal = ({ times, onSave, onClose }) => {
 
 const ChurchManagePage = () => {
   const { user, isLoggedIn } = useAuth();
-  const [church, setChurch] = useState(null);       // TB_Chr100 (IndexedDB)
+  const [church, setChurch] = useState(null);       // TB_Chr100 (IndexedDB or API)
   const [mapData, setMapData] = useState(null);      // 기장지도 Supabase
+  const [mapError, setMapError] = useState(false);   // Supabase 연결 실패
   const [loading, setLoading] = useState(true);
   const [mapLoading, setMapLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -84,12 +86,14 @@ const ChurchManagePage = () => {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
-  // ── TB_Chr100 데이터 로드 (IndexedDB 캐시) ──
+  // ── TB_Chr100 데이터 로드 (IndexedDB → 로컬 API 폴백) ──
   const fetchChurch = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const { getCachedSearch } = await import('../utils/offlineDb');
+      const { getCachedSearch, syncFullDirectory } = await import('../utils/offlineDb');
       let found = null;
+
+      // 1차: IndexedDB 캐시에서 검색
       if (user?.chrCode) {
         const res = await getCachedSearch('churches', user.chrCode);
         if (res?.length) found = res[0];
@@ -103,20 +107,71 @@ const ChurchManagePage = () => {
           }) || res[0];
         }
       }
+
+      // 2차: IndexedDB에 없으면 로컬 서버 API 직접 호출 시도
+      if (!found && navigator.onLine) {
+        try {
+          const searchTerm = user?.chrCode || user?.church || '';
+          if (searchTerm) {
+            const apiRes = await fetch(`${API_BASE}/api/churches?search=${encodeURIComponent(searchTerm)}`);
+            if (apiRes.ok) {
+              const apiData = await apiRes.json();
+              const churches = Array.isArray(apiData) ? apiData : (apiData.data || []);
+              if (churches.length) {
+                if (user?.chrCode) {
+                  found = churches.find(c => (c.ChrCode || '').trim() === user.chrCode.trim()) || churches[0];
+                } else {
+                  found = churches.find(c => {
+                    const n = (c.CHRNAME || '').trim();
+                    return n === user.church || n === user.church + '교회';
+                  }) || churches[0];
+                }
+              }
+            }
+          }
+        } catch (apiErr) {
+          console.warn('[ChurchManage] API fallback failed:', apiErr.message);
+        }
+      }
+
+      // 3차: 아무것도 없으면 백그라운드 동기화 시도 + user 정보로 최소 데이터 구성
+      if (!found) {
+        // 백그라운드 동기화 트리거 (다음번에는 사용 가능하도록)
+        syncFullDirectory().catch(() => {});
+        
+        // user 정보만으로 최소한의 교회 객체 구성 (완전 빈 화면 방지)
+        if (user?.church || user?.chrCode) {
+          found = {
+            ChrCode: user.chrCode || '',
+            CHRNAME: user.church || '',
+            NOHNAME: user.NOHNAME || user.noh_name || user.presbytery || '',
+            SICHALNAME: user.SICHALNAME || user.sichal_name || '',
+            MOCKNAME: user.name || '',
+            _isMinimal: true,  // 최소 데이터 플래그
+          };
+        }
+      }
+
       if (found) setChurch(found);
       else setError('교회 데이터를 찾을 수 없습니다. 데이터 동기화 후 다시 시도해 주세요.');
     } catch (e) { setError('교회 정보를 불러올 수 없습니다: ' + e.message); }
     finally { setLoading(false); }
   }, [user]);
 
-  // ── 기장지도 Supabase 데이터 로드 ──
+  // ── 기장지도 Supabase 데이터 로드 (타임아웃 5초, 실패 허용) ──
   const fetchMapData = useCallback(async (code) => {
     if (!code) return;
     setMapLoading(true);
+    setMapError(false);
     try {
-      const data = await getChurchByChrCode(code);
+      // 5초 타임아웃 적용 — Supabase가 죽어있으면 빠르게 포기
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
+      const data = await Promise.race([getChurchByChrCode(code), timeoutPromise]);
       setMapData(data); // null if not registered
-    } catch (e) { console.warn('[ChurchManage] Supabase fetch failed:', e); }
+    } catch (e) {
+      console.warn('[ChurchManage] Supabase fetch failed (timeout or DNS):', e.message);
+      setMapError(true);
+    }
     finally { setMapLoading(false); }
   }, []);
 
@@ -230,14 +285,33 @@ const ChurchManagePage = () => {
           <>
             <SyncDateLabel />
 
+            {/* 최소 데이터 알림 */}
+            {church._isMinimal && (
+              <div className={S.card + ' p-4 bg-amber-50 border-amber-200'}>
+                <div className="flex items-center gap-2 text-amber-700 text-sm">
+                  <span className="material-symbols-outlined text-[18px]">info</span>
+                  <p className="font-medium">로그인 정보만 표시 중입니다. 데이터 동기화 후 상세 정보가 표시됩니다.</p>
+                </div>
+              </div>
+            )}
+
             {/* ── 기장지도 정보 (편집 가능) ── */}
             <div className={S.card + ' p-5'}>
               <h3 className={S.title}>
                 <span className="material-symbols-outlined text-indigo-500">map</span>
                 기장지도 교회정보
                 {mapLoading && <span className="material-symbols-outlined animate-spin text-[14px] text-slate-400 ml-1">progress_activity</span>}
-                {!mapData && !mapLoading && <span className="text-[11px] text-orange-500 font-medium ml-2">(미등록)</span>}
+                {!mapData && !mapLoading && !mapError && <span className="text-[11px] text-orange-500 font-medium ml-2">(미등록)</span>}
               </h3>
+              {mapError ? (
+                <div className="bg-slate-50 rounded-xl p-4 text-center">
+                  <span className="material-symbols-outlined text-2xl text-slate-300 mb-2 block">cloud_off</span>
+                  <p className="text-slate-500 text-sm">기장지도 서버에 연결할 수 없습니다.</p>
+                  <p className="text-slate-400 text-xs mt-1">Supabase 프로젝트가 일시 중지된 상태일 수 있습니다.</p>
+                  <button onClick={() => fetchMapData(chrCode)} className="mt-3 text-blue-600 text-sm font-semibold">다시 시도</button>
+                </div>
+              ) : (
+              <>
               <div className="divide-y divide-slate-50">
                 <EditableRow icon="waving_hand" label="인삿말" value={mapData?.intro_text} fieldKey="intro_text" multiline color="text-indigo-400" />
 
@@ -273,6 +347,8 @@ const ChurchManagePage = () => {
                 <div className="mt-4 rounded-xl overflow-hidden">
                   <iframe className="w-full aspect-video" src={`https://www.youtube.com/embed/${mapData.youtube_video_id}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="교회 영상"></iframe>
                 </div>
+              )}
+              </>
               )}
             </div>
 
