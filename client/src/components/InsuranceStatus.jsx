@@ -252,7 +252,7 @@ const InsuranceStatus = ({ user, onBack }) => {
             <div className="bg-surface-container-low rounded-xl p-4 border border-surface-variant/50 flex items-start gap-3">
               <span className="material-symbols-outlined text-secondary text-lg shrink-0 mt-0.5">info</span>
               <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                본 화면은 총회 생보납입 기록입니다. 문의사항은 총회 사무국으로 연락해 주세요.
+                본 화면은 총회 생활보장제 납입 기록입니다. 문의사항은 총회 사무국으로 연락해 주세요.
               </p>
             </div>
           </>
