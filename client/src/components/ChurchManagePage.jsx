@@ -394,13 +394,7 @@ const ChurchManagePage = () => {
               </div>
             </div>
 
-            {/* ── 비고 ── */}
-            {(church.Remark || '').trim() && (
-              <div className={S.card + ' p-5'}>
-                <h3 className={S.title}><span className="material-symbols-outlined text-purple-500">sticky_note_2</span>비고 / 메모</h3>
-                <div className="bg-slate-50 rounded-xl p-4 text-[13px] text-slate-700 leading-relaxed whitespace-pre-wrap break-all">{(church.Remark || '').trim()}</div>
-              </div>
-            )}
+            {/* 비고/메모 — 민감 정보 포함으로 비노출 처리 */}
           </>
         ) : null}
       </main>
