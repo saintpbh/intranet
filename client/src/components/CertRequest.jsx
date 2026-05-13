@@ -27,6 +27,46 @@ const CertRequest = ({ user, onBack }) => {
   const [modifyRequestId, setModifyRequestId] = useState(null);
   const [modifyComment, setModifyComment] = useState('');
 
+  const [hiddenRequests, setHiddenRequests] = useState(() => {
+    const saved = localStorage.getItem('hidden_cert_requests');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [swipeState, setSwipeState] = useState({ id: null, startX: 0, currentX: 0 });
+
+  useEffect(() => {
+    localStorage.setItem('hidden_cert_requests', JSON.stringify(hiddenRequests));
+  }, [hiddenRequests]);
+
+  const handleTouchStart = (e, id) => {
+    setSwipeState({ id, startX: e.touches[0].clientX, currentX: e.touches[0].clientX });
+  };
+
+  const handleTouchMove = (e, id) => {
+    if (swipeState.id === id) {
+      setSwipeState(prev => ({ ...prev, currentX: e.touches[0].clientX }));
+    }
+  };
+
+  const handleTouchEnd = (id) => {
+    if (swipeState.id === id) {
+      const diffX = swipeState.startX - swipeState.currentX;
+      if (diffX > 80) { // Swiped left by more than 80px
+        setHiddenRequests(prev => [...prev, id]);
+      }
+      setSwipeState({ id: null, startX: 0, currentX: 0 });
+    }
+  };
+
+  const getSwipeStyle = (id) => {
+    if (swipeState.id === id) {
+      const diffX = swipeState.currentX - swipeState.startX;
+      if (diffX < 0) {
+        return { transform: `translateX(${diffX}px)`, transition: 'none' };
+      }
+    }
+    return { transform: 'translateX(0)', transition: 'transform 0.3s ease-out' };
+  };
+
   const fetchHistory = () => {
     fetch(`${API_BASE}/api/cert-requests/me?minister_code=${user.code}`)
       .then(r => r.json())
@@ -165,14 +205,14 @@ const CertRequest = ({ user, onBack }) => {
               내 발급 이력
             </h3>
             
-            {requests.length === 0 ? (
+            {requests.filter(r => !hiddenRequests.includes(r.id)).length === 0 ? (
               <div className="text-center py-12 bg-surface-container-lowest rounded-3xl border border-dashed border-surface-variant">
                 <span className="material-symbols-outlined text-3xl text-outline-variant mb-2">inbox</span>
                 <p className="text-sm font-medium text-outline">신청 이력이 없습니다.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {requests.map(r => {
+                {requests.filter(r => !hiddenRequests.includes(r.id)).map(r => {
                   const expired = r.status === 'ISSUED' && isExpired(r.updated_at);
                   const isIssued = r.status === 'ISSUED';
                   const isRejected = r.status === 'REJECTED';
@@ -185,8 +225,27 @@ const CertRequest = ({ user, onBack }) => {
                     hoursLeft = Math.ceil((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60));
                   }
 
+                  const isSwiping = swipeState.id === r.id;
+                  const swipeDiff = isSwiping ? Math.min(0, swipeState.currentX - swipeState.startX) : 0;
+                  const swipeProgress = Math.min(1, Math.abs(swipeDiff) / 80);
+
                   return (
-                    <div key={r.id} className="bg-white rounded-2xl p-4 shadow-sm border border-surface-variant/50 relative overflow-hidden flex flex-col gap-3">
+                    <div key={r.id} className="relative overflow-hidden rounded-2xl">
+                      {/* Background Delete Action */}
+                      <div 
+                        className="absolute inset-0 bg-red-500 flex items-center justify-end px-6 transition-opacity"
+                        style={{ opacity: swipeProgress }}
+                      >
+                        <span className="material-symbols-outlined text-white font-bold">delete</span>
+                      </div>
+
+                      <div 
+                        className="bg-white rounded-2xl p-4 shadow-sm border border-surface-variant/50 relative overflow-hidden flex flex-col gap-3 w-full"
+                        style={getSwipeStyle(r.id)}
+                        onTouchStart={(e) => handleTouchStart(e, r.id)}
+                        onTouchMove={(e) => handleTouchMove(e, r.id)}
+                        onTouchEnd={() => handleTouchEnd(r.id)}
+                      >
                       {isIssued && !expired && <div className="absolute top-0 left-0 w-1.5 h-full bg-green-500"></div>}
                       {expired && <div className="absolute top-0 left-0 w-1.5 h-full bg-red-400"></div>}
                       {isRejected && <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>}
@@ -271,6 +330,7 @@ const CertRequest = ({ user, onBack }) => {
                           </form>
                         </div>
                       )}
+                      </div>
                     </div>
                   );
                 })}
