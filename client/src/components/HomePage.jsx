@@ -66,7 +66,18 @@ const AdDetailView = ({ ad, onBack }) => {
         overflow: 'hidden',
         background: 'linear-gradient(135deg, #0a2540, #0058bc)',
       }}>
-        {ad.image_url && (() => {
+        {ad.thumbnail_url ? (
+          <img
+            src={ad.thumbnail_url}
+            alt={ad.title}
+            style={{
+              width: '100%',
+              height: 320,
+              objectFit: 'cover',
+              display: 'block',
+            }}
+          />
+        ) : ad.image_url ? (() => {
           const c = ad.image_crop;
           return (
             <img
@@ -83,7 +94,7 @@ const AdDetailView = ({ ad, onBack }) => {
               }}
             />
           );
-        })()}
+        })() : null}
         {/* Gradient overlay */}
         <div style={{
           position: 'absolute',
@@ -484,7 +495,13 @@ const HomePage = () => {
                   className="absolute inset-0 transition-opacity duration-700 cursor-pointer"
                   style={{ opacity: i === adIdx ? 1 : 0, pointerEvents: i === adIdx ? 'auto' : 'none' }}
                 >
-                  {ad.image_url ? (() => {
+                  {ad.thumbnail_url ? (
+                    <img
+                      src={ad.thumbnail_url}
+                      alt={ad.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : ad.image_url ? (() => {
                     const c = ad.image_crop;
                     return (
                       <img

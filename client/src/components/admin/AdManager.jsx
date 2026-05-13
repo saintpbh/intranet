@@ -2,6 +2,50 @@ import { useState, useEffect, useRef } from 'react';
 import { getAllAds, createAd, updateAd, deleteAd, uploadAdImage } from '../../utils/adService';
 
 /* ── 배너 크롭 에디터 ── */
+const generateThumbnailBlob = (imageUrl, cropData) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // Important for canvas toBlob
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1200; // 3:1 ratio
+      canvas.height = 400;
+      const ctx = canvas.getContext('2d');
+      
+      const pos = { x: cropData?.x ?? 50, y: cropData?.y ?? 50 };
+      const zoom = cropData?.zoom ?? 1;
+
+      // 1. Calculate object-fit: cover scale
+      const scaleFit = Math.max(canvas.width / img.width, canvas.height / img.height);
+      const scaledImgW = img.width * scaleFit;
+      const scaledImgH = img.height * scaleFit;
+      
+      // 2. Calculate object-position translation
+      const dx = (canvas.width - scaledImgW) * (pos.x / 100);
+      const dy = (canvas.height - scaledImgH) * (pos.y / 100);
+      
+      // 3. Apply transform: scale and transform-origin
+      const originX = canvas.width * (pos.x / 100);
+      const originY = canvas.height * (pos.y / 100);
+      
+      ctx.translate(originX, originY);
+      ctx.scale(zoom, zoom);
+      ctx.translate(-originX, -originY);
+      
+      // 4. Draw image
+      ctx.drawImage(img, dx, dy, scaledImgW, scaledImgH);
+      
+      // 5. Export to WebP
+      canvas.toBlob(blob => {
+        if (blob) resolve(blob);
+        else reject(new Error('Canvas toBlob failed'));
+      }, 'image/webp', 0.85); // 85% quality
+    };
+    img.onerror = () => reject(new Error('Image load failed for thumbnail generation'));
+    img.src = imageUrl;
+  });
+};
+
 const BannerCropEditor = ({ imageUrl, crop, onChange }) => {
   const containerRef = useRef(null);
   const draggingRef = useRef(false);
@@ -110,7 +154,7 @@ const AdManager = () => {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({
     title: '', link_url: '', content: '', advertiser: '', contact: '',
-    start_date: '', end_date: '', display_order: 0, image_url: '', image_crop: null,
+    start_date: '', end_date: '', display_order: 0, image_url: '', image_crop: null, thumbnail_url: null,
   });
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -123,7 +167,7 @@ const AdManager = () => {
       title: '', link_url: '', content: '', advertiser: '', contact: '',
       start_date: today.toISOString().split('T')[0],
       end_date: nextMonth.toISOString().split('T')[0],
-      display_order: 0, image_url: '', image_crop: null,
+      display_order: 0, image_url: '', image_crop: null, thumbnail_url: null,
     };
   };
 
@@ -157,11 +201,25 @@ const AdManager = () => {
     if (!form.image_url && editing === 'new') { alert('광고 이미지를 업로드해주세요.'); return; }
     setSaving(true);
     try {
+      let finalThumbnailUrl = form.thumbnail_url || null;
+
+      // Generate and upload thumbnail if image exists
+      if (form.image_url) {
+        try {
+          const thumbBlob = await generateThumbnailBlob(form.image_url, form.image_crop);
+          const thumbFile = new File([thumbBlob], 'thumb.webp', { type: 'image/webp' });
+          finalThumbnailUrl = await uploadAdImage(thumbFile);
+        } catch (err) {
+          console.warn('Thumbnail generation failed:', err);
+        }
+      }
+
       const payload = {
         title: form.title, image_url: form.image_url, content: form.content,
         link_url: form.link_url, advertiser: form.advertiser, contact: form.contact,
         display_order: form.display_order, start_date: form.start_date, end_date: form.end_date,
         image_crop: form.image_crop || null,
+        thumbnail_url: finalThumbnailUrl,
       };
       if (editing === 'new') {
         await createAd(payload);
@@ -180,7 +238,7 @@ const AdManager = () => {
 
   const handleDelete = async (ad) => {
     if (!confirm('이 광고를 삭제하시겠습니까?')) return;
-    try { await deleteAd(ad.id, ad.image_url); fetchAds(); }
+    try { await deleteAd(ad.id, ad.image_url, ad.thumbnail_url); fetchAds(); }
     catch (err) { alert('삭제 실패: ' + err.message); }
   };
 
@@ -192,6 +250,7 @@ const AdManager = () => {
       start_date: ad.start_date || '', end_date: ad.end_date || '',
       display_order: ad.display_order || 0, image_url: ad.image_url || '',
       image_crop: ad.image_crop || null,
+      thumbnail_url: ad.thumbnail_url || null,
     });
   };
 
@@ -330,7 +389,11 @@ const AdManager = () => {
             <div key={ad.id} style={{ background: '#fff', borderRadius: 16, padding: 16, display: 'flex', gap: 16, alignItems: 'center', boxShadow: '0 10px 20px rgba(10,37,64,0.03)', transition: 'all 0.2s', opacity: ad.is_active ? 1 : 0.6 }}>
               {/* Thumbnail - 크롭 적용 */}
               <div style={{ width: 90, height: 56, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: '#f3f3f8' }}>
-                {ad.image_url && (
+                {ad.thumbnail_url ? (
+                  <img src={ad.thumbnail_url} alt=""
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : ad.image_url ? (
                   <img src={ad.image_url} alt=""
                     style={{
                       width: '100%', height: '100%', objectFit: 'cover',
@@ -339,7 +402,7 @@ const AdManager = () => {
                       transformOrigin: c ? `${c.x}% ${c.y}%` : 'center',
                     }}
                   />
-                )}
+                ) : null}
               </div>
               {/* Info */}
               <div style={{ flex: 1, minWidth: 0 }}>

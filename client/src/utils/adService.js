@@ -110,6 +110,7 @@ export async function createAd(adData) {
     title: adData.title || '',
     image_url: adData.image_url || '',
     image_crop: adData.image_crop || null,
+    thumbnail_url: adData.thumbnail_url || null,
     content: adData.content || '',
     link_url: adData.link_url || '',
     advertiser: adData.advertiser || '',
@@ -142,17 +143,24 @@ export async function updateAd(adId, updates) {
  * 광고 삭제 (이미지도 함께 삭제)
  * @param {string} adId
  * @param {string} imageUrl - Storage URL (optional)
+ * @param {string} thumbnailUrl - Storage URL (optional)
  */
-export async function deleteAd(adId, imageUrl) {
-  // Storage에서 이미지 삭제 시도
-  if (imageUrl && imageUrl.includes('firebasestorage.googleapis.com')) {
-    try {
-      const storageRef = ref(storage, imageUrl);
-      await deleteObject(storageRef);
-    } catch (err) {
-      console.warn('[AdService] Image delete failed (may not exist):', err.message);
+export async function deleteAd(adId, imageUrl, thumbnailUrl) {
+  const deleteFromStorage = async (url) => {
+    if (url && url.includes('firebasestorage.googleapis.com')) {
+      try {
+        const storageRef = ref(storage, url);
+        await deleteObject(storageRef);
+      } catch (err) {
+        console.warn(`[AdService] Image delete failed for ${url}:`, err.message);
+      }
     }
-  }
+  };
+
+  // Storage에서 이미지들 삭제 시도
+  await deleteFromStorage(imageUrl);
+  await deleteFromStorage(thumbnailUrl);
+  
   // Firestore 문서 삭제
   await deleteDoc(doc(firestore, ADS_COLLECTION, adId));
 }
