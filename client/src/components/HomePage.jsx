@@ -29,26 +29,36 @@ const AdDetailView = ({ ad, onBack }) => {
     return diff;
   })();
 
-  // #root의 overflow:hidden을 일시적으로 해제하여 스크롤 허용
+  // body/root의 overflow 제한을 모두 해제하여 스크롤 허용
   useEffect(() => {
     const root = document.getElementById('root');
+    const body = document.body;
+    const origRootOverflow = root?.style.overflow;
+    const origRootHeight = root?.style.height;
+    const origBodyOverflow = body.style.overflow;
+    // 모든 스크롤 제한 해제
     if (root) {
-      root.style.overflowY = 'auto';
-      root.style.overflowX = 'hidden';
+      root.style.overflow = 'visible';
+      root.style.height = 'auto';
     }
-    // 최상단으로 스크롤
-    root?.scrollTo(0, 0);
+    body.style.overflow = 'auto';
+    window.scrollTo(0, 0);
     return () => {
       if (root) {
-        root.style.overflowY = '';
-        root.style.overflowX = '';
+        root.style.overflow = origRootOverflow || '';
+        root.style.height = origRootHeight || '';
       }
+      body.style.overflow = origBodyOverflow || '';
     };
   }, []);
 
   return (
     <div style={{
-      minHeight: '100%',
+      position: 'fixed',
+      top: 0, left: 0, right: 0, bottom: 0,
+      zIndex: 99999,
+      overflowY: 'auto',
+      WebkitOverflowScrolling: 'touch',
       background: '#f8f9fc',
       fontFamily: "'Plus Jakarta Sans', 'Pretendard', sans-serif",
     }}>
