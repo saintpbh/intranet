@@ -113,21 +113,11 @@ os.makedirs("uploads/profiles", exist_ok=True)
 os.makedirs("uploads/church_photos", exist_ok=True)
 app.mount("/api/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# Enable CORS for all origins (PWA + ngrok 유료 터널)
+# Enable CORS for all origins (PWA + ngrok 터널 + IDC 서버)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://prok-ga.web.app",
-        "https://prok-ga-map.web.app",
-        "http://localhost:4173",
-        "http://localhost:3000",
-        "http://localhost:4000",
-        "http://localhost:4001",
-        "http://localhost:4002",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
