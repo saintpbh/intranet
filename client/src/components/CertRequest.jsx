@@ -240,7 +240,7 @@ const CertRequest = ({ user, onBack }) => {
                       </div>
 
                       <div 
-                        className="bg-white rounded-2xl p-4 shadow-sm border border-surface-variant/50 relative overflow-hidden flex flex-col gap-3 w-full"
+                        className="bg-white rounded-2xl p-4 shadow-sm border border-surface-variant/50 relative overflow-hidden flex flex-col gap-3 w-full touch-pan-y"
                         style={getSwipeStyle(r.id)}
                         onTouchStart={(e) => handleTouchStart(e, r.id)}
                         onTouchMove={(e) => handleTouchMove(e, r.id)}
