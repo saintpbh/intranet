@@ -1,5 +1,6 @@
-import pymssql
-conn = pymssql.connect(server='192.168.0.145', user='pbh', password='prok3000', database='KJ_CHURCH', charset='cp949', login_timeout=5, timeout=10)
+from db_helper import get_connection
+
+conn = get_connection()
 cursor = conn.cursor(as_dict=True)
 
 # Find 구름산교회 directly

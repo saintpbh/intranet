@@ -1,5 +1,6 @@
-import pymssql
-conn = pymssql.connect('192.168.0.145', 'sa', 'Chongkyo1#', 'KJ_CHURCH', charset='cp949')
+from db_helper import get_connection
+
+conn = get_connection()
 cursor = conn.cursor(as_dict=True)
 cursor.execute("SELECT MinisterCode, MinisterName FROM VI_MIN_INFO WHERE MinisterCode BETWEEN %s AND %s ORDER BY MinisterCode", ('7600', '7700'))
 rows = cursor.fetchall()

@@ -1,5 +1,6 @@
-import pymssql
-conn = pymssql.connect('192.168.0.145', 'pbh', 'prok3000', 'KJ_CHURCH', charset='cp949')
+from db_helper import get_connection
+
+conn = get_connection()
 c = conn.cursor(as_dict=True)
 
 try:

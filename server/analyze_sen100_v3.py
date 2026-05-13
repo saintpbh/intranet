@@ -1,10 +1,10 @@
 """TB_SEN100 추가 분석 v3 - 월별 매트릭스 + 미납현황"""
-import pymssql
+from db_helper import get_connection
 import sys
 import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-conn = pymssql.connect('192.168.0.145', 'pbh', 'prok3000', 'KJ_CHURCH', charset='cp949')
+conn = get_connection()
 c = conn.cursor(as_dict=True)
 
 # 1. InGubun 코드 해석 (한글)

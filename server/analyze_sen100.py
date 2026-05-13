@@ -1,8 +1,8 @@
 """TB_SEN100 테이블 분석 스크립트"""
-import pymssql
+from db_helper import get_connection
 import json
 
-conn = pymssql.connect('192.168.0.145', 'pbh', 'prok3000', 'KJ_CHURCH', charset='cp949')
+conn = get_connection()
 c = conn.cursor(as_dict=True)
 
 # 1. 컬럼 스키마 조회

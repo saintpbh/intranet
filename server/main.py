@@ -1,10 +1,14 @@
+from dotenv import load_dotenv
+import os
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+
 from fastapi import FastAPI, Query, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import pymssql
-import os
+# os already imported above with dotenv
 import json
 import shutil
 import sqlite3
@@ -168,16 +172,18 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"error": "server_error", "message": f"서버 오류가 발생했습니다: {type(exc).__name__}"}
     )
 
-# Database credentials
-DB_USER = "pbh"
-DB_PASSWORD = "prok3000"
-DB_SERVER = "192.168.0.145"
-DB_DATABASE = "KJ_CHURCH"
+# Database credentials — .env에서 로드 (IDC 전환 시 .env만 변경)
+DB_USER = os.getenv("DB_USER", "pbh")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "prok3000")
+DB_SERVER = os.getenv("DB_SERVER", "192.168.0.145")
+DB_DATABASE = os.getenv("DB_DATABASE", "KJ_CHURCH")
+DB_PORT = os.getenv("DB_PORT", "1433")
 
 def get_connection():
     """MSSQL 연결 (5초 타임아웃)"""
     return pymssql.connect(
-        server=DB_SERVER, 
+        server=DB_SERVER,
+        port=int(DB_PORT),
         user=DB_USER, 
         password=DB_PASSWORD, 
         database=DB_DATABASE, 
@@ -572,7 +578,7 @@ def get_map_sync_config():
                 return json.load(f)
         except:
             pass
-    return {"db_server": "192.168.0.145", "supabase_url": "https://wfpacsoyoalkdzksnmdg.supabase.co"}
+    return {"db_server": DB_SERVER, "supabase_url": "https://wfpacsoyoalkdzksnmdg.supabase.co"}
 
 @app.post("/api/admin/map-sync-config")
 def save_map_sync_config(config: MapSyncConfig):

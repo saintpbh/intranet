@@ -1,12 +1,7 @@
-import pymssql
-
-DB_USER = "pbh"
-DB_PASSWORD = "prok3000"
-DB_SERVER = "192.168.0.145"
-DB_DATABASE = "KJ_CHURCH"
+from db_helper import get_connection
 
 try:
-    conn = pymssql.connect(server=DB_SERVER, user=DB_USER, password=DB_PASSWORD, database=DB_DATABASE, charset='cp949')
+    conn = get_connection()
     conn.autocommit(True)
     cursor = conn.cursor()
     

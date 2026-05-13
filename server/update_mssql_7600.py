@@ -1,7 +1,7 @@
-import pymssql
+from db_helper import get_connection
 
 try:
-    conn = pymssql.connect('192.168.0.145', 'sa', 'Chongkyo1#', 'KJ_CHURCH', charset='cp949')
+    conn = get_connection()
     cursor = conn.cursor(as_dict=True)
     
     # Check current value
@@ -9,7 +9,6 @@ try:
     print("Before:", cursor.fetchall())
     
     # Try updating the view or the underlying table
-    # Often the table is TB_Min100 or something similar. Let's try updating the view first.
     try:
         cursor.execute("UPDATE VI_MIN_INFO SET MinisterName = %s WHERE MinisterCode = %s", ('총회직원'.encode('cp949'), '7600'))
         conn.commit()
