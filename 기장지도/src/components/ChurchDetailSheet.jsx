@@ -562,7 +562,7 @@ export default function ChurchDetailSheet({ church: initialChurch, onClose, onOp
                         <div key={i} className="p-3.5 flex items-center justify-between" style={{ borderBottom: i < church.worship_times.length - 1 ? `1px solid ${W.cardBorder}` : 'none' }}>
                           <div className="flex items-center gap-2.5">
                             <div className="w-1.5 h-1.5 rounded-full" style={{ background: W.accent }}></div>
-                            <span className="font-bold text-[13px]" style={{ color: W.text }}>{wt.title}</span>
+                            <span className="font-bold text-[13px]" style={{ color: W.text }}>{wt.title || wt.name}</span>
                           </div>
                           <div className="flex flex-col items-end gap-0.5">
                             <span className="font-bold text-[13px]" style={{ color: W.accent }}>{wt.time}</span>

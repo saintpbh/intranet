@@ -36,8 +36,10 @@ const EditModal = ({ title, value, onSave, onClose, multiline = false }) => {
 
 /* ── 예배시간 편집 모달 ── */
 const WorshipEditModal = ({ times, onSave, onClose }) => {
-  const [rows, setRows] = useState(times?.length ? times : [{ name: '', time: '' }]);
-  const add = () => setRows([...rows, { name: '', time: '' }]);
+  // 기존 데이터 호환: name → title 변환
+  const normalize = (arr) => (arr || []).map(r => ({ title: r.title || r.name || '', time: r.time || '' }));
+  const [rows, setRows] = useState(normalize(times)?.length ? normalize(times) : [{ title: '', time: '' }]);
+  const add = () => setRows([...rows, { title: '', time: '' }]);
   const remove = i => setRows(rows.filter((_, idx) => idx !== i));
   const update = (i, k, v) => { const n = [...rows]; n[i] = { ...n[i], [k]: v }; setRows(n); };
   return (
@@ -46,7 +48,7 @@ const WorshipEditModal = ({ times, onSave, onClose }) => {
         <h3 className="text-lg font-bold text-slate-800">예배시간 편집</h3>
         {rows.map((r, i) => (
           <div key={i} className="flex gap-2 items-center">
-            <input placeholder="예배명" className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" value={r.name} onChange={e => update(i, 'name', e.target.value)} />
+            <input placeholder="예배명" className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" value={r.title} onChange={e => update(i, 'title', e.target.value)} />
             <input placeholder="시간" className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" value={r.time} onChange={e => update(i, 'time', e.target.value)} />
             <button onClick={() => remove(i)} className="text-red-400 text-xl font-bold px-1">×</button>
           </div>
@@ -54,7 +56,7 @@ const WorshipEditModal = ({ times, onSave, onClose }) => {
         <button onClick={add} className="text-blue-600 text-sm font-semibold flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">add</span>추가</button>
         <div className="flex gap-3 pt-2">
           <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm">취소</button>
-          <button onClick={() => onSave(rows.filter(r => r.name || r.time))} className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm shadow-lg shadow-blue-200">저장</button>
+          <button onClick={() => onSave(rows.filter(r => r.title || r.time))} className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm shadow-lg shadow-blue-200">저장</button>
         </div>
       </div>
     </div>
