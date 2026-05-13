@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import API_BASE from '../api';
 import { useBackButton } from '../useBackButton';
@@ -29,36 +30,29 @@ const AdDetailView = ({ ad, onBack }) => {
     return diff;
   })();
 
-  // body/root의 overflow 제한을 모두 해제하여 스크롤 허용
+  // body의 overflow 제한을 해제하여 스크롤 허용
   useEffect(() => {
-    const root = document.getElementById('root');
     const body = document.body;
-    const origRootOverflow = root?.style.overflow;
-    const origRootHeight = root?.style.height;
+    const html = document.documentElement;
     const origBodyOverflow = body.style.overflow;
-    // 모든 스크롤 제한 해제
-    if (root) {
-      root.style.overflow = 'visible';
-      root.style.height = 'auto';
-    }
-    body.style.overflow = 'auto';
-    window.scrollTo(0, 0);
+    const origHtmlOverflow = html.style.overflow;
+    body.style.overflow = 'hidden';
+    html.style.overflow = 'hidden';
     return () => {
-      if (root) {
-        root.style.overflow = origRootOverflow || '';
-        root.style.height = origRootHeight || '';
-      }
-      body.style.overflow = origBodyOverflow || '';
+      body.style.overflow = origBodyOverflow;
+      html.style.overflow = origHtmlOverflow;
     };
   }, []);
 
-  return (
+  // Portal로 #root 바깥(body 직속)에 렌더링 → 모든 부모 CSS 제약 우회
+  return createPortal(
     <div style={{
       position: 'fixed',
       top: 0, left: 0, right: 0, bottom: 0,
       zIndex: 99999,
-      overflowY: 'auto',
+      overflowY: 'scroll',
       WebkitOverflowScrolling: 'touch',
+      touchAction: 'pan-y',
       background: '#f8f9fc',
       fontFamily: "'Plus Jakarta Sans', 'Pretendard', sans-serif",
     }}>
@@ -261,7 +255,8 @@ const AdDetailView = ({ ad, onBack }) => {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
