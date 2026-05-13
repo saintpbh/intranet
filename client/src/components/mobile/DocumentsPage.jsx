@@ -253,7 +253,7 @@ const DocumentsPage = () => {
 
                     {/* Foreground Request Card */}
                     <div 
-                      className="bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.03)] border border-surface-variant/50 relative overflow-hidden flex flex-col gap-3 rounded-2xl w-full"
+                      className="bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.03)] border border-surface-variant/50 relative overflow-hidden flex flex-col gap-3 rounded-2xl w-full touch-pan-y"
                       style={getSwipeStyle(r.id)}
                       onTouchStart={(e) => handleTouchStart(e, r.id)}
                       onTouchMove={(e) => handleTouchMove(e, r.id)}
