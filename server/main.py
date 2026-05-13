@@ -4140,6 +4140,28 @@ async def update_church_by_code(chr_code: str, payload: ChurchUpdatePayload):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@app.post("/api/church-manage")
+async def create_church(payload: dict):
+    """교회 신규 등록 (기장지도 Supabase)"""
+    try:
+        if not payload.get("chr_code"):
+            return JSONResponse(status_code=400, content={"error": "chr_code is required"})
+
+        r = _requests.post(
+            f"{_SUPABASE_URL}/rest/v1/churches",
+            headers=_sb_headers(),
+            json=payload,
+            timeout=10,
+        )
+        if r.status_code not in (200, 201):
+            return JSONResponse(status_code=r.status_code, content={"error": r.text})
+        data = r.json() if r.text else []
+        return data[0] if data else payload
+    except Exception as e:
+        logging.error(f"[ChurchManage] POST error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @app.get("/api/church-manage/{chr_code}/inquiries")
 async def get_church_inquiries(chr_code: str):
     """해당 교회의 비밀 문의 목록 조회"""

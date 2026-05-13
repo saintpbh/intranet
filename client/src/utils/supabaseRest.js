@@ -1,22 +1,12 @@
 /**
  * Supabase REST API 유틸리티 (기장지도 churches 테이블 연동)
- * - 로컬서버 없이 클라이언트에서 직접 Supabase REST API 호출
- * - anon key 사용 (RLS 정책에 따라 접근 제한)
+ * - FastAPI 서버 프록시를 통해 Supabase 접근 (service_role key로 RLS 우회)
+ * - API_BASE: ngrok 또는 IDC 서버 URL
  */
 
-const SUPABASE_URL = 'https://wfpacsoyoalkdzksnmdg.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_OE__Egoq2JlJASb3QnqrbA_lnpaaTd6';
-const REQUEST_TIMEOUT_MS = 8000; // 8초 타임아웃 (DNS 실패 시 빠르게 포기)
+import API_BASE from '../api';
 
-function headers(extra = {}) {
-  return {
-    'apikey': SUPABASE_ANON_KEY,
-    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    'Content-Type': 'application/json',
-    'Prefer': 'return=representation',
-    ...extra,
-  };
-}
+const REQUEST_TIMEOUT_MS = 10000; // 10초 타임아웃
 
 /** 타임아웃 적용 fetch wrapper */
 function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
@@ -27,19 +17,19 @@ function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
 }
 
 /**
- * 교회코드(chr_code)로 Supabase churches 테이블에서 교회 정보 조회
+ * 교회코드(chr_code)로 교회 정보 조회
  * @param {string} chrCode - 교회코드 (예: "100432")
  * @returns {object|null} 교회 정보 객체 또는 null
  */
 export async function getChurchByChrCode(chrCode) {
   try {
     const res = await fetchWithTimeout(
-      `${SUPABASE_URL}/rest/v1/churches?chr_code=eq.${chrCode}&select=*`,
-      { headers: headers() }
+      `${API_BASE}/api/church-manage/${chrCode}`,
+      { headers: { 'Content-Type': 'application/json' } }
     );
+    if (res.status === 404) return null;
     if (!res.ok) return null;
-    const data = await res.json();
-    return data.length > 0 ? data[0] : null;
+    return await res.json();
   } catch (err) {
     console.warn('[SupabaseRest] getChurchByChrCode failed:', err);
     return null;
@@ -55,10 +45,10 @@ export async function getChurchByChrCode(chrCode) {
 export async function updateChurchByChrCode(chrCode, updates) {
   try {
     const res = await fetchWithTimeout(
-      `${SUPABASE_URL}/rest/v1/churches?chr_code=eq.${chrCode}`,
+      `${API_BASE}/api/church-manage/${chrCode}`,
       {
-        method: 'PATCH',
-        headers: headers(),
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       }
     );
@@ -67,8 +57,7 @@ export async function updateChurchByChrCode(chrCode, updates) {
       console.error('[SupabaseRest] updateChurch failed:', res.status, errText);
       return null;
     }
-    const data = await res.json();
-    return data.length > 0 ? data[0] : null;
+    return await res.json();
   } catch (err) {
     console.error('[SupabaseRest] updateChurch exception:', err);
     return null;
@@ -83,10 +72,10 @@ export async function updateChurchByChrCode(chrCode, updates) {
 export async function insertChurch(churchData) {
   try {
     const res = await fetchWithTimeout(
-      `${SUPABASE_URL}/rest/v1/churches`,
+      `${API_BASE}/api/church-manage`,
       {
         method: 'POST',
-        headers: headers(),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(churchData),
       }
     );
@@ -95,8 +84,7 @@ export async function insertChurch(churchData) {
       console.error('[SupabaseRest] insertChurch failed:', res.status, errText);
       return null;
     }
-    const data = await res.json();
-    return data.length > 0 ? data[0] : null;
+    return await res.json();
   } catch (err) {
     console.error('[SupabaseRest] insertChurch exception:', err);
     return null;
