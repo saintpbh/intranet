@@ -56,7 +56,9 @@ const DocumentsPage = () => {
     if (swipeState.id === id) {
       const diffX = swipeState.startX - swipeState.currentX;
       if (diffX > 80) { // Swiped left by more than 80px
-        setHiddenRequests(prev => [...prev, id]);
+        if (window.confirm("이 기록을 목록에서 삭제하시겠습니까?")) {
+          setHiddenRequests(prev => [...prev, id]);
+        }
       }
       setSwipeState({ id: null, startX: 0, currentX: 0 });
     }
