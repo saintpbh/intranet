@@ -29,13 +29,26 @@ const AdDetailView = ({ ad, onBack }) => {
     return diff;
   })();
 
+  // #root의 overflow:hidden을 일시적으로 해제하여 스크롤 허용
+  useEffect(() => {
+    const root = document.getElementById('root');
+    if (root) {
+      root.style.overflowY = 'auto';
+      root.style.overflowX = 'hidden';
+    }
+    // 최상단으로 스크롤
+    root?.scrollTo(0, 0);
+    return () => {
+      if (root) {
+        root.style.overflowY = '';
+        root.style.overflowX = '';
+      }
+    };
+  }, []);
+
   return (
     <div style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0, bottom: 0,
-      zIndex: 9999,
-      overflowY: 'auto',
-      WebkitOverflowScrolling: 'touch',
+      minHeight: '100%',
       background: '#f8f9fc',
       fontFamily: "'Plus Jakarta Sans', 'Pretendard', sans-serif",
     }}>
