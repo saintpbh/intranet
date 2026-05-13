@@ -1,13 +1,116 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getAllAds, createAd, updateAd, deleteAd, uploadAdImage } from '../../utils/adService';
 
+/* ── 배너 크롭 에디터 ── */
+const BannerCropEditor = ({ imageUrl, crop, onChange }) => {
+  const containerRef = useRef(null);
+  const draggingRef = useRef(false);
+  const lastRef = useRef({ x: 0, y: 0 });
+  const [pos, setPos] = useState({ x: crop?.x ?? 50, y: crop?.y ?? 50 });
+  const [zoom, setZoom] = useState(crop?.zoom ?? 1);
+
+  // 부모에 변경 알림
+  useEffect(() => { onChange({ x: pos.x, y: pos.y, zoom }); }, [pos, zoom]);
+
+  const onPointerDown = (e) => {
+    draggingRef.current = true;
+    lastRef.current = { x: e.clientX, y: e.clientY };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e) => {
+    if (!draggingRef.current || !containerRef.current) return;
+    const dx = e.clientX - lastRef.current.x;
+    const dy = e.clientY - lastRef.current.y;
+    lastRef.current = { x: e.clientX, y: e.clientY };
+    const w = containerRef.current.offsetWidth;
+    const h = containerRef.current.offsetHeight;
+    setPos(p => ({
+      x: Math.max(0, Math.min(100, p.x - (dx / w) * 80)),
+      y: Math.max(0, Math.min(100, p.y - (dy / h) * 80)),
+    }));
+  };
+  const onPointerUp = () => { draggingRef.current = false; };
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ fontSize: 12, fontWeight: 700, color: '#0058bc', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        🖼️ 배너 노출 영역 조정 <span style={{ fontWeight: 400, color: '#74777e' }}>— 드래그하여 위치 이동, 슬라이더로 확대/축소</span>
+      </label>
+
+      {/* 3:1 미리보기 영역 */}
+      <div
+        ref={containerRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        style={{
+          position: 'relative', width: '100%', paddingBottom: '33.33%',
+          overflow: 'hidden', borderRadius: 14,
+          border: '2px solid #0070eb', cursor: draggingRef.current ? 'grabbing' : 'grab',
+          boxShadow: '0 8px 24px rgba(0,112,235,0.12)', touchAction: 'none', userSelect: 'none',
+        }}
+      >
+        <img
+          src={imageUrl} alt="" draggable={false}
+          style={{
+            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+            objectFit: 'cover',
+            objectPosition: `${pos.x}% ${pos.y}%`,
+            transform: `scale(${zoom})`,
+            transformOrigin: `${pos.x}% ${pos.y}%`,
+            pointerEvents: 'none',
+          }}
+        />
+        {/* 안내 오버레이 */}
+        <div style={{
+          position: 'absolute', top: 6, left: 8, padding: '3px 10px',
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)',
+          borderRadius: 8, color: '#fff', fontSize: 10, fontWeight: 600, letterSpacing: 0.5,
+        }}>
+          배너 미리보기 (3:1)
+        </div>
+        {/* 그리드 가이드 */}
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', left: '33.33%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.2)' }} />
+          <div style={{ position: 'absolute', left: '66.66%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.2)' }} />
+          <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,0.2)' }} />
+        </div>
+      </div>
+
+      {/* 컨트롤 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12, color: '#43474d', fontWeight: 600, flexShrink: 0 }}>🔍 확대</span>
+        <input
+          type="range" min="1" max="3" step="0.05" value={zoom}
+          onChange={e => setZoom(parseFloat(e.target.value))}
+          style={{ flex: 1, minWidth: 120, accentColor: '#0070eb' }}
+        />
+        <span style={{ fontSize: 12, color: '#0070eb', fontWeight: 700, minWidth: 40, textAlign: 'right' }}>{Math.round(zoom * 100)}%</span>
+        <button
+          onClick={() => { setPos({ x: 50, y: 50 }); setZoom(1); }}
+          style={{
+            padding: '5px 14px', background: '#f3f3f8', color: '#43474d',
+            border: '1px solid rgba(196,198,206,0.3)', borderRadius: 10,
+            cursor: 'pointer', fontSize: 12, fontWeight: 600, flexShrink: 0,
+          }}
+        >↺ 초기화</button>
+      </div>
+      <div style={{ fontSize: 11, color: '#74777e', marginTop: 4 }}>
+        위치: X={Math.round(pos.x)}% Y={Math.round(pos.y)}% · 확대: {Math.round(zoom * 100)}%
+      </div>
+    </div>
+  );
+};
+
+/* ── AdManager ── */
 const AdManager = () => {
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({
     title: '', link_url: '', content: '', advertiser: '', contact: '',
-    start_date: '', end_date: '', display_order: 0, image_url: ''
+    start_date: '', end_date: '', display_order: 0, image_url: '', image_crop: null,
   });
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -20,17 +123,11 @@ const AdManager = () => {
       title: '', link_url: '', content: '', advertiser: '', contact: '',
       start_date: today.toISOString().split('T')[0],
       end_date: nextMonth.toISOString().split('T')[0],
-      display_order: 0, image_url: ''
+      display_order: 0, image_url: '', image_crop: null,
     };
   };
 
-  const fetchAds = async () => {
-    setLoading(true);
-    const data = await getAllAds();
-    setAds(data);
-    setLoading(false);
-  };
-
+  const fetchAds = async () => { setLoading(true); setAds(await getAllAds()); setLoading(false); };
   useEffect(() => { fetchAds(); }, []);
 
   const getStatus = (ad) => {
@@ -47,7 +144,7 @@ const AdManager = () => {
     setUploading(true);
     try {
       const url = await uploadAdImage(file);
-      setForm(prev => ({ ...prev, image_url: url }));
+      setForm(prev => ({ ...prev, image_url: url, image_crop: null }));
     } catch (err) {
       console.error('Upload failed:', err);
       alert('업로드 실패: ' + err.message);
@@ -57,31 +154,23 @@ const AdManager = () => {
 
   const handleSave = async () => {
     if (!form.title || !form.start_date || !form.end_date) { alert('제목, 시작일, 종료일은 필수입니다.'); return; }
-    // 신규 등록 시만 이미지 필수, 수정 시에는 기존 이미지 유지 가능
     if (!form.image_url && editing === 'new') { alert('광고 이미지를 업로드해주세요.'); return; }
-    
     setSaving(true);
     try {
+      const payload = {
+        title: form.title, image_url: form.image_url, content: form.content,
+        link_url: form.link_url, advertiser: form.advertiser, contact: form.contact,
+        display_order: form.display_order, start_date: form.start_date, end_date: form.end_date,
+        image_crop: form.image_crop || null,
+      };
       if (editing === 'new') {
-        await createAd(form);
+        await createAd(payload);
         alert('광고가 등록되었습니다.');
       } else {
-        await updateAd(editing, {
-          title: form.title,
-          image_url: form.image_url,
-          content: form.content,
-          link_url: form.link_url,
-          advertiser: form.advertiser,
-          contact: form.contact,
-          display_order: form.display_order,
-          start_date: form.start_date,
-          end_date: form.end_date,
-        });
+        await updateAd(editing, payload);
         alert('광고가 수정되었습니다.');
       }
-      setEditing(null);
-      setForm(getInitialForm());
-      fetchAds();
+      setEditing(null); setForm(getInitialForm()); fetchAds();
     } catch (err) {
       console.error('Save failed:', err);
       alert('오류 발생: ' + err.message);
@@ -91,36 +180,24 @@ const AdManager = () => {
 
   const handleDelete = async (ad) => {
     if (!confirm('이 광고를 삭제하시겠습니까?')) return;
-    try {
-      await deleteAd(ad.id, ad.image_url);
-      fetchAds();
-    } catch (err) {
-      alert('삭제 실패: ' + err.message);
-    }
+    try { await deleteAd(ad.id, ad.image_url); fetchAds(); }
+    catch (err) { alert('삭제 실패: ' + err.message); }
   };
 
   const startEdit = (ad) => {
     setEditing(ad.id);
     setForm({
-      title: ad.title || '',
-      link_url: ad.link_url || '',
-      content: ad.content || '',
-      advertiser: ad.advertiser || '',
-      contact: ad.contact || '',
-      start_date: ad.start_date || '',
-      end_date: ad.end_date || '',
-      display_order: ad.display_order || 0,
-      image_url: ad.image_url || '',
+      title: ad.title || '', link_url: ad.link_url || '', content: ad.content || '',
+      advertiser: ad.advertiser || '', contact: ad.contact || '',
+      start_date: ad.start_date || '', end_date: ad.end_date || '',
+      display_order: ad.display_order || 0, image_url: ad.image_url || '',
+      image_crop: ad.image_crop || null,
     });
   };
 
   const toggleActive = async (ad) => {
-    try {
-      await updateAd(ad.id, { is_active: !ad.is_active });
-      fetchAds();
-    } catch (err) {
-      alert('상태 변경 실패: ' + err.message);
-    }
+    try { await updateAd(ad.id, { is_active: !ad.is_active }); fetchAds(); }
+    catch (err) { alert('상태 변경 실패: ' + err.message); }
   };
 
   if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#8E8E93' }}>불러오는 중...</div>;
@@ -132,8 +209,7 @@ const AdManager = () => {
         <div>
           <h3 style={{ fontSize: 20, fontWeight: 700, color: '#0a2540', marginBottom: 4, fontFamily: "'Manrope', 'Pretendard'" }}>📢 광고 배너 관리</h3>
           <p style={{ fontSize: 13, color: '#74777e', margin: 0 }}>
-            모바일 앱 홈 화면에 표시되는 광고 배너를 관리합니다.
-            <br />
+            모바일 앱 홈 화면에 표시되는 광고 배너를 관리합니다.<br />
             <span style={{ color: '#0070eb', fontWeight: 600 }}>☁️ Firestore 기반 — 서버 가동 없이 온라인에서 직접 관리</span>
           </p>
         </div>
@@ -191,24 +267,19 @@ const AdManager = () => {
               <label style={{ fontSize: 12, fontWeight: 600, color: '#43474d', display: 'block', marginBottom: 6 }}>
                 광고 이미지 {editing === 'new' ? '*' : ''} <span style={{color: '#0070eb', fontWeight: 700}}>(권장: 1200×400px, 3:1)</span>
               </label>
-              {/* 수정 모드: 기존 이미지 미리보기 */}
-              {editing !== 'new' && form.image_url && (
-                <div style={{ marginBottom: 8, borderRadius: 8, overflow: 'hidden', background: '#f3f3f8' }}>
-                  <img src={form.image_url} alt="현재 이미지" style={{ width: '100%', height: 60, objectFit: 'cover', display: 'block' }} />
-                  <div style={{ padding: '4px 8px', fontSize: 11, color: '#34C759', fontWeight: 600, background: '#E8F5E9' }}>✅ 기존 이미지 유지됨 (변경하려면 아래에서 새 이미지 선택)</div>
-                </div>
-              )}
               <input type="file" accept="image/*" onChange={handleImageUpload}
                 style={{ width: '100%', padding: '8px 14px', background: '#f3f3f8', border: 'none', borderRadius: 12, fontSize: 13, boxSizing: 'border-box' }} />
               {uploading && <span style={{ fontSize: 12, color: '#007AFF' }}>☁️ Firebase Storage 업로드 중...</span>}
             </div>
           </div>
 
-          {/* Image Preview */}
+          {/* 배너 크롭 에디터 */}
           {form.image_url && (
-            <div style={{ marginBottom: 16, borderRadius: 12, overflow: 'hidden', maxWidth: 500 }}>
-              <img src={form.image_url} alt="미리보기" style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 12, maxHeight: 200, objectFit: 'cover' }} />
-            </div>
+            <BannerCropEditor
+              imageUrl={form.image_url}
+              crop={form.image_crop}
+              onChange={(cropData) => setForm(p => ({ ...p, image_crop: cropData }))}
+            />
           )}
 
           {/* Content (Article Body) */}
@@ -221,19 +292,12 @@ const AdManager = () => {
               onChange={e => setForm(p => ({ ...p, content: e.target.value }))}
               rows={8}
               style={{
-                width: '100%',
-                padding: '14px',
-                background: '#f3f3f8',
-                border: '1px solid transparent',
-                borderRadius: 12,
-                fontSize: 14,
-                lineHeight: 1.8,
-                boxSizing: 'border-box',
-                outline: 'none',
-                resize: 'vertical',
-                fontFamily: "'Pretendard', sans-serif",
+                width: '100%', padding: '14px', background: '#f3f3f8',
+                border: '1px solid transparent', borderRadius: 12, fontSize: 14,
+                lineHeight: 1.8, boxSizing: 'border-box', outline: 'none',
+                resize: 'vertical', fontFamily: "'Pretendard', sans-serif",
               }}
-              placeholder="광고 상세 내용을 입력하세요.&#10;&#10;예:&#10;2026년 여름 수련회 특별 할인&#10;&#10;기간: 7월 1일 ~ 8월 31일&#10;장소: 양평 수양관&#10;문의: 02-1234-5678"
+              placeholder={"광고 상세 내용을 입력하세요.\n\n예:\n2026년 여름 수련회 특별 할인\n\n기간: 7월 1일 ~ 8월 31일\n장소: 양평 수양관\n문의: 02-1234-5678"}
             />
           </div>
 
@@ -261,11 +325,21 @@ const AdManager = () => {
           </div>
         ) : ads.map(ad => {
           const status = getStatus(ad);
+          const c = ad.image_crop;
           return (
             <div key={ad.id} style={{ background: '#fff', borderRadius: 16, padding: 16, display: 'flex', gap: 16, alignItems: 'center', boxShadow: '0 10px 20px rgba(10,37,64,0.03)', transition: 'all 0.2s', opacity: ad.is_active ? 1 : 0.6 }}>
-              {/* Thumbnail */}
+              {/* Thumbnail - 크롭 적용 */}
               <div style={{ width: 90, height: 56, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: '#f3f3f8' }}>
-                {ad.image_url && <img src={ad.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                {ad.image_url && (
+                  <img src={ad.image_url} alt=""
+                    style={{
+                      width: '100%', height: '100%', objectFit: 'cover',
+                      objectPosition: c ? `${c.x}% ${c.y}%` : '50% 50%',
+                      transform: c?.zoom > 1 ? `scale(${c.zoom})` : 'none',
+                      transformOrigin: c ? `${c.x}% ${c.y}%` : 'center',
+                    }}
+                  />
+                )}
               </div>
               {/* Info */}
               <div style={{ flex: 1, minWidth: 0 }}>

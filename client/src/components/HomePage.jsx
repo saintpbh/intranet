@@ -45,18 +45,24 @@ const AdDetailView = ({ ad, onBack }) => {
         overflow: 'hidden',
         background: 'linear-gradient(135deg, #0a2540, #0058bc)',
       }}>
-        {ad.image_url && (
-          <img
-            src={ad.image_url}
-            alt={ad.title}
-            style={{
-              width: '100%',
-              height: 320,
-              objectFit: 'cover',
-              display: 'block',
-            }}
-          />
-        )}
+        {ad.image_url && (() => {
+          const c = ad.image_crop;
+          return (
+            <img
+              src={ad.image_url}
+              alt={ad.title}
+              style={{
+                width: '100%',
+                height: 320,
+                objectFit: 'cover',
+                objectPosition: c ? `${c.x}% ${c.y}%` : '50% 50%',
+                transform: c?.zoom > 1 ? `scale(${c.zoom})` : 'none',
+                transformOrigin: c ? `${c.x}% ${c.y}%` : 'center',
+                display: 'block',
+              }}
+            />
+          );
+        })()}
         {/* Gradient overlay */}
         <div style={{
           position: 'absolute',
@@ -456,13 +462,21 @@ const HomePage = () => {
                   className="absolute inset-0 transition-opacity duration-700 cursor-pointer"
                   style={{ opacity: i === adIdx ? 1 : 0, pointerEvents: i === adIdx ? 'auto' : 'none' }}
                 >
-                  {ad.image_url ? (
-                    <img
-                      src={ad.image_url}
-                      alt={ad.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
+                  {ad.image_url ? (() => {
+                    const c = ad.image_crop;
+                    return (
+                      <img
+                        src={ad.image_url}
+                        alt={ad.title}
+                        className="w-full h-full object-cover"
+                        style={{
+                          objectPosition: c ? `${c.x}% ${c.y}%` : '50% 50%',
+                          transform: c?.zoom > 1 ? `scale(${c.zoom})` : 'none',
+                          transformOrigin: c ? `${c.x}% ${c.y}%` : 'center',
+                        }}
+                      />
+                    );
+                  })() : (
                     <div style={{
                       width: '100%',
                       height: '100%',

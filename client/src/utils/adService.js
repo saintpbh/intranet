@@ -109,6 +109,7 @@ export async function createAd(adData) {
   const docRef = await addDoc(collection(firestore, ADS_COLLECTION), {
     title: adData.title || '',
     image_url: adData.image_url || '',
+    image_crop: adData.image_crop || null,
     content: adData.content || '',
     link_url: adData.link_url || '',
     advertiser: adData.advertiser || '',
