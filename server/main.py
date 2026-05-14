@@ -834,6 +834,268 @@ def get_insurance_detail(minister_code: str, year: str = ""):
     finally:
         conn.close()
 
+# ── 연금납입 현황 API ──────────────────────────────────────────────
+
+@app.get("/api/pension/{minister_code}/summary")
+def get_pension_summary(minister_code: str):
+    """목사 코드로 연금납입 연도별 요약 조회"""
+    conn = get_connection()
+    cursor = conn.cursor(as_dict=True)
+    try:
+        # 목사 이름 조회
+        cursor.execute("SELECT TOP 1 MinisterName FROM TB_Chr200 WHERE MinisterCode = %s", (minister_code,))
+        minister = cursor.fetchone()
+        minister_name = minister['MinisterName'].strip() if minister else ''
+
+        # 연금번호(PenNo) 조회
+        cursor.execute("SELECT TOP 1 PenNo FROM TB_PEN100 WHERE MemberCode = %s", (minister_code,))
+        pen_row = cursor.fetchone()
+        if not pen_row:
+            return {
+                "minister_code": minister_code.strip(),
+                "minister_name": minister_name,
+                "summary": [],
+                "total_years": 0,
+                "total_amount": 0,
+                "message": "연금 가입 내역이 없습니다."
+            }
+        pen_no = pen_row['PenNo']
+
+        # 연도별 요약 (TB_PEN110)
+        # YYMM is like '202301'
+        cursor.execute("""
+            SELECT LEFT(YYMM, 4) AS year,
+                   COUNT(DISTINCT RIGHT(YYMM, 2)) AS months_paid,
+                   SUM(ISNULL(Contribute, 0) + ISNULL(Share, 0)) AS total_amt
+            FROM TB_PEN110
+            WHERE PenNo = %s
+            GROUP BY LEFT(YYMM, 4)
+            ORDER BY LEFT(YYMM, 4) DESC
+        """, (pen_no,))
+        yearly = cursor.fetchall()
+
+        total_amount = sum(r['total_amt'] for r in yearly) if yearly else 0
+        return {
+            "minister_code": minister_code.strip(),
+            "minister_name": minister_name,
+            "pen_no": pen_no,
+            "summary": yearly,
+            "total_years": len(yearly),
+            "total_amount": total_amount,
+        }
+    except Exception as e:
+        logging.error(f'[Pension] Summary error: {e}')
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
+
+@app.get("/api/pension/{minister_code}/detail")
+def get_pension_detail(minister_code: str, year: str = ""):
+    """목사 코드 + 연도로 연금 월별 납입 상세 조회 (TB_PEN110)"""
+    if not year:
+        year = str(datetime.now().year)
+
+    conn = get_connection()
+    cursor = conn.cursor(as_dict=True)
+    try:
+        # PenNo 조회
+        cursor.execute("SELECT TOP 1 PenNo FROM TB_PEN100 WHERE MemberCode = %s", (minister_code,))
+        pen_row = cursor.fetchone()
+        if not pen_row:
+            return {"year": year, "monthly": [], "year_total": 0, "months_paid": 0, "message": "연금 가입 내역이 없습니다."}
+        pen_no = pen_row['PenNo']
+
+        cursor.execute("""
+            SELECT YYMM,
+                   SUM(ISNULL(Contribute, 0) + ISNULL(Share, 0)) AS amt
+            FROM TB_PEN110
+            WHERE PenNo = %s AND LEFT(YYMM, 4) = %s
+            GROUP BY YYMM
+            ORDER BY YYMM
+        """, (pen_no, year))
+        rows = cursor.fetchall()
+
+        paid_map = {}
+        for r in rows:
+            month = r['YYMM'].strip()[4:6] if r['YYMM'] else ''
+            paid_map[month] = {
+                "month": month,
+                "amt": r['amt'] or 0,
+                "paid": True,
+            }
+
+        monthly = []
+        for m in range(1, 13):
+            ms = f"{m:02d}"
+            if ms in paid_map:
+                monthly.append(paid_map[ms])
+            else:
+                monthly.append({"month": ms, "amt": 0, "paid": False})
+
+        year_total = sum(item['amt'] for item in monthly)
+        months_paid = sum(1 for item in monthly if item['paid'])
+
+        return {
+            "year": year,
+            "monthly": monthly,
+            "year_total": year_total,
+            "months_paid": months_paid,
+        }
+    except Exception as e:
+        logging.error(f'[Pension] Detail error: {e}')
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
+
+@app.get("/api/pension/{minister_code}/calc-data")
+def get_pension_calc_data(minister_code: str):
+    """예상 연금 계산에 필요한 기초 데이터 조회 (TB_PEN999, TB_PEN998, TB_MEM101)"""
+    conn = get_connection()
+    cursor = conn.cursor(as_dict=True)
+    try:
+        # PenNo 조회
+        cursor.execute("SELECT TOP 1 PenNo FROM TB_PEN100 WHERE MemberCode = %s", (minister_code,))
+        pen_row = cursor.fetchone()
+        if not pen_row:
+            return {"error": "연금 가입 내역이 없습니다."}
+        pen_no = pen_row['PenNo']
+
+        # TB_PEN999 — 불입개월 (Lev1~Lev4)
+        cursor.execute("SELECT Lev1_Cnt, Lev2_Cnt, Lev3_Cnt, Lev4_Cnt FROM TB_PEN999 WHERE PenNo = %s", (pen_no,))
+        lev_row = cursor.fetchone()
+        if not lev_row:
+            return {"error": "불입개월 데이터가 없습니다.", "pen_no": pen_no}
+
+        lev1 = lev_row.get('Lev1_Cnt', 0) or 0
+        lev2 = lev_row.get('Lev2_Cnt', 0) or 0
+        lev3 = lev_row.get('Lev3_Cnt', 0) or 0
+        lev4 = lev_row.get('Lev4_Cnt', 0) or 0
+
+        # TB_PEN998 — 기준 봉급액
+        cursor.execute("SELECT AMT FROM TB_PEN998")
+        amt_row = cursor.fetchone()
+        amt = float(amt_row['AMT']) if amt_row and amt_row['AMT'] else 0
+
+        # TB_MEM101 — 생년월일
+        cursor.execute("SELECT TOP 1 birth FROM TB_MEM101 WHERE worker_code = %s", (minister_code,))
+        birth_row = cursor.fetchone()
+        birth_year = 0
+        birth_month = 0
+        if birth_row and birth_row.get('birth'):
+            birth_str = str(birth_row['birth']).strip()
+            if len(birth_str) >= 6:
+                birth_year = int(birth_str[:4])
+                birth_month = int(birth_str[4:6])
+
+        return {
+            "pen_no": pen_no,
+            "lev1_cnt": lev1,
+            "lev2_cnt": lev2,
+            "lev3_cnt": lev3,
+            "lev4_cnt": lev4,
+            "amt": amt,
+            "birth_year": birth_year,
+            "birth_month": birth_month,
+        }
+    except Exception as e:
+        logging.error(f'[Pension] CalcData error: {e}')
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
+
+from pydantic import BaseModel as PydanticBaseModel
+from typing import Optional
+
+class PensionEstimateRequest(PydanticBaseModel):
+    s_year: int
+    s_month: int
+    lev1_y: int = 0
+    lev1_m: int = 0
+    lev2_y: int = 0
+    lev2_m: int = 0
+    lev3_y: int = 0
+    lev3_m: int = 0
+    lev4_y: int = 0
+    lev4_m: int = 0
+    birth_year: int = 0
+    birth_month: int = 0
+    amt: float = 0
+
+
+@app.post("/api/pension/{minister_code}/estimate")
+def calculate_pension_estimate(minister_code: str, req: PensionEstimateRequest):
+    """PHP index.php의 연금 예상지급액 계산 로직을 Python으로 이식"""
+    import math
+
+    # 연금불입 인정개월
+    s1 = math.floor((req.lev1_y * 12 + req.lev1_m) / 2) + (req.lev2_y * 12 + req.lev2_m)
+    # 특약불입 인정개월
+    s2 = math.floor((req.lev3_y * 12 + req.lev3_m) / 2) + (req.lev4_y * 12 + req.lev4_m)
+
+    # 납입비율 연금 계산
+    if s1 <= 240:
+        s3_1 = ((s1 - s1 % 12) // 12) * 3  # 년도에 3%
+        s3_2 = math.floor(((s1 % 12) * (3 / 12)) * 100) / 100  # 월을 나누어 3% 할당
+        s3 = s3_1 + s3_2
+    else:
+        # 20년(240개월) 초과분
+        over = s1 - 240
+        s3_1 = (over - (over % 12)) // 12  # 초과 년
+        s3_2 = over - (s3_1 * 12)  # 초과 월
+        s3 = 60 + s3_1 * 2 + (math.floor((s3_2 * 2 / 12) * 100)) / 100
+
+    # 납입비율 특약 계산
+    s4_1 = (s2 - s2 % 12) // 12  # 특약 년
+    s4_2 = s2 % 12  # 특약 월
+    s4 = s4_1 * 3 + ((s4_2 * 3) / 12)
+
+    # 총 납입비율
+    s5 = s3 + s4
+
+    # 만 나이 계산
+    if req.birth_year > 0:
+        if req.s_month >= req.birth_month:
+            p_age = req.s_year - req.birth_year
+        else:
+            p_age = req.s_year - req.birth_year - 1
+    else:
+        p_age = 65  # 기본값
+
+    # 퇴직적용율
+    if p_age <= 65:
+        s6 = 0.85
+    elif p_age <= 66:
+        s6 = 0.88
+    elif p_age <= 67:
+        s6 = 0.91
+    elif p_age <= 68:
+        s6 = 0.94
+    elif p_age <= 69:
+        s6 = 0.97
+    else:
+        s6 = 1.0
+
+    # 예상 지급액
+    temp = float(s5) * float(s6)
+    amt = float(req.amt)
+    temp2 = (temp / 100) * amt
+    s_total = math.floor(temp2 / 1000) * 1000
+
+    return {
+        "pension_months_recognized": s1,
+        "special_months_recognized": s2,
+        "pension_rate": round(s3, 2),
+        "special_rate": round(s4, 2),
+        "contribution_rate": round(s5, 2),
+        "retirement_age": p_age,
+        "retirement_rate": round(s6 * 100, 1),
+        "base_salary": amt,
+        "estimated_monthly": s_total,
+    }
+
 
 import sqlite3
 import json

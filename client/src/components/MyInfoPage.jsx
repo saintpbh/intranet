@@ -4,6 +4,7 @@ import MyProfile from './MyProfile';
 import MyHistory from './MyHistory';
 import CertRequest from './CertRequest';
 import InsuranceStatus from './InsuranceStatus';
+import PensionStatus from './PensionStatus';
 import { useState, useCallback, useEffect } from 'react';
 import { useBackButton } from '../useBackButton';
 import MobileHeader from './mobile/MobileHeader';
@@ -99,11 +100,15 @@ const MyInfoPage = () => {
   if (view === 'insurance') return (
     <InsuranceStatus user={user} onBack={goBack} />
   );
+  if (view === 'pension') return (
+    <PensionStatus user={user} onBack={goBack} />
+  );
 
   const menuItems = [
     { id: 'profile', label: '현재 정보', icon: 'person', desc: '내 등록 정보 확인 및 수정 요청' },
     { id: 'history', label: '사역 이력', icon: 'history', desc: '교회 배정 이력 조회' },
     { id: 'insurance', label: '생보납입 현황', icon: 'account_balance', desc: '생활보장제 납입 이력 조회' },
+    { id: 'pension', label: '연금납입 현황', icon: 'savings', desc: '연금 납입 이력 및 예상 수령액 조회' },
   ];
 
   return (
