@@ -712,6 +712,19 @@ def sync_to_firebase():
             'url': blob.public_url if blob.public_url else ''
         })
 
+        # Log to local SQLite
+        try:
+            conn = sqlite3.connect('requests.db')
+            c = conn.cursor()
+            c.execute("INSERT INTO sync_logs (timestamp, status, message, url) VALUES (?, ?, ?, ?)",
+                      (datetime.now().isoformat(), 'SUCCESS', 
+                       f'Synced {len(directory_data.get("addressbook", []))} address book entries to Firebase Storage.',
+                       blob.public_url if blob.public_url else ''))
+            conn.commit()
+            conn.close()
+        except Exception as db_err:
+            logging.error(f"[Sync] Failed to log success to local SQLite: {db_err}")
+
         return {"success": True, "message": "Successfully synchronized directory to Firebase Storage."}
     except Exception as e:
         logging.error(f"[Sync] Failed to sync to Firebase: {e}")
@@ -726,22 +739,42 @@ def sync_to_firebase():
             })
         except:
             pass
+
+        # Log failure to local SQLite
+        try:
+            conn = sqlite3.connect('requests.db')
+            c = conn.cursor()
+            c.execute("INSERT INTO sync_logs (timestamp, status, message, url) VALUES (?, ?, ?, ?)",
+                      (datetime.now().isoformat(), 'FAILURE', str(e), ''))
+            conn.commit()
+            conn.close()
+        except Exception as db_err:
+            logging.error(f"[Sync] Failed to log failure to local SQLite: {db_err}")
+
         return {"success": False, "error": str(e)}
 
 @app.get("/api/admin/sync-logs")
 def get_sync_logs(limit: int = 20):
-    if not FCM_AVAILABLE:
-        return {"success": False, "error": "Firebase Admin SDK not available"}
-    
+    """Retrieve sync logs from local SQLite database for instant, offline access."""
     try:
-        db_firestore = firestore.client()
-        logs_ref = db_firestore.collection('sync_logs').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(limit)
-        # Use short timeout (3.0s) to prevent infinite hanging under firewalls
-        logs = [doc.to_dict() for doc in logs_ref.stream(timeout=3.0)]
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        c.execute("SELECT timestamp, status, message, url FROM sync_logs ORDER BY timestamp DESC LIMIT ?", (limit,))
+        rows = c.fetchall()
+        conn.close()
+        
+        logs = []
+        for r in rows:
+            logs.append({
+                'timestamp': r[0],
+                'status': r[1],
+                'message': r[2],
+                'url': r[3]
+            })
         return {"success": True, "logs": logs}
     except Exception as e:
-        logging.error(f"[SyncLogs] Firestore fetch failed or timed out: {e}")
-        return {"success": False, "error": f"Connection timeout: {str(e)}"}
+        logging.error(f"[SyncLogs] SQLite fetch failed: {e}")
+        return {"success": False, "error": str(e)}
 
 
 @app.get("/api/elders")
@@ -1340,6 +1373,17 @@ def init_sqlite():
                 "INSERT OR IGNORE INTO staff_accounts (staff_code, name, department, position, phone, email) VALUES (?, ?, ?, ?, ?, ?)",
                 (code, name, dept, pos, phone, email)
             )
+
+    # --- Sync Logs (Firebase Sync Cache in SQLite) ---
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS sync_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT,
+            status TEXT,
+            message TEXT,
+            url TEXT DEFAULT ''
+        )
+    ''')
     conn.commit()
     conn.close()
 

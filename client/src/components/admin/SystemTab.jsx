@@ -86,6 +86,7 @@ const SystemTab = ({ user }) => {
   const [syncLogs, setSyncLogs] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
+  const [logsLoading, setLogsLoading] = useState(true);
 
   // Map Sync Config State
   const [mapConfig, setMapConfig] = useState({ db_server: '', supabase_url: '' });
@@ -177,26 +178,38 @@ const SystemTab = ({ user }) => {
     }
   };
 
+  const fetchSyncLogs = useCallback(async () => {
+    try {
+      setLogsLoading(true);
+      const res = await fetch(`${API_BASE}/api/admin/sync-logs`);
+      const data = await res.json();
+      if (data.success) {
+        setSyncLogs(data.logs || []);
+      }
+    } catch (e) {
+      console.error('[SystemTab] sync-logs fetch error:', e);
+    } finally {
+      setLogsLoading(false);
+    }
+  }, []);
+
   const fetchAll = useCallback(async () => {
     try {
-      const [infoRes, sessRes, healthRes, logsRes] = await Promise.all([
+      const [infoRes, sessRes, healthRes] = await Promise.all([
         fetch(`${API_BASE}/api/system/info`).catch(e => { console.error(e); return null; }),
         fetch(`${API_BASE}/api/system/sessions`).catch(e => { console.error(e); return null; }),
         fetch(`${API_BASE}/api/system/health`).catch(e => { console.error(e); return null; }),
-        fetch(`${API_BASE}/api/admin/sync-logs`).catch(e => { console.error(e); return null; }),
       ]);
       
-      const [info, sess, hlth, logs] = await Promise.all([
+      const [info, sess, hlth] = await Promise.all([
         infoRes ? infoRes.json().catch(() => null) : null,
         sessRes ? sessRes.json().catch(() => ({ sessions: [], count: 0 })) : { sessions: [], count: 0 },
         healthRes ? healthRes.json().catch(() => ({ status: 'degraded' })) : { status: 'degraded' },
-        logsRes ? logsRes.json().catch(() => ({ success: false })) : { success: false }
       ]);
       
       if (info) setSysInfo(info);
       setSessions(sess?.sessions || []);
       if (hlth) setHealth(hlth);
-      if (logs && logs.success) setSyncLogs(logs.logs || []);
     } catch (e) {
       console.error('[SystemTab] fetch error:', e);
     } finally {
@@ -213,7 +226,7 @@ const SystemTab = ({ user }) => {
       const data = await res.json();
       if (data.success) {
         setSyncMsg('✅ 동기화 성공');
-        fetchAll(); // Refresh logs
+        fetchSyncLogs(); // Refresh logs
       } else {
         setSyncMsg(`❌ 동기화 실패: ${data.error}`);
       }
@@ -279,7 +292,8 @@ const SystemTab = ({ user }) => {
     fetchStaff();
     fetchMapConfig();
     fetchMapLogs();
-  }, [fetchAll, fetchStaff, fetchMapConfig, fetchMapLogs]);
+    fetchSyncLogs();
+  }, [fetchAll, fetchStaff, fetchMapConfig, fetchMapLogs, fetchSyncLogs]);
 
   // Auto-refresh every 10 seconds
   useEffect(() => {
@@ -287,12 +301,13 @@ const SystemTab = ({ user }) => {
       timerRef.current = setInterval(() => {
         fetchAll();
         fetchMapLogs();
+        fetchSyncLogs();
       }, 10000);
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [autoRefresh, fetchAll, fetchMapLogs]);
+  }, [autoRefresh, fetchAll, fetchMapLogs, fetchSyncLogs]);
 
   // ── Uptime calculation ──
   const getUptime = () => {
@@ -579,7 +594,16 @@ const SystemTab = ({ user }) => {
               </tr>
             </thead>
             <tbody>
-              {syncLogs.length === 0 ? (
+              {logsLoading && syncLogs.length === 0 ? (
+                <tr>
+                  <td colSpan="4" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <span className="material-symbols-outlined" style={{ animation: 'spin 1s linear infinite', fontSize: 18 }}>progress_activity</span>
+                      기록을 불러오는 중...
+                    </div>
+                  </td>
+                </tr>
+              ) : syncLogs.length === 0 ? (
                 <tr>
                   <td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>동기화 기록이 없습니다.</td>
                 </tr>
