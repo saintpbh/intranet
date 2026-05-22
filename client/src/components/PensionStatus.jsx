@@ -165,7 +165,9 @@ const PensionStatus = ({ user, onBack }) => {
                     <p className="text-3xl font-extrabold font-['Manrope','Pretendard'] tracking-tight">
                       {fmt(summary.total_amount)}<span className="text-lg font-bold ml-1 text-white/80">원</span>
                     </p>
-                    <p className="text-white/60 text-xs mt-2">{summary.total_years}년간 납입 이력</p>
+                    <p className="text-white/60 text-xs mt-2">
+                      {summary.total_years}년간 ({summary.total_months || (summary.summary ? summary.summary.reduce((acc, cur) => acc + cur.months_paid, 0) : 0)}개월) 납입 이력
+                    </p>
                   </div>
                 </section>
 

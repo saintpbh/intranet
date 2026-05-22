@@ -4423,12 +4423,14 @@ def get_pension_summary(minister_code: str):
             yr['months_paid'] = int(yr['months_paid'] or 0)
 
         total_amount = sum(r['total_amt'] for r in yearly) if yearly else 0
+        total_months = sum(r['months_paid'] for r in yearly) if yearly else 0
         return {
             "minister_code": minister_code.strip(),
             "minister_name": minister_name,
             "pen_no": pen_no,
             "summary": yearly,
             "total_years": len(yearly),
+            "total_months": total_months,
             "total_amount": total_amount,
         }
     except Exception as e:
