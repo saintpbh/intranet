@@ -2,9 +2,20 @@ import { useState, useEffect } from 'react';
 
 const PWAInstallPrompt = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showPrompt, setShowPromptState] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
-  const [showPrompt, setShowPrompt] = useState(false);
+
+  const setShowPrompt = (val) => {
+    setShowPromptState(val);
+    window.__pwaPromptActive = val;
+  };
+
+  useEffect(() => {
+    return () => {
+      window.__pwaPromptActive = false;
+    };
+  }, []);
 
   useEffect(() => {
     // Check if already installed

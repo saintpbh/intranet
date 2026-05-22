@@ -318,10 +318,18 @@ const HomePage = () => {
     if (fcmInitRef.current || !user) return;
     fcmInitRef.current = true;
 
-    // 이미 기기에 토큰이 있더라도 서버 DB 동기화를 위해 무조건 1회 실행
-    const timer = setTimeout(() => {
-      requestNotificationPermission(API_BASE, user);
-    }, 2000);
+    // PWA 설치 안내창이 화면에 켜져 있는 동안에는 알림설정 팝업이 겹쳐서 뜨지 않도록 대기 조율
+    const requestPushWithGuard = () => {
+      if (window.__pwaPromptActive) {
+        // PWA 안내창이 활성 상태면 2초 뒤에 다시 체크하도록 지연
+        setTimeout(requestPushWithGuard, 2000);
+      } else {
+        requestNotificationPermission(API_BASE, user);
+      }
+    };
+
+    // 최초 6초 뒤에 알림설정 권한 여부를 체크 (PWA 설치 안내창이 먼저 뜰 수 있는 시간을 우선 제공)
+    const timer = setTimeout(requestPushWithGuard, 6000);
     return () => clearTimeout(timer);
   }, [user]);
 
