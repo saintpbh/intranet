@@ -189,6 +189,16 @@ const ChurchManagePage = () => {
   useEffect(() => { if (isLoggedIn) fetchChurch(); }, [isLoggedIn, fetchChurch]);
   useEffect(() => { if (chrCode) fetchMapData(chrCode); }, [chrCode, fetchMapData]);
 
+  useEffect(() => {
+    const handleResetView = () => {
+      setEditField(null);
+      setEditWorship(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.addEventListener('reset-church-view', handleResetView);
+    return () => window.removeEventListener('reset-church-view', handleResetView);
+  }, []);
+
   // ── 기장지도 필드 저장 ──
   const saveField = async (key, value) => {
     if (!chrCode) return;

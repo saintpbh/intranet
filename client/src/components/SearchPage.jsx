@@ -40,6 +40,18 @@ const SearchPage = () => {
 
   useBackButton(!!hasDetail, clearDetail);
 
+  useEffect(() => {
+    const handleResetView = () => {
+      setSelectedMinister(null);
+      setSelectedElder(null);
+      setSelectedChurch(null);
+      setSearchTerm('');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.addEventListener('reset-directory-view', handleResetView);
+    return () => window.removeEventListener('reset-directory-view', handleResetView);
+  }, []);
+
   return (
     <div className="bg-surface text-on-surface min-h-screen pb-32 font-['Plus_Jakarta_Sans',_'Pretendard']">
       {!hasDetail ? (

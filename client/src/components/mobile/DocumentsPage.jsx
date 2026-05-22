@@ -122,6 +122,19 @@ const DocumentsPage = () => {
     fetchHistory();
   }, [user]);
 
+  useEffect(() => {
+    const handleResetView = () => {
+      setSelectedCert(null);
+      setMemo('');
+      setSearchQuery('');
+      setModifyRequestId(null);
+      setModifyComment('');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.addEventListener('reset-documents-view', handleResetView);
+    return () => window.removeEventListener('reset-documents-view', handleResetView);
+  }, []);
+
   const isExpired = (dateStr) => {
     if (!dateStr) return true;
     const expiryDate = new Date(dateStr);

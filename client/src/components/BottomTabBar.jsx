@@ -37,12 +37,21 @@ const BottomTabBar = () => {
               key={tab.id}
               onClick={() => {
                 triggerHaptic(40);
-                const currentPath = location.pathname;
-                if ((currentPath.startsWith('/profile') || currentPath.startsWith('/myinfo')) && tab.id === 'profile') {
+                
+                // Dispatch reset events for the corresponding tabs to clear any open sub-views or states
+                if (tab.id === 'home') {
+                  window.dispatchEvent(new CustomEvent('reset-home-view'));
+                } else if (tab.id === 'documents') {
+                  window.dispatchEvent(new CustomEvent('reset-documents-view'));
+                } else if (tab.id === 'church') {
+                  window.dispatchEvent(new CustomEvent('reset-church-view'));
+                } else if (tab.id === 'directory') {
+                  window.dispatchEvent(new CustomEvent('reset-directory-view'));
+                } else if (tab.id === 'profile') {
                   window.dispatchEvent(new CustomEvent('reset-profile-view'));
-                } else {
-                  navigate(tab.path);
                 }
+
+                navigate(tab.path);
               }}
               className={`no-select no-tap-highlight flex flex-col items-center justify-center active:scale-95 transition-transform duration-200 relative ${
                 isActive 

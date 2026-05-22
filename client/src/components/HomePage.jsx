@@ -371,6 +371,16 @@ const HomePage = () => {
   const clearAd = useCallback(() => setSelectedAd(null), []);
   useBackButton(!!selectedNotice || !!selectedAd, selectedAd ? clearAd : clearNotice);
 
+  useEffect(() => {
+    const handleResetView = () => {
+      setSelectedNotice(null);
+      setSelectedAd(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.addEventListener('reset-home-view', handleResetView);
+    return () => window.removeEventListener('reset-home-view', handleResetView);
+  }, []);
+
   // Ad swipe handlers
   const handleTouchStart = (e) => {
     touchStartRef.current = e.touches[0].clientX;

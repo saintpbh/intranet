@@ -72,8 +72,9 @@ After=network.target
 [Service]
 User=root
 WorkingDirectory={remote_dir}
-ExecStart={remote_dir}/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 5005
+ExecStart={remote_dir}/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 5005 --workers 4 --timeout-keep-alive 60
 Restart=always
+LimitNOFILE=65535
 
 [Install]
 WantedBy=multi-user.target

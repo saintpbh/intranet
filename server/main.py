@@ -169,18 +169,91 @@ DB_SERVER = os.getenv("DB_SERVER", "mssql.nskorea.com")
 DB_DATABASE = os.getenv("DB_DATABASE", "KJ_CHURCH")
 DB_PORT = os.getenv("DB_PORT", "1433")
 
+import queue
+import threading
+
+class MSSQLConnectionPool:
+    def __init__(self, max_connections=20, timeout=10):
+        self.max_connections = max_connections
+        self.timeout = timeout
+        self.pool = queue.Queue(max_connections)
+        self.lock = threading.Lock()
+        self.active_connections = 0
+
+    def _create_connection(self):
+        return pymssql.connect(
+            server=DB_SERVER,
+            port=int(DB_PORT),
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_DATABASE,
+            charset='cp949',
+            login_timeout=5,
+            timeout=10
+        )
+
+    def get_connection(self):
+        try:
+            # 대기 없이 사용 가능한 기존 커넥션 선인출
+            return self.pool.get(block=False)
+        except queue.Empty:
+            with self.lock:
+                if self.active_connections < self.max_connections:
+                    conn = self._create_connection()
+                    self.active_connections += 1
+                    return conn
+            # 최대 연결 개수에 도달한 경우 빈 슬롯이 생길 때까지 타임아웃 동안 대기
+            return self.pool.get(block=True, timeout=self.timeout)
+
+    def release_connection(self, conn):
+        try:
+            self.pool.put(conn, block=False)
+        except queue.Full:
+            # 예외적으로 풀이 꽉 찬 경우에만 물리적으로 커넥션을 끊어 안전성 확보
+            try:
+                conn.close()
+            except Exception:
+                pass
+            with self.lock:
+                self.active_connections -= 1
+
+class PooledConnectionWrapper:
+    def __init__(self, conn, pool):
+        self._conn = conn
+        self._pool = pool
+        self._closed = False
+
+    def close(self):
+        if not self._closed:
+            self._pool.release_connection(self._conn)
+            self._closed = True
+
+    def commit(self):
+        return self._conn.commit()
+
+    def rollback(self):
+        return self._conn.rollback()
+
+    def cursor(self, *args, **kwargs):
+        return self._conn.cursor(*args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+# 전역 싱글톤 커넥션 풀 초기화 (워커 프로세스당 최대 20개 연결 제어)
+db_pool = MSSQLConnectionPool(max_connections=20, timeout=10)
+
 def get_connection():
-    """MSSQL 연결 (5초 타임아웃)"""
-    return pymssql.connect(
-        server=DB_SERVER,
-        port=int(DB_PORT),
-        user=DB_USER, 
-        password=DB_PASSWORD, 
-        database=DB_DATABASE, 
-        charset='cp949',
-        login_timeout=5,
-        timeout=10
-    )
+    """MSSQL 연결 풀을 통한 커넥션 대여 및 프록시 반환"""
+    raw_conn = db_pool.get_connection()
+    return PooledConnectionWrapper(raw_conn, db_pool)
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -663,10 +736,12 @@ def get_sync_logs(limit: int = 20):
     try:
         db_firestore = firestore.client()
         logs_ref = db_firestore.collection('sync_logs').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(limit)
-        logs = [doc.to_dict() for doc in logs_ref.stream()]
+        # Use short timeout (3.0s) to prevent infinite hanging under firewalls
+        logs = [doc.to_dict() for doc in logs_ref.stream(timeout=3.0)]
         return {"success": True, "logs": logs}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logging.error(f"[SyncLogs] Firestore fetch failed or timed out: {e}")
+        return {"success": False, "error": f"Connection timeout: {str(e)}"}
 
 
 @app.get("/api/elders")

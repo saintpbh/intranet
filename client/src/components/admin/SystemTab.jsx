@@ -180,18 +180,23 @@ const SystemTab = ({ user }) => {
   const fetchAll = useCallback(async () => {
     try {
       const [infoRes, sessRes, healthRes, logsRes] = await Promise.all([
-        fetch(`${API_BASE}/api/system/info`),
-        fetch(`${API_BASE}/api/system/sessions`),
-        fetch(`${API_BASE}/api/system/health`),
-        fetch(`${API_BASE}/api/admin/sync-logs`),
+        fetch(`${API_BASE}/api/system/info`).catch(e => { console.error(e); return null; }),
+        fetch(`${API_BASE}/api/system/sessions`).catch(e => { console.error(e); return null; }),
+        fetch(`${API_BASE}/api/system/health`).catch(e => { console.error(e); return null; }),
+        fetch(`${API_BASE}/api/admin/sync-logs`).catch(e => { console.error(e); return null; }),
       ]);
+      
       const [info, sess, hlth, logs] = await Promise.all([
-        infoRes.json(), sessRes.json(), healthRes.json(), logsRes.json()
+        infoRes ? infoRes.json().catch(() => null) : null,
+        sessRes ? sessRes.json().catch(() => ({ sessions: [], count: 0 })) : { sessions: [], count: 0 },
+        healthRes ? healthRes.json().catch(() => ({ status: 'degraded' })) : { status: 'degraded' },
+        logsRes ? logsRes.json().catch(() => ({ success: false })) : { success: false }
       ]);
-      setSysInfo(info);
-      setSessions(sess.sessions || []);
-      setHealth(hlth);
-      if (logs.success) setSyncLogs(logs.logs || []);
+      
+      if (info) setSysInfo(info);
+      setSessions(sess?.sessions || []);
+      if (hlth) setHealth(hlth);
+      if (logs && logs.success) setSyncLogs(logs.logs || []);
     } catch (e) {
       console.error('[SystemTab] fetch error:', e);
     } finally {

@@ -74,6 +74,7 @@ const MyInfoPage = () => {
       if (isLoggedIn && view !== 'main') {
         goBack();
       }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     };
     window.addEventListener('reset-profile-view', handleResetView);
     return () => window.removeEventListener('reset-profile-view', handleResetView);
