@@ -3,11 +3,19 @@ sys.path.append('./server')
 from main import get_connection
 
 conn = get_connection()
-cursor = conn.cursor()
+cursor = conn.cursor(as_dict=True)
 
-for table in ['TB_PEN100', 'TB_PEN110', 'TB_PEN120']:
-    cursor.execute(f"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{table}'")
-    cols = [r[0] for r in cursor.fetchall()]
-    print(f"{table}: {cols}")
+# ChrCode가 없거나 TB_Chr100 테이블에 존재하지 않는 사역이력 조회
+query = """
+    SELECT TOP 10 
+        r.*
+    FROM TB_Chr201 r
+    LEFT JOIN TB_Chr100 c ON r.ChrCode = c.ChrCode
+    WHERE r.ChrCode IS NULL OR RTRIM(ISNULL(r.ChrCode, '')) = '' OR c.ChrCode IS NULL
+"""
+cursor.execute(query)
+rows = cursor.fetchall()
+for row in rows:
+    print(row)
 
 conn.close()

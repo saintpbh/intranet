@@ -1960,6 +1960,7 @@ def get_minister_history(code: str):
                 r.MinisterCode, m.MinisterName, 
                 c.ChrName, n.NohName,
                 r.ChrCode, r.NohCode,
+                r.Area,
                 d.CodeName as DUTYNAME,
                 r.AppDate, r.TradeDate
             FROM TB_Chr201 r
@@ -1973,6 +1974,14 @@ def get_minister_history(code: str):
         cursor.execute(query, (code,))
         results = cursor.fetchall()
         for r in results:
+            # ChrName이 비어있으면 Area 필드를 사역지 이름으로 대체
+            chr_name = r.get('ChrName')
+            if not chr_name or not chr_name.strip():
+                area = r.get('Area')
+                r['ChrName'] = area.strip() if area else ''
+            else:
+                r['ChrName'] = chr_name.strip()
+
             trade = r.get('TradeDate', '')
             r['is_current'] = not trade or trade.strip() == ''
             app_date = r.get('AppDate', '')
