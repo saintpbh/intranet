@@ -10,9 +10,9 @@ from dotenv import load_dotenv
 # .env 파일 로드
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
-DB_USER = os.getenv("DB_USER", "pbh")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "prok3000")
-DB_SERVER = os.getenv("DB_SERVER", "192.168.0.145")
+DB_USER = os.getenv("DB_USER", "prok.or.kr")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "qp1f]4jIM")
+DB_SERVER = os.getenv("DB_SERVER", "mssql.nskorea.com")
 DB_DATABASE = os.getenv("DB_DATABASE", "KJ_CHURCH")
 DB_PORT = os.getenv("DB_PORT", "1433")
 

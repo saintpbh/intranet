@@ -16,19 +16,19 @@ const AddressBookList = ({ searchTerm, onSelect }) => {
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}));
           if (errData.error === 'db_connection_failed') {
-            setError('DB연결 오류! 데이터베이스 서버에 접속할 수 없습니다. 다른 기능은 계속 사용 가능합니다.');
+            setError('새로운 데이터 베이스로 연결중입니다.... (시간이 필요합니다)');
           } else {
-            setError(errData.message || '서버 오류가 발생했습니다.');
+            setError(errData.message || '새로운 데이터 베이스로 연결중입니다.... (시간이 필요합니다)');
           }
           return;
         }
         const json = await response.json();
         if (json.error) {
-          setError(json.error === 'db_connection_failed' ? 'DB연결 오류! 데이터베이스에 접속할 수 없습니다.' : json.error);
+          setError(json.error === 'db_connection_failed' ? '새로운 데이터 베이스로 연결중입니다.... (시간이 필요합니다)' : json.error);
           return;
         }
         setData(json);
-      } catch (err) { setError('네트워크 오류 — 서버에 연결할 수 없습니다.'); } finally { setLoading(false); }
+      } catch (err) { setError('새로운 데이터 베이스로 연결중입니다.... (시간이 필요합니다)'); } finally { setLoading(false); }
     };
     fetchData();
   }, [searchTerm]);

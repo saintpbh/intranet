@@ -12,6 +12,13 @@
           "prok-ga-map"
         ]
       }
+    },
+    "prok-go": {
+      "hosting": {
+        "addressbook": [
+          "prok-go"
+        ]
+      }
     }
   },
   "etags": {}

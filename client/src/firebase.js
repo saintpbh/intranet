@@ -7,6 +7,7 @@ import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { getStorage } from 'firebase/storage';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 // prok-ga 프로젝트 설정
 const firebaseConfig = {
@@ -22,6 +23,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const storage = getStorage(app);
 const firestore = getFirestore(app);
+const auth = getAuth(app);
+auth.languageCode = 'ko'; // 국내 SMS 다국어 한글 설정
+
 
 let messaging = null;
 try {
@@ -127,4 +131,4 @@ export function onForegroundMessage(callback) {
   });
 }
 
-export { app, messaging, storage, firestore };
+export { app, messaging, storage, firestore, auth };

@@ -15,10 +15,10 @@ const PensionStatus = ({ user, onBack }) => {
   const [calcData, setCalcData] = useState(null);
   const [calcLoading, setCalcLoading] = useState(false);
   const [lev, setLev] = useState({ l1y:0,l1m:0,l2y:0,l2m:0,l3y:0,l3m:0,l4y:0,l4m:0 });
-  const [sYear, setSYear] = useState(new Date().getFullYear());
-  const [sMonth, setSMonth] = useState(new Date().getMonth()+1);
+  const [retireAge, setRetireAge] = useState(65);
   const [estimate, setEstimate] = useState(null);
   const [estimateLoading, setEstimateLoading] = useState(false);
+  const [lastEstimate, setLastEstimate] = useState(null);
 
   // Fetch summary
   useEffect(() => {
@@ -33,6 +33,15 @@ const PensionStatus = ({ user, onBack }) => {
       })
       .catch(err => setError(typeof err === 'string' ? err : err.message))
       .finally(() => setLoading(false));
+  }, [user]);
+
+  // Fetch last estimate
+  useEffect(() => {
+    if (!user?.code) return;
+    fetch(`${API_BASE}/api/pension/${user.code}/last-estimate`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.found) setLastEstimate(data); })
+      .catch(() => {});
   }, [user]);
 
   // Fetch detail
@@ -75,7 +84,7 @@ const PensionStatus = ({ user, onBack }) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          s_year: sYear, s_month: sMonth,
+          retire_age: retireAge,
           lev1_y: lev.l1y, lev1_m: lev.l1m, lev2_y: lev.l2y, lev2_m: lev.l2m,
           lev3_y: lev.l3y, lev3_m: lev.l3m, lev4_y: lev.l4y, lev4_m: lev.l4m,
           birth_year: calcData.birth_year, birth_month: calcData.birth_month,
@@ -83,10 +92,14 @@ const PensionStatus = ({ user, onBack }) => {
         }),
       });
       const data = await res.json();
-      if (!data.error) setEstimate(data);
+      if (!data.error) {
+        setEstimate(data);
+        setLastEstimate({ found:true, retire_age:data.retirement_age, estimated_monthly:data.estimated_monthly,
+          contribution_rate:data.contribution_rate, retirement_rate:data.retirement_rate });
+      }
     } catch (e) { console.error(e); }
     finally { setEstimateLoading(false); }
-  }, [user, calcData, sYear, sMonth, lev]);
+  }, [user, calcData, retireAge, lev]);
 
   const fmt = (v) => v ? v.toLocaleString('ko-KR') : '0';
   const yearList = summary?.summary?.map(s => s.year) || [];
@@ -96,7 +109,6 @@ const PensionStatus = ({ user, onBack }) => {
     if (dir === 'next' && idx > 0) setSelectedYear(yearList[idx-1]);
   };
   const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-  const curYear = new Date().getFullYear();
   const selStyle = "w-full bg-surface-container-low rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50";
   const numOpts = (max) => Array.from({length:max+1},(_,i)=>i);
 
@@ -156,6 +168,34 @@ const PensionStatus = ({ user, onBack }) => {
                     <p className="text-white/60 text-xs mt-2">{summary.total_years}년간 납입 이력</p>
                   </div>
                 </section>
+
+                {/* 예상 연금 카드 (이전 계산 결과) */}
+                {lastEstimate && (
+                  <section className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl p-5 border border-indigo-200/60 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center">
+                          <span className="material-symbols-outlined text-indigo-600 text-xl">payments</span>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-indigo-500 font-bold uppercase tracking-wider">예상 월 수령액</p>
+                          <p className="text-xl font-extrabold text-indigo-900 font-['Manrope','Pretendard']">{fmt(lastEstimate.estimated_monthly)}<span className="text-sm font-bold ml-0.5">원</span></p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-700 text-xs font-bold">만 {lastEstimate.retire_age}세</span>
+                        <p className="text-[10px] text-indigo-400 mt-1">지급개시 예정 나이</p>
+                      </div>
+                    </div>
+                    {lastEstimate.base_salary && (
+                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-indigo-200/50 text-[11px] text-indigo-500/80 font-medium">
+                        <span className="material-symbols-outlined text-xs">function</span>
+                        <span>기준봉급 {fmt(lastEstimate.base_salary)}원 × 총납입비율 {lastEstimate.contribution_rate}% × 퇴직적용율 {lastEstimate.retirement_rate}%</span>
+                      </div>
+                    )}
+                    <p className="text-[10px] text-indigo-400 mt-2">※ 예상치이며, 정확한 정보는 총회 연금 담당자(02-3499-7608)에 문의하세요.</p>
+                  </section>
+                )}
 
                 {/* Year Navigator */}
                 <section className="flex items-center justify-between bg-surface-container-lowest rounded-2xl px-4 py-3 shadow-sm">
@@ -308,27 +348,24 @@ const PensionStatus = ({ user, onBack }) => {
                   </div>
                 </section>
 
-                {/* 은퇴 시점 입력 */}
+                {/* 지급개시 나이 선택 */}
                 <section className="bg-surface-container-lowest rounded-2xl shadow-sm p-5 space-y-4">
                   <h3 className="font-['Manrope','Pretendard'] font-bold text-primary flex items-center gap-2">
-                    <span className="material-symbols-outlined text-secondary text-lg">event</span>지급개시 시점 (은퇴 시점)
+                    <span className="material-symbols-outlined text-secondary text-lg">elderly</span>지급개시 나이 (만 나이)
                   </h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <div>
-                      <label className="text-[11px] text-outline font-semibold block mb-1">지급개시 년도</label>
-                      <select value={sYear} onChange={e => setSYear(+e.target.value)} className={selStyle}>
-                        {Array.from({length:51},(_,i) => curYear+i).map(y => <option key={y} value={y}>{y}년</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[11px] text-outline font-semibold block mb-1">지급개시 월</label>
-                      <select value={sMonth} onChange={e => setSMonth(+e.target.value)} className={selStyle}>
-                        {Array.from({length:12},(_,i) => i+1).map(m => <option key={m} value={m}>{m}월</option>)}
+                      <label className="text-[11px] text-outline font-semibold block mb-1">은퇴 시 만 나이</label>
+                      <select value={retireAge} onChange={e => setRetireAge(+e.target.value)} className={selStyle}>
+                        {Array.from({length:21},(_,i) => 60+i).map(a => <option key={a} value={a} style={(a===65||a===70)?{fontWeight:'bold'}:{}}>만 {a}세</option>)}
                       </select>
                     </div>
                   </div>
                   {calcData.birth_year > 0 && (
-                    <p className="text-[11px] text-on-surface-variant">생년월일: {calcData.birth_year}년 {calcData.birth_month}월 · 기준봉급액: {fmt(calcData.amt)}원</p>
+                    <div className="space-y-1">
+                      <p className="text-[11px] text-on-surface-variant">생년월일: {calcData.birth_year}년 {calcData.birth_month}월 · 기준봉급액: {fmt(calcData.amt)}원</p>
+                      <p className="text-[11px] text-on-surface-variant">→ 만 {retireAge}세 = {calcData.birth_year + retireAge}년 지급개시 예정</p>
+                    </div>
                   )}
                 </section>
 
@@ -385,11 +422,12 @@ const PensionStatus = ({ user, onBack }) => {
                 )}
 
                 {/* 안내 */}
-                <div className="bg-surface-container-low rounded-xl p-4 border border-surface-variant/50 flex items-start gap-3">
-                  <span className="material-symbols-outlined text-secondary text-lg shrink-0 mt-0.5">info</span>
-                  <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                    본 계산은 현재 기준 봉급액({fmt(calcData?.amt)}원)을 기준으로 한 예상치이며, 실제 지급액과 차이가 있을 수 있습니다. 정확한 내용은 연금재단으로 문의해 주세요.
-                  </p>
+                <div className="bg-amber-50 rounded-xl p-4 border border-amber-200/60 flex items-start gap-3">
+                  <span className="material-symbols-outlined text-amber-600 text-lg shrink-0 mt-0.5">warning</span>
+                  <div className="text-[11px] text-amber-800 leading-relaxed space-y-1">
+                    <p>본 계산은 현재 기준 봉급액({fmt(calcData?.amt)}원)을 기준으로 한 <strong>예상치</strong>이며, 실제 지급액과 차이가 있을 수 있습니다.</p>
+                    <p><strong>📞 정확한 정보는 총회 연금 담당자(02-3499-7608)에 문의하세요.</strong></p>
+                  </div>
                 </div>
               </>
             )}

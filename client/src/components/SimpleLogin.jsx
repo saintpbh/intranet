@@ -1,143 +1,302 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { auth } from '../firebase';
 import API_BASE from '../api';
 import { useAuth } from '../AuthContext';
 
 const SimpleLogin = () => {
   const { login } = useAuth();
-  const [code, setCode] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [isCodeSent, setIsCodeSent] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState(null);
+  
+  const [timer, setTimer] = useState(180); // 3분
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [unregistered, setUnregistered] = useState(false); // DB 미등록 상태
 
-  const handleLogin = async (e) => {
+  const timerRef = useRef(null);
+
+  // 3분 카운트다운 타이머 관리
+  useEffect(() => {
+    if (isCodeSent && timer > 0) {
+      timerRef.current = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    } else if (timer === 0) {
+      clearInterval(timerRef.current);
+      setError('인증 시간이 만료되었습니다. 인증번호를 재요청해 주세요.');
+    }
+
+    return () => clearInterval(timerRef.current);
+  }, [isCodeSent, timer]);
+
+  // 전화번호 자동 포맷팅 (010-XXXX-XXXX)
+  const handlePhoneChange = (e) => {
+    const rawValue = e.target.value.replace(/[^0-9]/g, ''); // 숫자만 남김
+    let formatted = rawValue;
+    if (rawValue.length > 3 && rawValue.length <= 7) {
+      formatted = `${rawValue.slice(0, 3)}-${rawValue.slice(3)}`;
+    } else if (rawValue.length > 7) {
+      formatted = `${rawValue.slice(0, 3)}-${rawValue.slice(3, 7)}-${rawValue.slice(7, 11)}`;
+    }
+    setPhoneNumber(formatted);
+  };
+
+  // reCAPTCHA 초기화
+  const initRecaptcha = () => {
+    if (window.recaptchaVerifier) {
+      return;
+    }
+    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+      callback: () => {
+        // reCAPTCHA 해결 완료
+      },
+      'expired-callback': () => {
+        setError('reCAPTCHA 보안 인증이 만료되었습니다. 다시 시도해 주세요.');
+        window.recaptchaVerifier = null;
+      }
+    });
+  };
+
+  // 1단계: 인증번호 발송 요청
+  const handleSendCode = async (e) => {
     e.preventDefault();
-    if (!code.trim()) return;
+    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+    if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+      setError('올바른 휴대폰 번호를 입력해 주세요.');
+      return;
+    }
 
     setLoading(true);
     setError(null);
+    setUnregistered(false);
 
     try {
-      const res = await fetch(`${API_BASE}/api/ministers/${code.trim()}`);
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        if (errData.error === 'db_connection_failed') {
-          setError('DB연결 오류! 데이터베이스 서버에 접속할 수 없습니다.');
-        } else {
-          setError(errData.message || '서버 오류가 발생했습니다.');
-        }
-        return;
-      }
-      const data = await res.json();
-      if (data.error) {
-        setError(data.error === 'db_connection_failed' ? 'DB연결 오류! 데이터베이스에 접속할 수 없습니다.' : '해당 코드로 등록된 정보를 찾을 수 없습니다.');
-      } else {
-        let nohCode = '', chrCode = '';
-        // 총회본부/기관 소속은 교회 이력으로 chrCode를 매핑하지 않음
-        const churchName = (data.CHRNAME || '').trim();
-        const isHeadquarters = churchName.includes('총회') || churchName.includes('본부');
-        
-        if (!isHeadquarters) {
-          try {
-            const histRes = await fetch(`${API_BASE}/api/myinfo/${code.trim()}/history`);
-            if (histRes.ok) {
-              const hist = await histRes.json();
-              if (Array.isArray(hist)) {
-                const currentEntries = hist.filter(h => h.is_current);
-                // VI_MIN_INFO의 CHRNAME과 일치하는 이력 우선
-                const bestMatch = currentEntries.find(h =>
-                  (h.ChrName || '').trim() === churchName
-                );
-                const current = bestMatch || currentEntries[0];
-                if (current) {
-                  nohCode = current.NohCode || '';
-                  chrCode = current.ChrCode || '';
-                }
-              }
-            }
-          } catch(e) {}
-        }
+      initRecaptcha();
+      const appVerifier = window.recaptchaVerifier;
 
-        login({
-          code: data.MinisterCode,
-          name: data.MinisterName,
-          church: data.CHRNAME,
-          presbytery: data.NOHNAME,
-          duty: data.DUTYNAME,
-          phone: data.TEL_MOBILE,
-          email: data.EMAIL,
-          birthday: data.BIRTHDAY,
-          nohCode,
-          chrCode,
-        });
-      }
+      // 파이어베이스 전화번호 규격 변경: +821012345678
+      const internationalNumber = `+82${cleanPhone.slice(1)}`;
+      
+      const confirmation = await signInWithPhoneNumber(auth, internationalNumber, appVerifier);
+      setConfirmationResult(confirmation);
+      setIsCodeSent(true);
+      setTimer(180); // 타이머 재시작
+      setVerificationCode('');
     } catch (err) {
-      setError('네트워크 오류 — 서버에 연결할 수 없습니다.');
+      console.error('[Phone Auth] Failed to send SMS:', err);
+      if (err.code === 'auth/too-many-requests') {
+        setError('단기간에 너무 많은 인증 시도가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+      } else {
+        setError('인증번호 발송 실패! 번호를 확인하거나 네트워크를 확인해 주세요.');
+      }
+      window.recaptchaVerifier = null;
     } finally {
       setLoading(false);
     }
   };
 
+  // 2단계: 인증코드 검증 및 백엔드 연동 로그인
+  const handleVerifyCode = async (e) => {
+    e.preventDefault();
+    if (verificationCode.length !== 6) {
+      setError('6자리 인증번호를 정확히 입력해 주세요.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 1. Firebase Auth 코드 인증
+      const userCredential = await confirmationResult.confirm(verificationCode);
+      const idToken = await userCredential.user.getIdToken();
+
+      // 2. 백엔드 (FastAPI) 전송 및 총회 DB 일치 여부 대조
+      const res = await fetch(`${API_BASE}/api/auth/firebase-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: idToken })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        if (res.status === 404) {
+          // DB 미등록 번호
+          setUnregistered(true);
+          setError('총회 데이터베이스에 등록되지 않은 휴대폰 번호입니다.');
+        } else {
+          setError(errData.detail || '백엔드 인증 세션 발급에 실패했습니다.');
+        }
+        return;
+      }
+
+      const sessionData = await res.json();
+      if (sessionData.success && sessionData.user) {
+        // 기존 주소록 컨텍스트와 호환되는 형태로 세션 정보 바인딩
+        login({
+          code: sessionData.user.MinisterCode,
+          name: sessionData.user.MinisterName,
+          church: sessionData.user.CHRNAME,
+          presbytery: sessionData.user.NOHNAME,
+          duty: sessionData.user.DUTYNAME,
+          phone: sessionData.user.TEL_MOBILE,
+          email: sessionData.user.EMAIL,
+          birthday: sessionData.user.BIRTHDAY,
+          nohCode: sessionData.user.nohCode || '',
+          chrCode: sessionData.user.chrCode || '',
+        });
+      }
+    } catch (err) {
+      console.error('[Phone Auth] Verification failed:', err);
+      setError('잘못되었거나 만료된 인증코드입니다. 다시 시도해 주세요.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 타이머 표시 포맷 (mm:ss)
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
   return (
-    <div className="min-h-screen bg-surface font-['Plus_Jakarta_Sans',_'Pretendard'] text-on-surface antialiased">
+    <div className="min-h-screen bg-surface font-['Plus_Jakarta_Sans',_'Pretendard'] text-on-surface antialiased flex flex-col justify-between">
+      {/* Invisible reCAPTCHA Container */}
+      <div id="recaptcha-container"></div>
+
       <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl shadow-sm border-b border-surface-variant flex items-center justify-center px-6 py-4">
-        <h1 className="font-['Manrope',_'Pretendard'] font-bold text-lg text-primary tracking-tight">내 정보</h1>
+        <h1 className="font-['Manrope',_'Pretendard'] font-bold text-lg text-primary tracking-tight">본인인증 로그인</h1>
       </header>
-      
-      <main className="pt-24 px-6 pb-20 max-w-md mx-auto space-y-8 animate-fade-in">
-        <div className="text-center pt-8">
-          <div className="w-20 h-20 rounded-full bg-surface-variant mx-auto mb-6 flex items-center justify-center shadow-inner">
-            <span className="material-symbols-outlined text-4xl text-outline">person_outline</span>
+
+      <main className="pt-24 px-6 pb-12 max-w-md mx-auto w-full space-y-8 animate-fade-in flex-grow flex flex-col justify-center">
+        <div className="text-center pb-4">
+          <div className="w-20 h-20 rounded-full bg-secondary/10 mx-auto mb-6 flex items-center justify-center shadow-sm">
+            <span className="material-symbols-outlined text-4xl text-secondary">domain_verification</span>
           </div>
-          <h2 className="font-['Manrope',_'Pretendard'] text-2xl font-bold text-primary mb-2">로그인</h2>
-          <p className="text-sm font-medium text-on-surface-variant">
-            목회자 코드를 입력하여 내 정보를 확인하세요.
+          <h2 className="font-['Manrope',_'Pretendard'] text-2xl font-bold text-primary mb-2">실명 본인인증</h2>
+          <p className="text-sm font-medium text-on-surface-variant leading-relaxed">
+            안전한 기장주소록 이용을 위해<br />
+            총회 데이터베이스에 등록된 본인 휴대폰 번호로 인증하세요.
           </p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div className="bg-white rounded-3xl p-6 shadow-sm border border-surface-variant/50">
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-surface-variant/50 space-y-6">
+          {/* 1단계: 전화번호 입력창 */}
+          <form onSubmit={handleSendCode} className="space-y-4">
             <div className="flex flex-col gap-2">
-              <label htmlFor="login-code-input" className="text-xs font-bold text-outline uppercase tracking-wider pl-1">
-                목회자 코드
+              <label htmlFor="login-phone-input" className="text-xs font-bold text-outline uppercase tracking-wider pl-1">
+                휴대폰 번호
               </label>
-              <input
-                id="login-code-input"
-                type="text"
-                placeholder="예: 000001"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="w-full bg-surface-container-low rounded-xl px-4 py-4 text-[15px] text-on-surface placeholder:text-outline-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:bg-white transition-all"
-              />
+              <div className="flex gap-2">
+                <input
+                  id="login-phone-input"
+                  type="tel"
+                  placeholder="예: 010-1234-5678"
+                  value={phoneNumber}
+                  onChange={handlePhoneChange}
+                  disabled={isCodeSent || loading}
+                  className="flex-grow bg-surface-container-low rounded-xl px-4 py-4 text-[15px] text-on-surface placeholder:text-outline-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:bg-white transition-all disabled:opacity-60"
+                />
+                {!isCodeSent && (
+                  <button
+                    type="submit"
+                    disabled={loading || phoneNumber.replace(/[^0-9]/g, '').length < 10}
+                    className="bg-secondary text-white px-4 font-bold rounded-xl active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 whitespace-nowrap text-sm"
+                  >
+                    {loading ? '전송중' : '인증요청'}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-          
-          {error && (
-             <div className="flex items-center justify-center gap-2 p-3 bg-error-container text-on-error-container rounded-xl text-sm font-medium animate-shake">
-               <span className="material-symbols-outlined text-[18px]">error</span>
-               {error}
-             </div>
-          )}
-          
-          <button
-            type="submit"
-            disabled={loading || !code.trim()}
-            className="w-full py-4 bg-secondary text-white font-bold rounded-2xl shadow-md shadow-secondary/20 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
-                확인 중...
-              </>
-            ) : (
-              '로그인'
-            )}
-          </button>
-        </form>
+          </form>
 
-        <p className="text-[12px] text-outline text-center leading-relaxed px-4 pt-4 border-t border-surface-variant/50">
-          목회자 코드는 총회 사무국에서 확인할 수 있습니다.<br />
-          향후 Firebase 인증으로 전환될 예정입니다.
-        </p>
+          {/* 2단계: 인증코드 입력창 (인증번호 전송 시 활성화) */}
+          {isCodeSent && (
+            <form onSubmit={handleVerifyCode} className="space-y-6 animate-slide-up">
+              <div className="flex flex-col gap-2 relative">
+                <div className="flex justify-between items-center pl-1">
+                  <label htmlFor="verification-code-input" className="text-xs font-bold text-outline uppercase tracking-wider">
+                    인증번호 6자리
+                  </label>
+                  <span className={`text-xs font-bold ${timer < 60 ? 'text-error' : 'text-secondary'}`}>
+                    {formatTime(timer)}
+                  </span>
+                </div>
+                <input
+                  id="verification-code-input"
+                  type="text"
+                  pattern="[0-9]*"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="인증번호 6자리를 입력하세요"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, ''))}
+                  disabled={loading || timer === 0}
+                  className="w-full bg-surface-container-low rounded-xl px-4 py-4 text-[15px] text-on-surface tracking-widest text-center font-bold placeholder:tracking-normal placeholder:font-normal placeholder:text-outline-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:bg-white transition-all disabled:opacity-60"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSendCode}
+                  disabled={loading}
+                  className="w-1/3 py-4 border border-outline/30 text-outline-variant font-bold rounded-xl active:scale-95 transition-all text-sm"
+                >
+                  재전송
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || verificationCode.length !== 6 || timer === 0}
+                  className="w-2/3 py-4 bg-secondary text-white font-bold rounded-xl shadow-md shadow-secondary/20 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 text-sm flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                      확인 중...
+                    </>
+                  ) : (
+                    '인증 및 로그인'
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+
+        {/* 에러 피드백 영역 */}
+        {error && (
+          <div className="flex flex-col items-center justify-center gap-2 p-4 bg-error-container text-on-error-container rounded-2xl text-sm font-medium animate-shake text-center leading-relaxed">
+            <div className="flex items-center gap-1.5 font-bold">
+              <span className="material-symbols-outlined text-[18px]">error</span>
+              인증 안내
+            </div>
+            <span>{error}</span>
+            {unregistered && (
+              <a
+                href="tel:02-708-4000"
+                className="mt-2 inline-flex items-center gap-1 bg-white text-error px-3 py-1.5 rounded-lg font-bold shadow-sm active:scale-95 transition-all"
+              >
+                <span className="material-symbols-outlined text-[16px]">call</span>
+                총회 본부 정보수정 요청 (02-708-4000)
+              </a>
+            )}
+          </div>
+        )}
       </main>
+
+      <footer className="w-full py-6 text-center border-t border-surface-variant/30 bg-white/50">
+        <p className="text-[12px] text-outline leading-relaxed px-6">
+          기장주소록의 본인인증은 개인정보보호법에 의거하여<br />
+          목회자/장로 데이터 대조 용도로만 엄격히 검증 처리됩니다.
+        </p>
+      </footer>
     </div>
   );
 };

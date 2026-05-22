@@ -163,9 +163,9 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # Database credentials — .env에서 로드 (IDC 전환 시 .env만 변경)
-DB_USER = os.getenv("DB_USER", "pbh")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "prok3000")
-DB_SERVER = os.getenv("DB_SERVER", "192.168.0.145")
+DB_USER = os.getenv("DB_USER", "prok.or.kr")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "qp1f]4jIM")
+DB_SERVER = os.getenv("DB_SERVER", "mssql.nskorea.com")
 DB_DATABASE = os.getenv("DB_DATABASE", "KJ_CHURCH")
 DB_PORT = os.getenv("DB_PORT", "1433")
 
@@ -834,269 +834,7 @@ def get_insurance_detail(minister_code: str, year: str = ""):
     finally:
         conn.close()
 
-# ── 연금납입 현황 API ──────────────────────────────────────────────
-
-@app.get("/api/pension/{minister_code}/summary")
-def get_pension_summary(minister_code: str):
-    """목사 코드로 연금납입 연도별 요약 조회"""
-    conn = get_connection()
-    cursor = conn.cursor(as_dict=True)
-    try:
-        # 목사 이름 조회
-        cursor.execute("SELECT TOP 1 MinisterName FROM TB_Chr200 WHERE MinisterCode = %s", (minister_code,))
-        minister = cursor.fetchone()
-        minister_name = minister['MinisterName'].strip() if minister else ''
-
-        # 연금번호(PenNo) 조회
-        cursor.execute("SELECT TOP 1 PenNo FROM TB_PEN100 WHERE MemberCode = %s", (minister_code,))
-        pen_row = cursor.fetchone()
-        if not pen_row:
-            return {
-                "minister_code": minister_code.strip(),
-                "minister_name": minister_name,
-                "summary": [],
-                "total_years": 0,
-                "total_amount": 0,
-                "message": "연금 가입 내역이 없습니다."
-            }
-        pen_no = pen_row['PenNo']
-
-        # 연도별 요약 (TB_PEN110)
-        # YYMM is like '202301'
-        cursor.execute("""
-            SELECT LEFT(YYMM, 4) AS year,
-                   COUNT(DISTINCT RIGHT(YYMM, 2)) AS months_paid,
-                   SUM(ISNULL(Contribute, 0) + ISNULL(Share, 0)) AS total_amt
-            FROM TB_PEN110
-            WHERE PenNo = %s
-            GROUP BY LEFT(YYMM, 4)
-            ORDER BY LEFT(YYMM, 4) DESC
-        """, (pen_no,))
-        yearly = cursor.fetchall()
-
-        total_amount = sum(r['total_amt'] for r in yearly) if yearly else 0
-        return {
-            "minister_code": minister_code.strip(),
-            "minister_name": minister_name,
-            "pen_no": pen_no,
-            "summary": yearly,
-            "total_years": len(yearly),
-            "total_amount": total_amount,
-        }
-    except Exception as e:
-        logging.error(f'[Pension] Summary error: {e}')
-        return {"error": str(e)}
-    finally:
-        conn.close()
-
-
-@app.get("/api/pension/{minister_code}/detail")
-def get_pension_detail(minister_code: str, year: str = ""):
-    """목사 코드 + 연도로 연금 월별 납입 상세 조회 (TB_PEN110)"""
-    if not year:
-        year = str(datetime.now().year)
-
-    conn = get_connection()
-    cursor = conn.cursor(as_dict=True)
-    try:
-        # PenNo 조회
-        cursor.execute("SELECT TOP 1 PenNo FROM TB_PEN100 WHERE MemberCode = %s", (minister_code,))
-        pen_row = cursor.fetchone()
-        if not pen_row:
-            return {"year": year, "monthly": [], "year_total": 0, "months_paid": 0, "message": "연금 가입 내역이 없습니다."}
-        pen_no = pen_row['PenNo']
-
-        cursor.execute("""
-            SELECT YYMM,
-                   SUM(ISNULL(Contribute, 0) + ISNULL(Share, 0)) AS amt
-            FROM TB_PEN110
-            WHERE PenNo = %s AND LEFT(YYMM, 4) = %s
-            GROUP BY YYMM
-            ORDER BY YYMM
-        """, (pen_no, year))
-        rows = cursor.fetchall()
-
-        paid_map = {}
-        for r in rows:
-            month = r['YYMM'].strip()[4:6] if r['YYMM'] else ''
-            paid_map[month] = {
-                "month": month,
-                "amt": r['amt'] or 0,
-                "paid": True,
-            }
-
-        monthly = []
-        for m in range(1, 13):
-            ms = f"{m:02d}"
-            if ms in paid_map:
-                monthly.append(paid_map[ms])
-            else:
-                monthly.append({"month": ms, "amt": 0, "paid": False})
-
-        year_total = sum(item['amt'] for item in monthly)
-        months_paid = sum(1 for item in monthly if item['paid'])
-
-        return {
-            "year": year,
-            "monthly": monthly,
-            "year_total": year_total,
-            "months_paid": months_paid,
-        }
-    except Exception as e:
-        logging.error(f'[Pension] Detail error: {e}')
-        return {"error": str(e)}
-    finally:
-        conn.close()
-
-
-@app.get("/api/pension/{minister_code}/calc-data")
-def get_pension_calc_data(minister_code: str):
-    """예상 연금 계산에 필요한 기초 데이터 조회 (TB_PEN999, TB_PEN998, TB_MEM101)"""
-    conn = get_connection()
-    cursor = conn.cursor(as_dict=True)
-    try:
-        # PenNo 조회
-        cursor.execute("SELECT TOP 1 PenNo FROM TB_PEN100 WHERE MemberCode = %s", (minister_code,))
-        pen_row = cursor.fetchone()
-        if not pen_row:
-            return {"error": "연금 가입 내역이 없습니다."}
-        pen_no = pen_row['PenNo']
-
-        # TB_PEN999 — 불입개월 (Lev1~Lev4)
-        cursor.execute("SELECT Lev1_Cnt, Lev2_Cnt, Lev3_Cnt, Lev4_Cnt FROM TB_PEN999 WHERE PenNo = %s", (pen_no,))
-        lev_row = cursor.fetchone()
-        if not lev_row:
-            return {"error": "불입개월 데이터가 없습니다.", "pen_no": pen_no}
-
-        lev1 = lev_row.get('Lev1_Cnt', 0) or 0
-        lev2 = lev_row.get('Lev2_Cnt', 0) or 0
-        lev3 = lev_row.get('Lev3_Cnt', 0) or 0
-        lev4 = lev_row.get('Lev4_Cnt', 0) or 0
-
-        # TB_PEN998 — 기준 봉급액
-        cursor.execute("SELECT AMT FROM TB_PEN998")
-        amt_row = cursor.fetchone()
-        amt = float(amt_row['AMT']) if amt_row and amt_row['AMT'] else 0
-
-        # TB_MEM101 — 생년월일
-        cursor.execute("SELECT TOP 1 birth FROM TB_MEM101 WHERE worker_code = %s", (minister_code,))
-        birth_row = cursor.fetchone()
-        birth_year = 0
-        birth_month = 0
-        if birth_row and birth_row.get('birth'):
-            birth_str = str(birth_row['birth']).strip()
-            if len(birth_str) >= 6:
-                birth_year = int(birth_str[:4])
-                birth_month = int(birth_str[4:6])
-
-        return {
-            "pen_no": pen_no,
-            "lev1_cnt": lev1,
-            "lev2_cnt": lev2,
-            "lev3_cnt": lev3,
-            "lev4_cnt": lev4,
-            "amt": amt,
-            "birth_year": birth_year,
-            "birth_month": birth_month,
-        }
-    except Exception as e:
-        logging.error(f'[Pension] CalcData error: {e}')
-        return {"error": str(e)}
-    finally:
-        conn.close()
-
-
-from pydantic import BaseModel as PydanticBaseModel
-from typing import Optional
-
-class PensionEstimateRequest(PydanticBaseModel):
-    s_year: int
-    s_month: int
-    lev1_y: int = 0
-    lev1_m: int = 0
-    lev2_y: int = 0
-    lev2_m: int = 0
-    lev3_y: int = 0
-    lev3_m: int = 0
-    lev4_y: int = 0
-    lev4_m: int = 0
-    birth_year: int = 0
-    birth_month: int = 0
-    amt: float = 0
-
-
-@app.post("/api/pension/{minister_code}/estimate")
-def calculate_pension_estimate(minister_code: str, req: PensionEstimateRequest):
-    """PHP index.php의 연금 예상지급액 계산 로직을 Python으로 이식"""
-    import math
-
-    # 연금불입 인정개월
-    s1 = math.floor((req.lev1_y * 12 + req.lev1_m) / 2) + (req.lev2_y * 12 + req.lev2_m)
-    # 특약불입 인정개월
-    s2 = math.floor((req.lev3_y * 12 + req.lev3_m) / 2) + (req.lev4_y * 12 + req.lev4_m)
-
-    # 납입비율 연금 계산
-    if s1 <= 240:
-        s3_1 = ((s1 - s1 % 12) // 12) * 3  # 년도에 3%
-        s3_2 = math.floor(((s1 % 12) * (3 / 12)) * 100) / 100  # 월을 나누어 3% 할당
-        s3 = s3_1 + s3_2
-    else:
-        # 20년(240개월) 초과분
-        over = s1 - 240
-        s3_1 = (over - (over % 12)) // 12  # 초과 년
-        s3_2 = over - (s3_1 * 12)  # 초과 월
-        s3 = 60 + s3_1 * 2 + (math.floor((s3_2 * 2 / 12) * 100)) / 100
-
-    # 납입비율 특약 계산
-    s4_1 = (s2 - s2 % 12) // 12  # 특약 년
-    s4_2 = s2 % 12  # 특약 월
-    s4 = s4_1 * 3 + ((s4_2 * 3) / 12)
-
-    # 총 납입비율
-    s5 = s3 + s4
-
-    # 만 나이 계산
-    if req.birth_year > 0:
-        if req.s_month >= req.birth_month:
-            p_age = req.s_year - req.birth_year
-        else:
-            p_age = req.s_year - req.birth_year - 1
-    else:
-        p_age = 65  # 기본값
-
-    # 퇴직적용율
-    if p_age <= 65:
-        s6 = 0.85
-    elif p_age <= 66:
-        s6 = 0.88
-    elif p_age <= 67:
-        s6 = 0.91
-    elif p_age <= 68:
-        s6 = 0.94
-    elif p_age <= 69:
-        s6 = 0.97
-    else:
-        s6 = 1.0
-
-    # 예상 지급액
-    temp = float(s5) * float(s6)
-    amt = float(req.amt)
-    temp2 = (temp / 100) * amt
-    s_total = math.floor(temp2 / 1000) * 1000
-
-    return {
-        "pension_months_recognized": s1,
-        "special_months_recognized": s2,
-        "pension_rate": round(s3, 2),
-        "special_rate": round(s4, 2),
-        "contribution_rate": round(s5, 2),
-        "retirement_age": p_age,
-        "retirement_rate": round(s6 * 100, 1),
-        "base_salary": amt,
-        "estimated_monthly": s_total,
-    }
-
-
+
 import sqlite3
 import json
 from datetime import datetime
@@ -3077,6 +2815,133 @@ def simple_login(req: LoginRequest):
         conn.close()
 
 
+class FirebaseLoginRequest(BaseModel):
+    id_token: str
+
+@app.post("/api/auth/firebase-login")
+def firebase_login(req: FirebaseLoginRequest):
+    # Firebase Token 검증
+    try:
+        from firebase_admin import auth as firebase_auth
+        # ID Token 검증 및 디코딩
+        decoded_token = firebase_auth.verify_id_token(req.id_token)
+        phone_number = decoded_token.get("phone_number")
+        
+        if not phone_number:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "error": "인증 정보에서 전화번호를 찾을 수 없습니다."}
+            )
+    except Exception as e:
+        logging.error(f"[Phone Auth] Token verification failed: {e}")
+        return JSONResponse(
+            status_code=401,
+            content={"success": False, "error": "유효하지 않거나 만료된 인증 토큰입니다."}
+        )
+
+    # 전화번호 정규화 (국제 번호 -> 한국 로컬 번호 포맷 010XXXXXXXX)
+    # 예: +821062429687 -> 01062429687
+    # 숫자만 추출
+    digits = "".join([c for c in phone_number if c.isdigit()])
+    if digits.startswith("82"):
+        clean_phone = "0" + digits[2:]
+    else:
+        clean_phone = digits
+
+    conn = get_connection()
+    cursor = conn.cursor(as_dict=True)
+    try:
+        # 1단계: 목회자 (VI_MIN_INFO) 대조
+        query_minister = """
+            SELECT TOP 1 
+                m.MinisterCode, m.MinisterName, m.CHRNAME, m.NOHNAME, m.DUTYNAME, 
+                m.TEL_MOBILE, m.TEL_CHURCH, m.JUSO, m.BIRTHDAY, m.EMAIL
+            FROM VI_MIN_INFO m
+            WHERE REPLACE(REPLACE(REPLACE(m.TEL_MOBILE, '-', ''), ' ', ''), '.', '') = %s
+        """
+        cursor.execute(query_minister, (clean_phone,))
+        result = cursor.fetchone()
+        
+        if result:
+            logging.info(f"[Phone Auth] Minister login success: {result['MinisterName']} ({clean_phone})")
+            return {"success": True, "user": result}
+
+        # 2단계: 장로 (TB_Chr300) 대조
+        query_elder = """
+            SELECT TOP 1
+                e.PriestCode AS MinisterCode,
+                e.PriestName AS MinisterName,
+                c.ChrName AS CHRNAME,
+                n.NohName AS NOHNAME,
+                '장로' AS DUTYNAME,
+                e.Tel_Mobile AS TEL_MOBILE,
+                e.Tel_Home AS TEL_CHURCH,
+                e.Address + ' ' + e.Juso AS JUSO,
+                '' AS BIRTHDAY,
+                e.Email AS EMAIL
+            FROM TB_Chr300 e
+            LEFT JOIN TB_Chr100 c ON e.ChrCode = c.ChrCode
+            LEFT JOIN TB_Chr910 n ON c.NohCode = n.NohCode
+            WHERE (e.DelGu IS NULL OR e.DelGu != '1')
+              AND REPLACE(REPLACE(REPLACE(e.Tel_Mobile, '-', ''), ' ', ''), '.', '') = %s
+        """
+            # Tab indentation fix
+        cursor.execute(query_elder, (clean_phone,))
+        result = cursor.fetchone()
+        
+        if result:
+            logging.info(f"[Phone Auth] Elder login success: {result['MinisterName']} ({clean_phone})")
+            return {"success": True, "user": result}
+
+        # 3단계: 총회 직원 (requests.db staff_accounts) 대조
+        try:
+            sql_conn = sqlite3.connect('requests.db')
+            sql_conn.row_factory = sqlite3.Row
+            sql_c = sql_conn.cursor()
+            sql_c.execute("""
+                SELECT * FROM staff_accounts 
+                WHERE replace(replace(replace(phone, '-', ''), ' ', ''), '.', '') = ? 
+                  AND is_active = 1
+            """, (clean_phone,))
+            staff = sql_c.fetchone()
+            sql_conn.close()
+            
+            if staff:
+                user_data = {
+                    "MinisterCode": staff["staff_code"],
+                    "MinisterName": staff["name"],
+                    "CHRNAME": staff["department"],
+                    "NOHNAME": "총회",
+                    "DUTYNAME": staff["position"],
+                    "TEL_MOBILE": staff["phone"],
+                    "TEL_CHURCH": "",
+                    "JUSO": "",
+                    "BIRTHDAY": "",
+                    "EMAIL": staff["email"],
+                    "is_staff": True,
+                }
+                logging.info(f"[Phone Auth] Staff login success: {staff['name']} ({clean_phone})")
+                return {"success": True, "user": user_data}
+        except Exception as se:
+            logging.error(f"[Phone Auth] SQLite staff check error: {se}")
+
+        # 모든 매핑 실패 -> DB 미등록 번호
+        logging.warning(f"[Phone Auth] Login failed - Unregistered phone: {clean_phone}")
+        return JSONResponse(
+            status_code=404,
+            content={"success": False, "error": "총회 데이터베이스에 등록되지 않은 휴대폰 번호입니다."}
+        )
+        
+    except Exception as e:
+        logging.error(f"[Phone Auth] DB error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": f"서버 내부 데이터베이스 처리 중 오류가 발생했습니다: {str(e)}"}
+        )
+    finally:
+        conn.close()
+
+
 @app.get("/api/ministers/{code}")
 def get_minister_detail(code: str):
     conn = get_connection()
@@ -4501,6 +4366,386 @@ async def search_churches(q: str = Query("", min_length=1)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+# ── 연금 납입 현황 및 예상 연금 계산 API ──────────────────────────────────
+
+def _get_pen_no(minister_code: str):
+    """MinisterCode → PenNo 매핑 (TB_PEN100.MemberCode = MinisterCode)"""
+    conn = get_connection()
+    cursor = conn.cursor(as_dict=True)
+    try:
+        cursor.execute(
+            "SELECT TOP 1 PenNo FROM TB_PEN100 WHERE MemberCode = %s AND (EndDate = '' OR EndDate IS NULL)",
+            (minister_code,)
+        )
+        row = cursor.fetchone()
+        if row:
+            return row['PenNo'].strip()
+        # enddate 있는 경우도 fallback
+        cursor.execute(
+            "SELECT TOP 1 PenNo FROM TB_PEN100 WHERE MemberCode = %s ORDER BY StartDate DESC",
+            (minister_code,)
+        )
+        row = cursor.fetchone()
+        return row['PenNo'].strip() if row else None
+    finally:
+        conn.close()
+
+
+@app.get("/api/pension/{minister_code}/summary")
+def get_pension_summary(minister_code: str):
+    """연금 납입 연도별 요약"""
+    conn = get_connection()
+    cursor = conn.cursor(as_dict=True)
+    try:
+        pen_no = _get_pen_no(minister_code)
+        if not pen_no:
+            return {"minister_code": minister_code, "pen_no": None, "summary": [], "total_years": 0, "total_amount": 0,
+                    "message": "연금 가입 정보가 없습니다."}
+
+        # 목사 이름
+        cursor.execute("SELECT TOP 1 MemberName FROM TB_PEN100 WHERE PenNo = %s", (pen_no,))
+        name_row = cursor.fetchone()
+        minister_name = name_row['MemberName'].strip() if name_row else ''
+
+        # 연도별 요약 (Finish='Y' 인 것만)
+        cursor.execute("""
+            SELECT LEFT(YYMM, 4) AS year,
+                   COUNT(*) AS months_paid,
+                   SUM(ISNULL(inContribute, 0) + ISNULL(inShare, 0) + ISNULL(inArrear, 0)) AS total_amt
+            FROM TB_PEN110
+            WHERE PenNo = %s AND RTRIM(ISNULL(Finish,'')) = 'Y'
+            GROUP BY LEFT(YYMM, 4)
+            ORDER BY LEFT(YYMM, 4) DESC
+        """, (pen_no,))
+        yearly = cursor.fetchall()
+        for yr in yearly:
+            yr['total_amt'] = int(yr['total_amt'] or 0)
+            yr['months_paid'] = int(yr['months_paid'] or 0)
+
+        total_amount = sum(r['total_amt'] for r in yearly) if yearly else 0
+        return {
+            "minister_code": minister_code.strip(),
+            "minister_name": minister_name,
+            "pen_no": pen_no,
+            "summary": yearly,
+            "total_years": len(yearly),
+            "total_amount": total_amount,
+        }
+    except Exception as e:
+        logging.error(f'[Pension] Summary error: {e}')
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
+
+@app.get("/api/pension/{minister_code}/detail")
+def get_pension_detail(minister_code: str, year: str = ""):
+    """연금 특정 연도 월별 납입 상세"""
+    if not year:
+        year = str(datetime.now().year)
+
+    conn = get_connection()
+    cursor = conn.cursor(as_dict=True)
+    try:
+        pen_no = _get_pen_no(minister_code)
+        if not pen_no:
+            return {"error": "연금 가입 정보가 없습니다."}
+
+        cursor.execute("""
+            SELECT YYMM,
+                   ISNULL(inContribute, 0) + ISNULL(inShare, 0) + ISNULL(inArrear, 0) AS amt,
+                   RTRIM(ISNULL(Finish,'')) AS finish,
+                   PenLevel
+            FROM TB_PEN110
+            WHERE PenNo = %s AND LEFT(YYMM, 4) = %s
+            ORDER BY YYMM
+        """, (pen_no, year))
+        rows = cursor.fetchall()
+
+        paid_map = {}
+        for r in rows:
+            mm = str(r['YYMM']).strip()[4:6]
+            if r['finish'] == 'Y':
+                paid_map[mm] = int(r['amt'] or 0)
+
+        monthly = []
+        for m in range(1, 13):
+            mm = f"{m:02d}"
+            amt = paid_map.get(mm, 0)
+            monthly.append({"month": m, "paid": amt > 0, "amt": amt})
+
+        year_total = sum(v for v in paid_map.values())
+        months_paid = len([v for v in paid_map.values() if v > 0])
+        return {"year": year, "monthly": monthly, "year_total": year_total, "months_paid": months_paid}
+    except Exception as e:
+        logging.error(f'[Pension] Detail error: {e}')
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
+
+@app.get("/api/pension/{minister_code}/calc-data")
+def get_pension_calc_data(minister_code: str):
+    """예상 연금 계산에 필요한 기초 데이터 조회
+    - TB_PEN350: Lev1~4_Cnt (단계별 누적 불입 개월)
+    - TB_Chr200: BirthDay (생년월일)
+    - TB_PEN904: DefaultPay (최신 기준 봉급액)
+    """
+    conn = get_connection()
+    cursor = conn.cursor(as_dict=True)
+    try:
+        pen_no = _get_pen_no(minister_code)
+        if not pen_no:
+            return {"error": "연금 가입 정보가 없습니다."}
+
+        # Lev1~4 Cnt + Amt from TB_PEN350
+        cursor.execute("""
+            SELECT Lev1_Cnt, Lev2_Cnt, Lev3_Cnt, Lev4_Cnt, Amt, RetirementAge
+            FROM TB_PEN350
+            WHERE PenNo = %s
+        """, (pen_no,))
+        pen350 = cursor.fetchone()
+
+        lev1 = int(pen350['Lev1_Cnt'] or 0) if pen350 else 0
+        lev2 = int(pen350['Lev2_Cnt'] or 0) if pen350 else 0
+        lev3 = int(pen350['Lev3_Cnt'] or 0) if pen350 else 0
+        lev4 = int(pen350['Lev4_Cnt'] or 0) if pen350 else 0
+        retirement_age = int(pen350['RetirementAge'] or 0) if pen350 else 0
+
+        # 생년월일 from TB_Chr200
+        cursor.execute("SELECT BirthDay FROM TB_Chr200 WHERE MinisterCode = %s", (minister_code,))
+        birth_row = cursor.fetchone()
+        birth = ''
+        birth_year = 0
+        birth_month = 0
+        if birth_row and birth_row['BirthDay']:
+            birth = str(birth_row['BirthDay']).strip()
+            if len(birth) >= 6:
+                birth_year = int(birth[:4])
+                birth_month = int(birth[4:6])
+
+        # 기준 봉급액 from TB_PEN904 (최신 연도)
+        cursor.execute("SELECT TOP 1 YY, DefaultPay FROM TB_PEN904 ORDER BY YY DESC")
+        pay_row = cursor.fetchone()
+        amt = int(pay_row['DefaultPay']) if pay_row else 0
+        pay_year = pay_row['YY'].strip() if pay_row else ''
+
+        # 실제 단계별 납입 개월수 from TB_PEN110.PenLevel
+        cursor.execute("""
+            SELECT ISNULL(PenLevel, 2) AS PenLevel, COUNT(DISTINCT YYMM) AS cnt
+            FROM TB_PEN110
+            WHERE PenNo = %s AND RTRIM(ISNULL(Finish,'')) = 'Y'
+            GROUP BY PenLevel
+        """, (pen_no,))
+        pen_level_rows = cursor.fetchall()
+        actual_lev = {1: 0, 2: 0, 3: 0, 4: 0}
+        for plr in pen_level_rows:
+            lvl = int(plr['PenLevel'] or 2)
+            if lvl in actual_lev:
+                actual_lev[lvl] = int(plr['cnt'] or 0)
+        total_paid_months = sum(actual_lev.values())
+
+        # TB_PEN350에 데이터 없으면 TB_PEN110.PenLevel 기반으로 대체
+        if lev1 == 0 and lev2 == 0 and lev3 == 0 and lev4 == 0 and total_paid_months > 0:
+            lev1 = actual_lev[1]
+            lev2 = actual_lev[2]
+            lev3 = actual_lev[3]
+            lev4 = actual_lev[4]
+
+        return {
+            "pen_no": pen_no,
+            "lev1_cnt": lev1, "lev2_cnt": lev2, "lev3_cnt": lev3, "lev4_cnt": lev4,
+            "birth": birth, "birth_year": birth_year, "birth_month": birth_month,
+            "retirement_age": retirement_age,
+            "amt": amt, "pay_year": pay_year,
+            "total_paid_months": total_paid_months,
+        }
+    except Exception as e:
+        logging.error(f'[Pension] CalcData error: {e}')
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
+
+@app.post("/api/pension/{minister_code}/estimate")
+async def estimate_pension(minister_code: str, payload: dict):
+    """예상 연금 지급액 계산 — 레거시 PHP(index.php) 계산식 완전 포팅
+
+    계산 공식:
+    1) 연금 인정개월 s1 = floor(Lev1/2) + Lev2
+    2) 특약 인정개월 s2 = floor(Lev3/2) + Lev4
+    3) 납입비율(연금) s3:
+       - s1 ≤ 240개월: 연(년) 3% + 월분 3%/12
+       - s1 > 240개월: 60% + 초과분에 대해 연 2% + 월분 2%/12
+    4) 납입비율(특약) s4: 연 3% + 월분 3%/12
+    5) 총 납입비율 s5 = s3 + s4
+    6) 만 나이 p_age (지급개시년월 기준)
+    7) 퇴직적용율 s6: ≤65→85%, 66→88%, 67→91%, 68→94%, 69→97%, ≥70→100%
+    8) 예상월지급액 = floor(s5 * s6 / 100 * AMT / 1000) * 1000
+    """
+    import math
+
+    lev1_total = int(payload.get('lev1_y', 0)) * 12 + int(payload.get('lev1_m', 0))
+    lev2_total = int(payload.get('lev2_y', 0)) * 12 + int(payload.get('lev2_m', 0))
+    lev3_total = int(payload.get('lev3_y', 0)) * 12 + int(payload.get('lev3_m', 0))
+    lev4_total = int(payload.get('lev4_y', 0)) * 12 + int(payload.get('lev4_m', 0))
+    birth_year = int(payload.get('birth_year', 0))
+    birth_month = int(payload.get('birth_month', 1))
+    amt = float(payload.get('amt', 0))
+
+    # 나이 기반 입력 지원 (retire_age → s_year/s_month 자동 계산)
+    retire_age = int(payload.get('retire_age', 0))
+    if retire_age > 0 and birth_year > 0:
+        s_year = birth_year + retire_age
+        s_month = birth_month
+    else:
+        s_year = int(payload.get('s_year', datetime.now().year))
+        s_month = int(payload.get('s_month', datetime.now().month))
+
+    if birth_year == 0 or amt == 0:
+        return {"error": "생년월일 또는 기준봉급액 정보가 없습니다."}
+
+    # 1) 연금 인정개월, 특약 인정개월
+    s1 = math.floor(lev1_total / 2) + lev2_total
+    s2 = math.floor(lev3_total / 2) + lev4_total
+
+    # 2) 납입비율 — 연금 (s3)
+    if s1 <= 240:
+        s3_year_part = (s1 // 12) * 3
+        s3_month_part = math.floor(((s1 % 12) * (3 / 12)) * 100) / 100
+        s3 = s3_year_part + s3_month_part
+    else:
+        over = s1 - 240
+        over_years = over // 12
+        over_months = over - (over_years * 12)
+        s3 = 60 + over_years * 2 + math.floor((over_months * 2 / 12) * 100) / 100
+
+    # 3) 납입비율 — 특약 (s4)
+    s4_years = s2 // 12
+    s4_months = s2 % 12
+    s4 = s4_years * 3 + (s4_months * 3) / 12
+
+    # 4) 총 납입비율
+    s5 = s3 + s4
+
+    # 5) 만 나이 (retire_age 또는 s_year/s_month 기반)
+    p_age = retire_age if retire_age > 0 else (
+        s_year - birth_year if s_month >= birth_month else s_year - birth_year - 1
+    )
+
+    # 6) 퇴직적용율
+    if p_age <= 65:
+        s6 = 0.85
+    elif p_age <= 66:
+        s6 = 0.88
+    elif p_age <= 67:
+        s6 = 0.91
+    elif p_age <= 68:
+        s6 = 0.94
+    elif p_age <= 69:
+        s6 = 0.97
+    else:
+        s6 = 1.0
+
+    # 7) 예상 월 지급액 (1000원 미만 절사)
+    temp = float(s5) * float(s6)
+    temp2 = (temp / 100) * amt
+    s_total = math.floor(temp2 / 1000) * 1000
+
+    result = {
+        "pension_months_recognized": s1,
+        "special_months_recognized": s2,
+        "pension_rate": round(s3, 2),
+        "special_rate": round(s4, 2),
+        "contribution_rate": round(s5, 2),
+        "retirement_age": p_age,
+        "retirement_rate": round(s6 * 100, 0),
+        "base_salary": int(amt),
+        "estimated_monthly": int(s_total),
+    }
+
+    # 8) 계산 결과 저장 (Firebase Firestore 및 MSSQL TB_PEN_ESTIMATE)
+    try:
+        pen_no = _get_pen_no(minister_code) or ''
+        # Firestore
+        db = firestore.client()
+        db.collection('pension_estimates').document(minister_code).set({
+            'minister_code': minister_code,
+            'pen_no': pen_no,
+            'retire_age': p_age,
+            'estimated_monthly': int(s_total),
+            'contribution_rate': round(s5, 2),
+            'retirement_rate': round(s6 * 100, 0),
+            'base_salary': int(amt),
+            'updated_at': firestore.SERVER_TIMESTAMP,
+        }, merge=True)
+        
+        # MSSQL
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("""
+            MERGE INTO TB_PEN_ESTIMATE AS Target
+            USING (SELECT %s AS MinisterCode, %s AS PenNo, %d AS RetireAge, %d AS EstimatedMonthly, %d AS ContributionRate, %d AS RetirementRate, %d AS BaseSalary) AS Source
+            ON Target.MinisterCode = Source.MinisterCode
+            WHEN MATCHED THEN 
+                UPDATE SET PenNo = Source.PenNo, RetireAge = Source.RetireAge, EstimatedMonthly = Source.EstimatedMonthly, ContributionRate = Source.ContributionRate, RetirementRate = Source.RetirementRate, BaseSalary = Source.BaseSalary, UpdatedAt = GETDATE()
+            WHEN NOT MATCHED BY TARGET THEN
+                INSERT (MinisterCode, PenNo, RetireAge, EstimatedMonthly, ContributionRate, RetirementRate, BaseSalary, UpdatedAt)
+                VALUES (Source.MinisterCode, Source.PenNo, Source.RetireAge, Source.EstimatedMonthly, Source.ContributionRate, Source.RetirementRate, Source.BaseSalary, GETDATE());
+        """, (minister_code, pen_no, p_age, int(s_total), float(s5), float(s6 * 100), int(amt)))
+        conn.commit()
+        conn.close()
+    except Exception as save_err:
+        logging.warning(f'[Pension] Estimate save warning: {save_err}')
+
+    return result
+
+
+@app.get("/api/pension/{minister_code}/last-estimate")
+def get_last_estimate(minister_code: str):
+    """이전 계산 결과 조회 (MSSQL 조회 후 없으면 Firestore 폴백)"""
+    try:
+        # 우선 MSSQL에서 조회
+        conn = get_connection()
+        c = conn.cursor(as_dict=True)
+        c.execute("SELECT TOP 1 * FROM TB_PEN_ESTIMATE WHERE MinisterCode = %s", (minister_code,))
+        row = c.fetchone()
+        conn.close()
+        
+        if row:
+            return {
+                "found": True,
+                "retire_age": int(row['RetireAge']),
+                "estimated_monthly": int(row['EstimatedMonthly']),
+                "contribution_rate": float(row['ContributionRate']),
+                "retirement_rate": float(row['RetirementRate']),
+                "base_salary": int(row['BaseSalary']),
+                "calc_date": str(row['UpdatedAt'])[:10] if row.get('UpdatedAt') else '',
+            }
+            
+        # MSSQL에 없으면 Firestore에서 확인
+        db = firestore.client()
+        doc = db.collection('pension_estimates').document(minister_code).get()
+        if not doc.exists:
+            return {"found": False}
+        d = doc.to_dict()
+        calc_date = ''
+        if d.get('updated_at'):
+            calc_date = str(d['updated_at'])[:10]
+        return {
+            "found": True,
+            "retire_age": d.get('retire_age'),
+            "estimated_monthly": d.get('estimated_monthly'),
+            "contribution_rate": d.get('contribution_rate'),
+            "retirement_rate": d.get('retirement_rate'),
+            "base_salary": d.get('base_salary'),
+            "calc_date": calc_date,
+        }
+    except Exception as e:
+        logging.warning(f'[Pension] Last estimate load warning: {e}')
+        return {"found": False}
+
+
 # --- Background Scheduler ---
 @app.on_event("startup")
 async def start_scheduler():
@@ -4523,6 +4768,22 @@ if CLIENT_BUILD.exists():
             return FileResponse(str(file_path))
         # Otherwise serve index.html (React Router handles routing)
         return FileResponse(str(CLIENT_BUILD / "index.html"))
+
+# --- Firebase Functions Export ---
+try:
+    from firebase_functions import https_fn, options
+    from firebase_fastapi_wrapper import FastAPIWrapper
+
+    @https_fn.on_request(
+        region="asia-northeast3",
+        timeout_sec=60,
+        memory=options.MemoryOption.MB_512
+    )
+    def prok_api(req: https_fn.Request) -> https_fn.Response:
+        return FastAPIWrapper(app)(req)
+
+except ImportError:
+    logging.warning("firebase_functions or firebase_fastapi_wrapper not installed. Cannot export Firebase Function.")
 
 if __name__ == "__main__":
     import uvicorn

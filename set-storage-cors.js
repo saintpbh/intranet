@@ -18,7 +18,7 @@ async function setCors() {
   
   const corsConfig = [
     {
-      origin: ['https://prok-ga.web.app', 'https://prok-ga.firebaseapp.com', 'http://localhost:5173', 'http://localhost:3000'],
+      origin: ['https://my.prok.or.kr', 'https://prok-ga.web.app', 'https://prok-ga.firebaseapp.com', 'http://localhost:5173', 'http://localhost:3000'],
       method: ['GET', 'HEAD', 'OPTIONS'],
       maxAgeSeconds: 3600,
       responseHeader: ['Content-Type', 'Content-Length', 'Content-Encoding', 'Range'],
