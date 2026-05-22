@@ -314,7 +314,12 @@ def update_user_profile(minister_code: str, payload: dict):
 
 @app.post("/api/upload-profile")
 def upload_profile_image(file: UploadFile = File(...)):
-    filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}"
+    import uuid
+    _, ext = os.path.splitext(file.filename)
+    if not ext:
+        ext = ".jpg"
+    safe_uuid = uuid.uuid4().hex[:8]
+    filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{safe_uuid}{ext}"
     file_path = os.path.join("uploads", "profiles", filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
@@ -435,13 +440,18 @@ def get_church_photos(chr_code: str):
 
 @app.post("/api/churches/{chr_code}/photos")
 def update_church_photos(chr_code: str, files: List[UploadFile] = File(...)):
+    import uuid
     conn = sqlite3.connect('requests.db')
     c = conn.cursor()
     c.execute("DELETE FROM church_photos WHERE chr_code=?", (chr_code,))
     
     saved_photos = []
     for idx, file in enumerate(files[:3]):
-        filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{idx}_{file.filename}"
+        _, ext = os.path.splitext(file.filename)
+        if not ext:
+            ext = ".jpg"
+        safe_uuid = uuid.uuid4().hex[:8]
+        filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{idx}_{safe_uuid}{ext}"
         file_path = os.path.join("uploads", "church_photos", filename)
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
@@ -1855,8 +1865,13 @@ def delete_ad(ad_id: int):
 
 @app.post("/api/upload-ad")
 def upload_ad_image(file: UploadFile = File(...)):
+    import uuid
     os.makedirs(os.path.join("uploads", "ads"), exist_ok=True)
-    filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}"
+    _, ext = os.path.splitext(file.filename)
+    if not ext:
+        ext = ".jpg"
+    safe_uuid = uuid.uuid4().hex[:8]
+    filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{safe_uuid}{ext}"
     file_path = os.path.join("uploads", "ads", filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
@@ -1865,7 +1880,9 @@ def upload_ad_image(file: UploadFile = File(...)):
 @app.get("/api/uploads/ads/{filename}")
 def get_ad_image(filename: str):
     from fastapi.responses import FileResponse
-    file_path = os.path.join("uploads", "ads", filename)
+    from urllib.parse import unquote
+    decoded_filename = unquote(filename)
+    file_path = os.path.join("uploads", "ads", decoded_filename)
     if os.path.exists(file_path):
         return FileResponse(file_path)
     return {"error": "File not found"}
@@ -4347,7 +4364,9 @@ def delete_document(doc_id: int):
 # --- Static file serving for built React frontend ---
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi import HTTPException
 from pathlib import Path
+from urllib.parse import unquote
 
 CLIENT_BUILD = Path(__file__).parent.parent / "client" / "dist"
 
@@ -4363,17 +4382,19 @@ UPLOAD_DIR = Path(__file__).parent / "uploads"
 
 @app.get("/api/uploads/profiles/{filename}")
 def serve_profile_image(filename: str):
-    file_path = UPLOAD_DIR / "profiles" / filename
+    decoded_filename = unquote(filename)
+    file_path = UPLOAD_DIR / "profiles" / decoded_filename
     if file_path.is_file():
         return FileResponse(str(file_path))
-    return {"error": "not found"}
+    raise HTTPException(status_code=404, detail="File not found")
 
 @app.get("/api/uploads/ads/{filename}")
 def serve_ad_image(filename: str):
-    file_path = UPLOAD_DIR / "ads" / filename
+    decoded_filename = unquote(filename)
+    file_path = UPLOAD_DIR / "ads" / decoded_filename
     if file_path.is_file():
         return FileResponse(str(file_path))
-    return {"error": "not found"}
+    raise HTTPException(status_code=404, detail="File not found")
 
 # --- FCM (Firebase Cloud Messaging) APIs ---
 
