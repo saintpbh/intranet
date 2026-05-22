@@ -182,10 +182,16 @@ const DocumentsPage = () => {
         {/* Editorial Header */}
         <section>
           <span className="text-secondary font-semibold tracking-widest text-[10px] uppercase mb-2 block font-['Plus_Jakarta_Sans']">서비스</span>
-          <h2 className="text-4xl font-extrabold text-primary leading-tight mb-4 font-['Manrope',_'Pretendard']">증명서 발급</h2>
-          <p className="text-on-surface-variant text-sm leading-relaxed max-w-xs">
+          <h2 className="text-4xl font-extrabold text-primary leading-tight mb-2 font-['Manrope',_'Pretendard']">증명서 발급</h2>
+          <p className="text-on-surface-variant text-sm leading-relaxed max-w-xs mb-3">
             기독교장로회 공식 증명서를 발급받으세요.
           </p>
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mt-4 shadow-sm animate-pulse">
+            <p className="text-red-600 font-extrabold text-[16px] leading-relaxed flex items-center gap-2">
+              <span className="material-symbols-outlined text-[22px] text-red-500 shrink-0">warning</span>
+              <span>* 개발중입니다. 실제 작동되지 않습니다.</span>
+            </p>
+          </div>
         </section>
 
         {/* Login Required Guard */}
