@@ -186,46 +186,44 @@ const SimpleLogin = () => {
           </p>
         </div>
 
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-surface-variant/50 space-y-6">
+        <div className="bg-white rounded-3xl p-6 shadow-[0_12px_40px_-10px_rgba(0,0,0,0.08)] border border-slate-150 space-y-7">
           {/* 1단계: 전화번호 입력창 */}
           <form onSubmit={handleSendCode} className="space-y-4">
-            <div className="flex flex-col gap-2">
-              <label htmlFor="login-phone-input" className="text-xs font-bold text-outline uppercase tracking-wider pl-1">
-                휴대폰 번호
+            <div className="flex flex-col gap-3">
+              <label htmlFor="login-phone-input" className="text-[14px] font-bold text-slate-600 uppercase tracking-wider pl-1">
+                휴대폰 번호 입력
               </label>
-              <div className="flex gap-2">
-                <input
-                  id="login-phone-input"
-                  type="tel"
-                  placeholder="예: 010-1234-5678"
-                  value={phoneNumber}
-                  onChange={handlePhoneChange}
-                  disabled={isCodeSent || loading}
-                  className="flex-grow bg-surface-container-low rounded-xl px-4 py-4 text-[15px] text-on-surface placeholder:text-outline-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:bg-white transition-all disabled:opacity-60"
-                />
-                {!isCodeSent && (
-                  <button
-                    type="submit"
-                    disabled={loading || phoneNumber.replace(/[^0-9]/g, '').length < 10}
-                    className="bg-secondary text-white px-4 font-bold rounded-xl active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 whitespace-nowrap text-sm"
-                  >
-                    {loading ? '전송중' : '인증요청'}
-                  </button>
-                )}
-              </div>
+              <input
+                id="login-phone-input"
+                type="tel"
+                placeholder="예: 010-1234-5678"
+                value={phoneNumber}
+                onChange={handlePhoneChange}
+                disabled={isCodeSent || loading}
+                className="w-full bg-surface-container-low rounded-2xl px-5 py-5 text-[18px] text-on-surface placeholder:text-outline-variant focus:outline-none focus:ring-3 focus:ring-secondary/50 focus:bg-white transition-all disabled:opacity-60 font-bold border-2 border-slate-200"
+              />
+              {!isCodeSent && (
+                <button
+                  type="submit"
+                  disabled={loading || phoneNumber.replace(/[^0-9]/g, '').length < 10}
+                  className="w-full bg-secondary text-white py-4.5 font-extrabold rounded-2xl active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 text-[18px] shadow-md shadow-secondary/20 text-center"
+                >
+                  {loading ? '인증요청 전송 중...' : '여기를 눌러서 인증요청 하기'}
+                </button>
+              )}
             </div>
           </form>
 
           {/* 2단계: 인증코드 입력창 (인증번호 전송 시 활성화) */}
           {isCodeSent && (
             <form onSubmit={handleVerifyCode} className="space-y-6 animate-slide-up">
-              <div className="flex flex-col gap-2 relative">
+              <div className="flex flex-col gap-3 relative">
                 <div className="flex justify-between items-center pl-1">
-                  <label htmlFor="verification-code-input" className="text-xs font-bold text-outline uppercase tracking-wider">
-                    인증번호 6자리
+                  <label htmlFor="verification-code-input" className="text-[14px] font-bold text-slate-600 uppercase tracking-wider">
+                    인증번호 6자리 입력
                   </label>
-                  <span className={`text-xs font-bold ${timer < 60 ? 'text-error' : 'text-secondary'}`}>
-                    {formatTime(timer)}
+                  <span className={`text-[14px] font-extrabold px-3 py-1 bg-slate-100 rounded-lg ${timer < 60 ? 'text-error bg-red-50 border border-red-100 animate-pulse' : 'text-secondary'}`}>
+                    남은시간 {formatTime(timer)}
                   </span>
                 </div>
                 <input
@@ -238,32 +236,33 @@ const SimpleLogin = () => {
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, ''))}
                   disabled={loading || timer === 0}
-                  className="w-full bg-surface-container-low rounded-xl px-4 py-4 text-[15px] text-on-surface tracking-widest text-center font-bold placeholder:tracking-normal placeholder:font-normal placeholder:text-outline-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:bg-white transition-all disabled:opacity-60"
+                  className="w-full bg-surface-container-low rounded-2xl px-5 py-5 text-[22px] text-on-surface tracking-[0.4em] text-center font-black placeholder:tracking-normal placeholder:font-normal placeholder:text-outline-variant focus:outline-none focus:ring-3 focus:ring-secondary/50 focus:bg-white transition-all disabled:opacity-60 border-2 border-secondary/30"
                 />
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-3">
+                <button
+                  type="submit"
+                  disabled={loading || verificationCode.length !== 6 || timer === 0}
+                  className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-500/25 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 text-[19px] flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin text-xl font-bold">progress_activity</span>
+                      확인 중... 잠시만 기다려주세요
+                    </>
+                  ) : (
+                    '인증 및 로그인 완료하기'
+                  )}
+                </button>
+
                 <button
                   type="button"
                   onClick={handleSendCode}
                   disabled={loading}
-                  className="w-1/3 py-4 border border-outline/30 text-outline-variant font-bold rounded-xl active:scale-95 transition-all text-sm"
+                  className="w-full py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl active:scale-95 transition-all text-[15px] border border-slate-200 text-center"
                 >
-                  재전송
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading || verificationCode.length !== 6 || timer === 0}
-                  className="w-2/3 py-4 bg-secondary text-white font-bold rounded-xl shadow-md shadow-secondary/20 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 text-sm flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <>
-                      <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
-                      확인 중...
-                    </>
-                  ) : (
-                    '인증 및 로그인'
-                  )}
+                  인증번호가 안 오나요? (인증번호 재전송)
                 </button>
               </div>
             </form>
