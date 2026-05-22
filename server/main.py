@@ -851,6 +851,17 @@ def init_sqlite():
         )
     ''')
     c.execute('''
+        CREATE TABLE IF NOT EXISTS phone_number_overrides (
+            minister_code TEXT PRIMARY KEY,
+            minister_name TEXT,
+            member_type TEXT,
+            original_phone TEXT,
+            new_phone TEXT,
+            status TEXT DEFAULT 'ACTIVE',
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    c.execute('''
         CREATE TABLE IF NOT EXISTS church_photos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             chr_code TEXT,
@@ -2774,6 +2785,220 @@ def get_admin_stats():
         return {"error": str(e)}
 
 
+class OverridePhoneRequest(BaseModel):
+    code: str
+    name: str
+    member_type: str
+    original_phone: str
+    new_phone: str
+
+@app.get("/api/admin/search-member")
+def admin_search_member(name: str = ""):
+    if not name:
+        return []
+    
+    results = []
+    
+    # 1. MS SQL (목회자) 검색
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(as_dict=True)
+        search_term = f"%{name}%".encode('cp949')
+        query = """
+            SELECT TOP 50 
+                m.MinisterCode, m.MinisterName, m.CHRNAME, m.NOHNAME, m.DUTYNAME, m.TEL_MOBILE
+            FROM VI_MIN_INFO m
+            WHERE m.MinisterName LIKE %s
+            ORDER BY m.MinisterName
+        """
+        cursor.execute(query, (search_term,))
+        ministers = cursor.fetchall()
+        for m in ministers:
+            results.append({
+                "code": str(m.get("MinisterCode", "")).strip(),
+                "name": str(m.get("MinisterName", "")).strip(),
+                "member_type": "목회자",
+                "church": str(m.get("CHRNAME", "")).strip(),
+                "noh": str(m.get("NOHNAME", "")).strip(),
+                "duty": str(m.get("DUTYNAME", "")).strip(),
+                "original_phone": str(m.get("TEL_MOBILE", "")).strip(),
+                "override_phone": None,
+                "override_status": None
+            })
+    except Exception as e:
+        logging.error(f"[Admin Search] MS SQL Minister search error: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+    # 2. MS SQL (장로) 검색
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(as_dict=True)
+        search_term = f"%{name}%".encode('cp949')
+        query = """
+            SELECT TOP 50
+                e.PriestCode, e.PriestName, c.ChrName, n.NohName, e.Tel_Mobile
+            FROM TB_Chr300 e
+            LEFT JOIN TB_Chr100 c ON e.ChrCode = c.ChrCode
+            LEFT JOIN TB_Chr910 n ON c.NohCode = n.NohCode
+            WHERE (e.DelGu IS NULL OR e.DelGu != '1')
+              AND e.PriestName LIKE %s
+            ORDER BY e.PriestName
+        """
+        cursor.execute(query, (search_term,))
+        elders = cursor.fetchall()
+        for el in elders:
+            results.append({
+                "code": str(el.get("PriestCode", "")).strip(),
+                "name": str(el.get("PriestName", "")).strip(),
+                "member_type": "장로",
+                "church": str(el.get("ChrName", "")).strip(),
+                "noh": str(el.get("NohName", "")).strip(),
+                "duty": "장로",
+                "original_phone": str(el.get("Tel_Mobile", "")).strip(),
+                "override_phone": None,
+                "override_status": None
+            })
+    except Exception as e:
+        logging.error(f"[Admin Search] MS SQL Elder search error: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+    # 3. SQLite (총회 직원) 검색
+    try:
+        sql_conn = sqlite3.connect('requests.db')
+        sql_conn.row_factory = sqlite3.Row
+        sql_c = sql_conn.cursor()
+        sql_c.execute("SELECT * FROM staff_accounts WHERE name LIKE ? AND is_active = 1 LIMIT 50", (f"%{name}%",))
+        staffs = sql_c.fetchall()
+        for st in staffs:
+            results.append({
+                "code": str(st["staff_code"]).strip(),
+                "name": str(st["name"]).strip(),
+                "member_type": "총회 직원",
+                "church": str(st["department"]).strip(),
+                "noh": "총회",
+                "duty": str(st["position"]).strip(),
+                "original_phone": str(st["phone"]).strip(),
+                "override_phone": None,
+                "override_status": None
+            })
+        sql_conn.close()
+    except Exception as e:
+        logging.error(f"[Admin Search] SQLite staff search error: {e}")
+
+    # 4. SQLite phone_number_overrides 병합
+    try:
+        sql_conn = sqlite3.connect('requests.db')
+        sql_c = sql_conn.cursor()
+        sql_c.execute("SELECT minister_code, new_phone, status FROM phone_number_overrides")
+        overrides = {row[0]: {"new_phone": row[1], "status": row[2]} for row in sql_c.fetchall()}
+        sql_conn.close()
+        
+        for item in results:
+            code = item["code"]
+            if code in overrides:
+                item["override_phone"] = overrides[code]["new_phone"]
+                item["override_status"] = overrides[code]["status"]
+    except Exception as e:
+        logging.error(f"[Admin Search] SQLite overrides merge error: {e}")
+        
+    return results
+
+@app.post("/api/admin/override-phone")
+def override_phone(req: OverridePhoneRequest):
+    try:
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        c.execute('''
+            INSERT OR REPLACE INTO phone_number_overrides (minister_code, minister_name, member_type, original_phone, new_phone, status, updated_at)
+            VALUES (?, ?, ?, ?, ?, 'ACTIVE', CURRENT_TIMESTAMP)
+        ''', (req.code, req.name, req.member_type, req.original_phone, req.new_phone))
+        conn.commit()
+        conn.close()
+        return {"success": True, "message": f"{req.name}님의 로그인 휴대폰 번호가 '{req.new_phone}'으로 성공적으로 변경되었습니다."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/api/admin/override-phones")
+def get_override_phones():
+    try:
+        conn = sqlite3.connect('requests.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        rows = c.execute("SELECT * FROM phone_number_overrides ORDER BY updated_at DESC").fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.delete("/api/admin/override-phone/{code}")
+def delete_override_phone(code: str):
+    try:
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        c.execute("DELETE FROM phone_number_overrides WHERE minister_code = ?", (code,))
+        conn.commit()
+        conn.close()
+        return {"success": True, "message": "성공적으로 원래 전화번호로 복구되었습니다."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/api/admin/override-sql")
+def get_override_sql():
+    try:
+        conn = sqlite3.connect('requests.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        rows = c.execute("SELECT * FROM phone_number_overrides WHERE status = 'ACTIVE'").fetchall()
+        conn.close()
+        
+        sql_lines = []
+        sql_lines.append("-- ==================================================================")
+        sql_lines.append(f"-- [MS SQL 원데이터 통합용 UPDATE 쿼리 - 추출시각: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
+        sql_lines.append("-- 이 쿼리를 복사하여 MS SQL Server (KJ_CHURCH DB)에서 실행하면 원본 번호가 최신화됩니다.")
+        sql_lines.append("-- ==================================================================\n")
+        
+        has_queries = False
+        for r in rows:
+            code = r["minister_code"]
+            name = r["minister_name"]
+            mtype = r["member_type"]
+            new_p = r["new_phone"]
+            
+            if mtype == "목회자":
+                sql_lines.append(f"UPDATE TB_Chr200 SET Tel_Mobile = '{new_p}' WHERE MinisterCode = '{code}'; -- {name} (목회자)")
+                has_queries = True
+            elif mtype == "장로":
+                sql_lines.append(f"UPDATE TB_Chr300 SET Tel_Mobile = '{new_p}' WHERE PriestCode = '{code}'; -- {name} (장로)")
+                has_queries = True
+            elif mtype == "총회 직원":
+                sql_lines.append(f"-- UPDATE staff_accounts SET phone = '{new_p}' WHERE staff_code = '{code}'; -- {name} (총회직원, 로컬 SQLite용 참고)")
+                
+        if not has_queries:
+            sql_lines.append("-- [안내] 현재 MS SQL(목회자/장로) 원데이터 반영 대상이 없습니다.")
+            
+        return {"success": True, "sql": "\n".join(sql_lines)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/admin/override-integrate/{code}")
+def override_integrate(code: str):
+    try:
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        c.execute("UPDATE phone_number_overrides SET status = 'INTEGRATED' WHERE minister_code = ?", (code,))
+        conn.commit()
+        conn.close()
+        return {"success": True, "message": "해당 전화번호가 원데이터에 정상 통합 처리되었습니다."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 class LoginRequest(BaseModel):
     code: str
 
@@ -2860,6 +3085,96 @@ def firebase_login(req: FirebaseLoginRequest):
     conn = get_connection()
     cursor = conn.cursor(as_dict=True)
     try:
+        # 0단계: 전화번호 오버라이드 대조
+        try:
+            sql_conn = sqlite3.connect('requests.db')
+            sql_conn.row_factory = sqlite3.Row
+            sql_c = sql_conn.cursor()
+            sql_c.execute("""
+                SELECT * FROM phone_number_overrides 
+                WHERE REPLACE(REPLACE(REPLACE(new_phone, '-', ''), ' ', ''), '.', '') = ?
+                  AND status = 'ACTIVE'
+            """, (clean_phone,))
+            override = sql_c.fetchone()
+            sql_conn.close()
+            
+            if override:
+                override_code = override["minister_code"]
+                mtype = override["member_type"]
+                logging.info(f"[Phone Auth] Override match found: {clean_phone} -> Code: {override_code} ({mtype})")
+                
+                # 목회자 정보 조회
+                if mtype == "목회자":
+                    query_minister = """
+                        SELECT TOP 1 
+                            m.MinisterCode, m.MinisterName, m.CHRNAME, m.NOHNAME, m.DUTYNAME, 
+                            m.TEL_MOBILE, m.TEL_CHURCH, m.JUSO, m.BIRTHDAY, m.EMAIL
+                        FROM VI_MIN_INFO m
+                        WHERE m.MinisterCode = %s
+                    """
+                    cursor.execute(query_minister, (override_code,))
+                    result = cursor.fetchone()
+                    if result:
+                        result["TEL_MOBILE"] = override["new_phone"]
+                        logging.info(f"[Phone Auth] Minister login success (via override): {result['MinisterName']} ({override['new_phone']})")
+                        return {"success": True, "user": result}
+                        
+                # 장로 정보 조회
+                elif mtype == "장로":
+                    query_elder = """
+                        SELECT TOP 1
+                            e.PriestCode AS MinisterCode,
+                            e.PriestName AS MinisterName,
+                            c.ChrName AS CHRNAME,
+                            n.NohName AS NOHNAME,
+                            '장로' AS DUTYNAME,
+                            e.Tel_Mobile AS TEL_MOBILE,
+                            e.Tel_Home AS TEL_CHURCH,
+                            e.Address + ' ' + e.Juso AS JUSO,
+                            '' AS BIRTHDAY,
+                            e.Email AS EMAIL
+                        FROM TB_Chr300 e
+                        LEFT JOIN TB_Chr100 c ON e.ChrCode = c.ChrCode
+                        LEFT JOIN TB_Chr910 n ON c.NohCode = n.NohCode
+                        WHERE e.PriestCode = %s
+                    """
+                    cursor.execute(query_elder, (override_code,))
+                    result = cursor.fetchone()
+                    if result:
+                        result["TEL_MOBILE"] = override["new_phone"]
+                        logging.info(f"[Phone Auth] Elder login success (via override): {result['MinisterName']} ({override['new_phone']})")
+                        return {"success": True, "user": result}
+                        
+                # 총회 직원 정보 조회
+                elif mtype == "총회 직원":
+                    try:
+                        sql_conn = sqlite3.connect('requests.db')
+                        sql_conn.row_factory = sqlite3.Row
+                        sql_c = sql_conn.cursor()
+                        sql_c.execute("SELECT * FROM staff_accounts WHERE staff_code = ? AND is_active = 1", (override_code,))
+                        staff = sql_c.fetchone()
+                        sql_conn.close()
+                        if staff:
+                            user_data = {
+                                "MinisterCode": staff["staff_code"],
+                                "MinisterName": staff["name"],
+                                "CHRNAME": staff["department"],
+                                "NOHNAME": "총회",
+                                "DUTYNAME": staff["position"],
+                                "TEL_MOBILE": override["new_phone"],
+                                "TEL_CHURCH": "",
+                                "JUSO": "",
+                                "BIRTHDAY": "",
+                                "EMAIL": staff["email"],
+                                "is_staff": True,
+                            }
+                            logging.info(f"[Phone Auth] Staff login success (via override): {staff['name']} ({override['new_phone']})")
+                            return {"success": True, "user": user_data}
+                    except Exception as se:
+                        logging.error(f"[Phone Auth] SQLite override staff check error: {se}")
+        except Exception as oe:
+            logging.error(f"[Phone Auth] SQLite override query error: {oe}")
+
         # 1단계: 목회자 (VI_MIN_INFO) 대조
         query_minister = """
             SELECT TOP 1 

@@ -41,6 +41,7 @@ def deploy():
         
         print("Executing setup commands on server...")
         commands = [
+            f"systemctl stop prok_api.service || true",
             f"apt-get update && apt-get install -y python3-venv python3-pip unzip",
             f"rm -rf {remote_dir}",
             f"mkdir -p {remote_dir}",

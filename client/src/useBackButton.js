@@ -17,6 +17,17 @@ export const useBackButton = (isActive, onBack) => {
   }, [isActive, onBack]);
 
   useEffect(() => {
+    if (isActive) {
+      window.__isSubViewActive = true;
+    } else {
+      window.__isSubViewActive = false;
+    }
+    return () => {
+      window.__isSubViewActive = false;
+    };
+  }, [isActive]);
+
+  useEffect(() => {
     if (isActive && !pushedRef.current) {
       // Push a sub-view entry
       window.history.pushState({ subView: true }, '');

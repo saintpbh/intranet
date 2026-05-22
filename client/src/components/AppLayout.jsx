@@ -45,6 +45,12 @@ const AppLayout = () => {
     window.history.pushState({ pwaGuard: true }, '');
 
     const handlePopState = (e) => {
+      // If a subview (like Pension Status, notices, etc.) is active,
+      // let its own useBackButton hook handle the popstate.
+      if (window.__isSubViewActive) {
+        return;
+      }
+
       const currentPath = window.location.pathname;
 
       // If we're on a sub-page (not a main tab), go to its parent tab

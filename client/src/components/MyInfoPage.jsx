@@ -69,6 +69,16 @@ const MyInfoPage = () => {
   const goBack = useCallback(() => { setView('main'); fetchProfile(); }, [fetchProfile]);
   useBackButton(view !== 'main' && isLoggedIn, goBack);
 
+  useEffect(() => {
+    const handleResetView = () => {
+      if (isLoggedIn && view !== 'main') {
+        goBack();
+      }
+    };
+    window.addEventListener('reset-profile-view', handleResetView);
+    return () => window.removeEventListener('reset-profile-view', handleResetView);
+  }, [isLoggedIn, view, goBack]);
+
   if (!isLoggedIn) return <SimpleLogin />;
 
   const profileImageUrl = profileData?.profile_image_url
