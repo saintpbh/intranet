@@ -382,6 +382,20 @@ async def startup_event():
                 EMAIL TEXT
             )
         """)
+        sqlite_conn.execute("""
+            CREATE TABLE IF NOT EXISTS church_bulletins (
+                church_code TEXT PRIMARY KEY,
+                date TEXT,
+                service_type TEXT,
+                bulletin_title TEXT,
+                theme TEXT,
+                bible_verse TEXT,
+                bible_verse_ref TEXT,
+                orders TEXT,
+                church_news TEXT,
+                updated_at TEXT
+            )
+        """)
         sqlite_conn.commit()
         sqlite_conn.close()
         logging.info("[Startup] SQLite connection and all schema tables verification successful.")
@@ -6207,6 +6221,130 @@ def get_last_estimate(minister_code: str):
     except Exception as e:
         logging.warning(f'[Pension] Last estimate load warning: {e}')
         return {"found": False}
+
+
+# --- Digital Bulletin (Worship) Pydantic Models & API Routes ---
+from typing import List, Optional
+
+class WorshipOrderPayload(BaseModel):
+    id: str
+    sequence: int
+    title: str
+    type: str # "TEXT" | "HYMN" | "BIBLE" | "LITURGY" | "PRAYER" | "SERMON"
+    detail: str
+    targetKey: Optional[str] = None
+
+class WorshipBulletinPayload(BaseModel):
+    date: str
+    serviceType: str
+    bulletinTitle: str
+    theme: str
+    bibleVerse: str
+    bibleVerseRef: str
+    orders: List[WorshipOrderPayload]
+    churchNews: List[str]
+
+# GET /api/bulletin (성도앱 통합 API 규격)
+@app.get("/api/bulletin")
+def get_bulletin_query(church_code: str):
+    return get_bulletin_internal(church_code)
+
+# GET /api/churches/{church_code}/bulletin (어드민 UI 조회 API 규격)
+@app.get("/api/churches/{church_code}/bulletin")
+def get_bulletin_path(church_code: str):
+    return get_bulletin_internal(church_code)
+
+def get_bulletin_internal(church_code: str):
+    conn = sqlite3.connect('requests.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM church_bulletins WHERE church_code=?", (church_code.strip(),))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        row_dict = dict(row)
+        try:
+            orders = json.loads(row_dict.get('orders') or '[]')
+        except Exception:
+            orders = []
+        try:
+            church_news = json.loads(row_dict.get('church_news') or '[]')
+        except Exception:
+            church_news = []
+            
+        return {
+            "church_code": church_code.strip(),
+            "date": row_dict.get('date') or "",
+            "serviceType": row_dict.get('service_type') or "",
+            "bulletinTitle": row_dict.get('bulletin_title') or "",
+            "theme": row_dict.get('theme') or "",
+            "bibleVerse": row_dict.get('bible_verse') or "",
+            "bibleVerseRef": row_dict.get('bible_verse_ref') or "",
+            "orders": orders,
+            "churchNews": church_news,
+            "updated_at": row_dict.get('updated_at') or ""
+        }
+    else:
+        # 데이터가 없을 때는 404가 아닌 빈 주보 기본 구조 반환하여 성도앱 에러 방지
+        return {
+            "church_code": church_code.strip(),
+            "date": "",
+            "serviceType": "",
+            "bulletinTitle": "",
+            "theme": "",
+            "bibleVerse": "",
+            "bibleVerseRef": "",
+            "orders": [],
+            "churchNews": [],
+            "updated_at": ""
+        }
+
+# PUT /api/churches/{church_code}/bulletin (어드민 UI 저장 API 규격)
+@app.put("/api/churches/{church_code}/bulletin")
+def save_bulletin_put(church_code: str, payload: WorshipBulletinPayload):
+    return save_bulletin_internal(church_code, payload)
+
+# POST /api/bulletin (성도앱 연동용 POST API 규격)
+@app.post("/api/bulletin")
+def save_bulletin_post(church_code: str, payload: WorshipBulletinPayload):
+    return save_bulletin_internal(church_code, payload)
+
+def save_bulletin_internal(church_code: str, payload: WorshipBulletinPayload):
+    conn = sqlite3.connect('requests.db')
+    c = conn.cursor()
+    orders_str = json.dumps([item.dict() for item in payload.orders], ensure_ascii=False)
+    news_str = json.dumps(payload.churchNews, ensure_ascii=False)
+    now_iso = datetime.now().isoformat()
+    
+    c.execute("""
+        INSERT INTO church_bulletins (
+            church_code, date, service_type, bulletin_title, theme, bible_verse, bible_verse_ref, orders, church_news, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(church_code) DO UPDATE SET
+            date=excluded.date,
+            service_type=excluded.service_type,
+            bulletin_title=excluded.bulletin_title,
+            theme=excluded.theme,
+            bible_verse=excluded.bible_verse,
+            bible_verse_ref=excluded.bible_verse_ref,
+            orders=excluded.orders,
+            church_news=excluded.church_news,
+            updated_at=excluded.updated_at
+    """, (
+        church_code.strip(),
+        payload.date,
+        payload.serviceType,
+        payload.bulletinTitle,
+        payload.theme,
+        payload.bibleVerse,
+        payload.bibleVerseRef,
+        orders_str,
+        news_str,
+        now_iso
+    ))
+    conn.commit()
+    conn.close()
+    return {"success": True, "updated_at": now_iso}
 
 
 # --- Background Scheduler ---
