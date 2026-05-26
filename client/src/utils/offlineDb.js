@@ -220,20 +220,32 @@ export async function syncFullDirectory() {
     console.log('[OfflineDB] Fetching directory.json from Firebase Storage...');
     
     let res;
+    // 1차 시도: 로컬 FastAPI의 directory-fast 초고속 SQLite 덤프 API 호출 (가상계좌 포함 최신 데이터)
     try {
-      // Use Firebase SDK to get a download URL (bypasses CORS issues)
-      const { ref, getDownloadURL } = await import('firebase/storage');
-      const { storage } = await import('../firebase');
-      const fileRef = ref(storage, 'directory.json');
-      const downloadUrl = await getDownloadURL(fileRef);
-      res = await fetch(downloadUrl);
-    } catch (sdkErr) {
-      console.warn('[OfflineDB] Firebase SDK download failed, trying direct URL:', sdkErr);
-      // Fallback to direct URL
-      const fbStorageUrl = 'https://storage.googleapis.com/prok-ga.firebasestorage.app/directory.json';
-      res = await fetch(`${fbStorageUrl}?t=${Date.now()}`);
+      const API_BASE = (await import('../api')).default;
+      console.log('[OfflineDB] Fetching directory from local FastAPI server...');
+      res = await fetch(`${API_BASE}/api/sync/directory-fast`);
+    } catch (apiErr) {
+      console.warn('[OfflineDB] FastAPI fetch failed, trying Firebase Storage fallback:', apiErr);
     }
-    if (!res.ok) throw new Error('Failed to fetch from Firebase Storage');
+
+    // 2차 시도 (폴백): Firebase Storage에서 directory.json 직접 가져오기
+    if (!res || !res.ok) {
+      try {
+        console.log('[OfflineDB] Trying Firebase Storage fallback...');
+        const { ref, getDownloadURL } = await import('firebase/storage');
+        const { storage } = await import('../firebase');
+        const fileRef = ref(storage, 'directory.json');
+        const downloadUrl = await getDownloadURL(fileRef);
+        res = await fetch(downloadUrl);
+      } catch (sdkErr) {
+        console.warn('[OfflineDB] Firebase SDK download failed, trying direct URL:', sdkErr);
+        const fbStorageUrl = 'https://storage.googleapis.com/prok-ga.firebasestorage.app/directory.json';
+        res = await fetch(`${fbStorageUrl}?t=${Date.now()}`);
+      }
+    }
+
+    if (!res || !res.ok) throw new Error('Failed to fetch directory from all sources');
     
     const data = await res.json();
     

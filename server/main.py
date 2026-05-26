@@ -808,9 +808,11 @@ def upload_directory_json_to_firebase():
         
         c.execute("""
             SELECT 
-                ChrCode, CHRNAME, NohCode, NOHNAME, SichalCode, SICHALNAME, OrgYN, Environment, PostNo, ADDRESS, JUSO,
-                EstDate, EndDate, Tel_Church, Tel_Home, Tel_Mobile, Tel_Fax, HomePage, Email, Remark, Cnt, HJcode, MOCKNAME
-            FROM local_churches
+                lc.ChrCode, lc.CHRNAME, lc.NohCode, lc.NOHNAME, lc.SichalCode, lc.SICHALNAME, lc.OrgYN, lc.Environment, lc.PostNo, lc.ADDRESS, lc.JUSO,
+                lc.EstDate, lc.EndDate, lc.Tel_Church, lc.Tel_Home, lc.Tel_Mobile, lc.Tel_Fax, lc.HomePage, lc.Email, lc.Remark, lc.Cnt, lc.HJcode, lc.MOCKNAME,
+                cva.virtual_account AS mission_virtual_account
+            FROM local_churches lc
+            LEFT JOIN church_virtual_accounts cva ON lc.ChrCode = cva.chr_code AND cva.account_type = '선교주일헌금'
         """)
         churches = [dict(r) for r in c.fetchall()]
         
@@ -952,6 +954,46 @@ def get_addressbook(search: str = ""):
     finally:
         conn.close()
 
+@app.get("/api/sync/directory-fast")
+def sync_directory_fast():
+    """로컬 SQLite 복제 마트에서 전체 주소록을 10ms 초고속 서빙하며 가상계좌 포함"""
+    conn = sqlite3.connect('requests.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    try:
+        c.execute("SELECT MinisterCode, MinisterName, CHRNAME, NOHNAME, DUTYNAME, TEL_MOBILE, TEL_CHURCH, JUSO, EMAIL FROM local_ministers")
+        ministers = [dict(r) for r in c.fetchall()]
+        
+        c.execute("""
+            SELECT 
+                lc.ChrCode, lc.CHRNAME, lc.NohCode, lc.NOHNAME, lc.SichalCode, lc.SICHALNAME, lc.OrgYN, lc.Environment, lc.PostNo, lc.ADDRESS, lc.JUSO,
+                lc.EstDate, lc.EndDate, lc.Tel_Church, lc.Tel_Home, lc.Tel_Mobile, lc.Tel_Fax, lc.HomePage, lc.Email, lc.Remark, lc.Cnt, lc.HJcode, lc.MOCKNAME,
+                cva.virtual_account AS mission_virtual_account
+            FROM local_churches lc
+            LEFT JOIN church_virtual_accounts cva ON lc.ChrCode = cva.chr_code AND cva.account_type = '선교주일헌금'
+        """)
+        churches = [dict(r) for r in c.fetchall()]
+        
+        c.execute("SELECT PriestCode, PriestName, ChrCode, ChrName, NohName, Tel_Mobile, Email, Address, Juso, PostNo FROM local_elders")
+        elders = [dict(r) for r in c.fetchall()]
+        
+        c.execute("SELECT MINISTERCODE, MINISTERNAME, NOHNAME, CHRNAME, TEL_CHURCH, TEL_MOBILE, POSTNO, ADDRESS, JUSO, EMAIL FROM local_addressbook")
+        addressbook = [dict(r) for r in c.fetchall()]
+        
+        synced_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+        return {
+            "synced_at": synced_at,
+            "ministers": ministers,
+            "churches": churches,
+            "elders": elders,
+            "addressbook": addressbook
+        }
+    except Exception as e:
+        logging.error(f"[API] sync_directory_fast error: {e}")
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
 @app.get("/api/sync/directory")
 def sync_directory():
     conn = get_connection()
@@ -998,6 +1040,20 @@ def sync_directory():
             LEFT JOIN TB_Chr920 s ON c.NohCode = s.NohCode AND c.SichalCode = s.SichalCode
         """, (duty_term,))
         churches = cursor.fetchall()
+
+        # Fetch virtual accounts from local SQLite and merge
+        try:
+            sql_conn = sqlite3.connect('requests.db')
+            sql_c = sql_conn.cursor()
+            sql_c.execute("SELECT chr_code, virtual_account FROM church_virtual_accounts WHERE account_type = '선교주일헌금'")
+            va_map = {row[0].strip(): row[1].strip() for row in sql_c.fetchall() if row[0]}
+            sql_conn.close()
+        except:
+            va_map = {}
+
+        for row in churches:
+            code = str(row.get("ChrCode", "")).strip()
+            row["mission_virtual_account"] = va_map.get(code, "")
 
         # Fetch all elders
         cursor.execute("""
