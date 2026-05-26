@@ -31,7 +31,7 @@ const StatusBadge = ({ status }) => {
 };
 
 /* ── 디지털 주보 관리 및 편집 모달 (SlideOver 스타일) ── */
-const ChurchBulletinEditModal = ({ bulletin, onSave, onClose, churchName }) => {
+const ChurchBulletinEditModal = ({ bulletin, onSave, onClose, churchName, churchCode }) => {
   const [date, setDate] = useState(bulletin?.date || '');
   const [serviceType, setServiceType] = useState(bulletin?.serviceType || '주일대예배');
   const [bulletinTitle, setBulletinTitle] = useState(bulletin?.bulletinTitle || '');
@@ -41,6 +41,97 @@ const ChurchBulletinEditModal = ({ bulletin, onSave, onClose, churchName }) => {
   
   const [orders, setOrders] = useState([]);
   const [churchNews, setChurchNews] = useState(['']);
+
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplateName, setSelectedTemplateName] = useState('');
+  const [newTemplateName, setNewTemplateName] = useState('');
+  const [templateMessage, setTemplateMessage] = useState('');
+
+  const fetchTemplates = () => {
+    if (!churchCode) return;
+    fetch(`${API_BASE}/api/churches/${churchCode}/bulletin-templates`)
+      .then(res => res.ok ? res.json() : [])
+      .then(list => setTemplates(list))
+      .catch(err => console.warn('[Modal] Templates load failed:', err));
+  };
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [churchCode]);
+
+  const handleLoadTemplate = (tplName) => {
+    if (!tplName) return;
+    const tpl = templates.find(t => t.templateName === tplName);
+    if (!tpl) return;
+    
+    setServiceType(tpl.serviceType || '주일대예배');
+    setBulletinTitle(tpl.bulletinTitle || '');
+    setTheme(tpl.theme || '');
+    setBibleVerse(tpl.bibleVerse || '');
+    setBibleVerseRef(tpl.bibleVerseRef || '');
+    setOrders(
+      (tpl.orders || []).map((o, idx) => ({
+        id: o.id || `order-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
+        sequence: o.sequence || idx + 1,
+        title: o.title || '',
+        type: o.type || 'TEXT',
+        detail: o.detail || '',
+        targetKey: o.targetKey || ''
+      }))
+    );
+    setChurchNews(tpl.churchNews?.length ? tpl.churchNews : ['']);
+    setTemplateMessage('📋 템플릿 정보가 정상 로드되었습니다. (예배일자는 변경되지 않음)');
+    setTimeout(() => setTemplateMessage(''), 3000);
+  };
+
+  const handleSaveAsTemplate = () => {
+    if (!newTemplateName.trim()) {
+      alert('템플릿 이름을 입력해 주세요.');
+      return;
+    }
+    const filteredOrders = orders.filter(o => o.title.trim());
+    const filteredNews = churchNews.filter(n => n.trim());
+    
+    const payload = {
+      templateName: newTemplateName.trim(),
+      serviceType,
+      bulletinTitle,
+      theme,
+      bibleVerse,
+      bibleVerseRef,
+      orders: filteredOrders.map((o, idx) => ({ ...o, sequence: idx + 1 })),
+      churchNews: filteredNews
+    };
+    
+    fetch(`${API_BASE}/api/churches/${churchCode}/bulletin-templates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(() => {
+        setTemplateMessage(`💾 '${newTemplateName}' 템플릿으로 저장 완료!`);
+        setNewTemplateName('');
+        fetchTemplates();
+        setTimeout(() => setTemplateMessage(''), 3000);
+      })
+      .catch(() => alert('템플릿 저장 중 오류 발생'));
+  };
+
+  const handleDeleteTemplate = (tplName) => {
+    if (!window.confirm(`'${tplName}' 템플릿을 정말 삭제하시겠습니까?`)) return;
+    fetch(`${API_BASE}/api/churches/${churchCode}/bulletin-templates/${encodeURIComponent(tplName)}`, {
+      method: 'DELETE'
+    })
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(() => {
+        setTemplateMessage('✕ 템플릿이 삭제되었습니다.');
+        fetchTemplates();
+        setSelectedTemplateName('');
+        setTimeout(() => setTemplateMessage(''), 3000);
+      })
+      .catch(() => alert('템플릿 삭제 중 오류 발생'));
+  };
 
   useEffect(() => {
     setDate(bulletin?.date || '');
@@ -138,6 +229,72 @@ const ChurchBulletinEditModal = ({ bulletin, onSave, onClose, churchName }) => {
               성도앱 실시간 연동 안내
             </p>
             여기에서 주보 내용을 작성하고 [저장하기]를 누르면, 지교회 성도분들이 설치한 **기장성도앱의 디지털 주보 탭**에 내용이 실시간으로 동기화되어 배포됩니다.
+          </div>
+
+          {/* 템플릿 불러오기 / 저장 컨트롤 패널 */}
+          <div style={{ background: '#f8fafc', padding: 16, borderRadius: 16, border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <h4 style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 4, margin: 0 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#0070eb' }}>auto_awesome</span>
+              주보 템플릿 저장 및 불러오기
+            </h4>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {/* 불러오기 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>작성된 템플릿 불러오기</span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <select 
+                    value={selectedTemplateName} 
+                    onChange={e => {
+                      setSelectedTemplateName(e.target.value);
+                      handleLoadTemplate(e.target.value);
+                    }}
+                    style={{ flex: 1, padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: 10, fontSize: 12, fontWeight: 600, background: '#fff', outline: 'none' }}
+                  >
+                    <option value="">-- 불러올 템플릿 선택 --</option>
+                    {templates.map(t => (
+                      <option key={t.templateName} value={t.templateName}>{t.templateName} ({t.serviceType})</option>
+                    ))}
+                  </select>
+                  {selectedTemplateName && (
+                    <button 
+                      type="button" 
+                      onClick={() => handleDeleteTemplate(selectedTemplateName)} 
+                      style={{ padding: '6px 10px', background: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: 10, fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      삭제
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 저장하기 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>현재 입력내용을 템플릿으로 저장</span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input 
+                    type="text" 
+                    placeholder="템플릿 이름 (예: 주일 1부예배 기본)" 
+                    value={newTemplateName} 
+                    onChange={e => setNewTemplateName(e.target.value)}
+                    style={{ flex: 1, padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: 10, fontSize: 12, outline: 'none' }}
+                  />
+                  <button 
+                    type="button" 
+                    onClick={handleSaveAsTemplate} 
+                    style={{ padding: '6px 12px', background: '#0070eb', color: '#fff', border: 'none', borderRadius: 10, fontSize: 11, cursor: 'pointer', fontWeight: 700 }}
+                  >
+                    저장
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {templateMessage && (
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', background: '#e0f2fe', padding: '6px 12px', borderRadius: 8, textAlign: 'center' }}>
+                {templateMessage}
+              </div>
+            )}
           </div>
 
           {/* 주보 기본 정보 */}
@@ -361,6 +518,8 @@ const ChurchTab = ({ user }) => {
   const [bulletinData, setBulletinData] = useState(null);
   const [showBulletinEdit, setShowBulletinEdit] = useState(false);
   const [bulletinLoading, setBulletinLoading] = useState(false);
+  const [currentServiceType, setCurrentServiceType] = useState('주일대예배');
+  const [serviceTypeList, setServiceTypeList] = useState(['주일대예배', '주일오후예배', '청년예배', '저녁예배']);
 
   // ── 지도·교회관리 state ──
   const [church, setChurch] = useState(null);
@@ -433,16 +592,39 @@ const ChurchTab = ({ user }) => {
       .then(r => r.ok ? r.json() : []).then(d => setInquiries(d)).finally(() => setInqLoading(false));
   };
 
-  const fetchBulletinData = () => {
+  const fetchServiceTypes = () => {
+    if (!targetCode) return;
+    fetch(`${API_BASE}/api/churches/${targetCode}/bulletin-services`)
+      .then(res => res.ok ? res.json() : [])
+      .then(list => {
+        if (Array.isArray(list) && list.length > 0) {
+          const merged = Array.from(new Set([...list, '주일대예배', '주일오후예배', '청년예배', '저녁예배']));
+          setServiceTypeList(merged);
+        }
+      })
+      .catch(err => console.warn('[ChurchTab] Failed to fetch services list:', err));
+  };
+
+  const fetchBulletinData = (serviceType = currentServiceType) => {
     if (!targetCode) return;
     setBulletinLoading(true);
-    fetch(`${API_BASE}/api/churches/${targetCode}/bulletin`)
+    fetch(`${API_BASE}/api/churches/${targetCode}/bulletin?service_type=${encodeURIComponent(serviceType)}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data && data.updated_at) {
           setBulletinData(data);
         } else {
-          setBulletinData(null);
+          setBulletinData({
+            church_code: targetCode,
+            serviceType: serviceType,
+            bulletinTitle: '',
+            date: '',
+            theme: '',
+            bibleVerse: '',
+            bibleVerseRef: '',
+            orders: [],
+            churchNews: []
+          });
         }
       })
       .catch(err => console.warn('[ChurchTab] Bulletin fetch failed:', err))
@@ -461,7 +643,8 @@ const ChurchTab = ({ user }) => {
       .then(data => {
         if (data.success) {
           showChurchToast('✅ 주보 실시간 배포 완료');
-          fetchBulletinData();
+          fetchBulletinData(bulletinPayload.serviceType);
+          fetchServiceTypes();
         } else {
           alert('주보 저장 실패');
         }
@@ -479,9 +662,10 @@ const ChurchTab = ({ user }) => {
       fetchInquiries(); 
     } 
     if (activeMenu === 'bulletin' && targetCode) {
-      fetchBulletinData();
+      fetchBulletinData(currentServiceType);
+      fetchServiceTypes();
     }
-  }, [activeMenu, targetCode]);
+  }, [activeMenu, targetCode, currentServiceType]);
 
   const saveChurch = () => {
     if (!targetCode) return;
@@ -629,6 +813,72 @@ const ChurchTab = ({ user }) => {
                     다른 교회 검색
                   </button>
                 )}
+              </div>
+
+              {/* 예배 다중 생성 및 선택판 */}
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', background: '#fff', padding: '16px 20px', borderRadius: 20, border: '1px solid #e2e8f0', marginBottom: 24, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#475569', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#0070eb' }}>calendar_today</span>
+                    관리할 예배 선택:
+                  </span>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {serviceTypeList.map(st => (
+                      <button 
+                        key={st}
+                        onClick={() => setCurrentServiceType(st)}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: 12,
+                          border: currentServiceType === st ? '2px solid #0070eb' : '1px solid #e2e8f0',
+                          background: currentServiceType === st ? '#eff6ff' : '#fff',
+                          color: currentServiceType === st ? '#0070eb' : '#64748b',
+                          fontWeight: currentServiceType === st ? 800 : 500,
+                          fontSize: 12,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input 
+                    type="text" 
+                    placeholder="새 예배명 (예: 청년예배)" 
+                    id="new-service-input"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && e.target.value.trim()) {
+                        const val = e.target.value.trim();
+                        if (!serviceTypeList.includes(val)) {
+                          setServiceTypeList([...serviceTypeList, val]);
+                        }
+                        setCurrentServiceType(val);
+                        e.target.value = '';
+                      }
+                    }}
+                    style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 10, fontSize: 12, width: 140, outline: 'none' }}
+                  />
+                  <button 
+                    onClick={() => {
+                      const inp = document.getElementById('new-service-input');
+                      if (inp && inp.value.trim()) {
+                        const val = inp.value.trim();
+                        if (!serviceTypeList.includes(val)) {
+                          setServiceTypeList([...serviceTypeList, val]);
+                        }
+                        setCurrentServiceType(val);
+                        inp.value = '';
+                      }
+                    }}
+                    style={{ ...S.gradientBtn, padding: '8px 14px', fontSize: 11 }}
+                  >
+                    + 추가
+                  </button>
+                </div>
               </div>
 
               {bulletinLoading ? (
@@ -866,6 +1116,7 @@ const ChurchTab = ({ user }) => {
       {showBulletinEdit && (
         <ChurchBulletinEditModal
           bulletin={bulletinData}
+          churchCode={targetCode}
           churchName={isAdmin ? (adminSelectedChurch?.CHRNAME || '') : (user?.church || '')}
           onClose={() => setShowBulletinEdit(false)}
           onSave={saveBulletinData}
