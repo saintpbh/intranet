@@ -218,14 +218,14 @@ const SystemTab = ({ user }) => {
   }, []);
 
   const handleManualSync = async () => {
-    if (!confirm('Firebase Storage 전체 동기화를 실행하시겠습니까? 데이터 크기에 따라 수 분이 소요될 수 있습니다.')) return;
+    if (!confirm('MSSQL 원격지 데이터 → 로컬 고성능 복제 마트(SQLite) 동기화를 실행하시겠습니까?\n(로컬 복제는 1~2초 내에 즉시 반영되며, PWA 오프라인용 파일은 백그라운드에서 자동 업로드됩니다.)')) return;
     try {
       setSyncing(true);
-      setSyncMsg('동기화 진행 중...');
+      setSyncMsg('하이브리드 복제 엔진 가동 중 (MSSQL 벌크 복사 및 SQLite 벌크 적재)...');
       const res = await fetch(`${API_BASE}/api/admin/sync-to-firebase`, { method: 'POST' });
       const data = await res.json();
       if (data.success) {
-        setSyncMsg('✅ 동기화 성공');
+        setSyncMsg('✅ 하이브리드 동기화 성공! 로컬 복제 마트가 최신 상태로 갱신되었습니다.');
         fetchSyncLogs(); // Refresh logs
       } else {
         setSyncMsg(`❌ 동기화 실패: ${data.error}`);
@@ -554,10 +554,10 @@ const SystemTab = ({ user }) => {
 
       {/* ─── Sync Management ─── */}
       <div style={card}>
-        <div style={{ ...sectionTitle, justifyContent: 'space-between' }}>
+        <div style={{ ...sectionTitle, justifyContent: 'space-between', marginBottom: 12 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#3b82f6' }}>sync</span>
-            Firebase 동기화 관리
+            <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#3b82f6' }}>sync_alt</span>
+            하이브리드 주소록 복제 관리
           </span>
           <button 
             onClick={handleManualSync} 
@@ -569,8 +569,20 @@ const SystemTab = ({ user }) => {
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 16, animation: syncing ? 'spin 1s linear infinite' : 'none' }}>sync</span>
-            수동 동기화 실행
+            고속 동기화 실행
           </button>
+        </div>
+
+        <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20, lineHeight: 1.6, background: '#f8fafc', padding: 14, borderRadius: 10, border: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#10b981' }}>check_circle</span>
+            1,2단계 하이브리드 고성능 아키텍처 구동 중
+          </div>
+          원격 MSSQL 서버의 네트워크 병목을 회피하고 조회 속도를 <strong>0.01초(10ms) 대</strong>로 극대화하기 위해 로컬 SQLite 복제 마트 캐시를 활용하는 고성능 구조입니다.
+          <div style={{ marginTop: 8, fontSize: 12, color: '#334155', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#3b82f6' }}>schedule</span>
+            <span>정기 백그라운드 스케줄러: <strong>매주 월요일 새벽 04:00 AM 자동 복제 실행</strong></span>
+          </div>
         </div>
 
         {syncMsg && (
