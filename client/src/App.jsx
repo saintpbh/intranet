@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './ThemeContext';
 import { AuthProvider } from './AuthContext';
@@ -8,9 +9,11 @@ import AppLayout from './components/AppLayout';
 import HomePage from './components/HomePage';
 import SearchPage from './components/SearchPage';
 import MyInfoPage from './components/MyInfoPage';
-import AdminLayout from './components/admin/AdminLayout';
 import DocumentsPage from './components/mobile/DocumentsPage';
 import ChurchManagePage from './components/ChurchManagePage';
+
+// 어드민 대용량 번들을 코드가 필요한 시점에만 동적으로 불러오도록 Code Splitting(코드 분할) 처리
+const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
 
 function App() {
   return (
@@ -33,8 +36,19 @@ function App() {
               <Route path="/minister" element={<SearchPage />} />
               <Route path="/elder" element={<SearchPage />} />
             </Route>
-            {/* Admin (no tab bar) */}
-            <Route path="/admin" element={<AdminLayout />} />
+            {/* Admin (no tab bar) - dynamic import with premium visual fallback */}
+            <Route path="/admin" element={
+              <Suspense fallback={
+                <div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-100 font-bold text-sm font-['Manrope','Pretendard']">
+                  <div className="flex flex-col items-center gap-4">
+                    <span className="material-symbols-outlined text-[32px] text-indigo-400 animate-spin">sync</span>
+                    <span>교회 어드민 관리 모듈 로드 중...</span>
+                  </div>
+                </div>
+              }>
+                <AdminLayout />
+              </Suspense>
+            } />
           </Routes>
         </BrowserRouter>
       </ThemeProvider>

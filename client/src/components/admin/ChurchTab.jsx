@@ -30,7 +30,210 @@ const StatusBadge = ({ status }) => {
   return <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 99, background: `${c}12`, color: c, fontWeight: 700 }}>{labels[status] || status}</span>;
 };
 
-/* ── 디지털 주보 관리 및 편집 모달 (SlideOver 스타일) ── */
+/* /* ── 기장성도앱 실시간 인터랙티브 스마트폰 프리뷰어 ── */
+const GijangSaintAppMockup = ({ 
+  serviceType, 
+  bulletinTitle, 
+  date, 
+  theme, 
+  bibleVerse, 
+  bibleVerseRef, 
+  orders, 
+  churchNews, 
+  churchName 
+}) => {
+  const getOrderIcon = (type) => {
+    switch (type) {
+      case 'HYMN': return '🎵';
+      case 'BIBLE': return '📖';
+      case 'LITURGY': return '💬';
+      case 'PRAYER': return '🙏';
+      case 'SERMON': return '🎤';
+      default: return '✨';
+    }
+  };
+
+  const getOrderBg = (type) => {
+    switch (type) {
+      case 'HYMN': return 'bg-blue-50 text-blue-600 border border-blue-100';
+      case 'BIBLE': return 'bg-emerald-50 text-emerald-600 border border-emerald-100';
+      case 'LITURGY': return 'bg-indigo-50 text-indigo-600 border border-indigo-100';
+      case 'PRAYER': return 'bg-amber-50 text-amber-600 border border-amber-100';
+      case 'SERMON': return 'bg-rose-50 text-rose-600 border border-rose-100';
+      default: return 'bg-purple-50 text-purple-600 border border-purple-100';
+    }
+  };
+
+  const serviceGradients = {
+    '주일대예배': 'linear-gradient(135deg, #1e3a8a, #3b82f6)',
+    '주일오후예배': 'linear-gradient(135deg, #0f766e, #14b8a6)',
+    '청년예배': 'linear-gradient(135deg, #6d28d9, #a855f7)',
+    '저녁예배': 'linear-gradient(135deg, #b45309, #f59e0b)',
+  };
+  const gradient = serviceGradients[serviceType] || 'linear-gradient(135deg, #475569, #64748b)';
+
+  return (
+    <div className="w-[300px] h-[590px] bg-slate-950 border-[8px] border-slate-900 rounded-[38px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] relative overflow-hidden flex flex-col select-none mx-auto transition-all duration-300">
+      {/* Notch / Dynamic Island */}
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[90px] h-[18px] bg-slate-950 rounded-full z-30 flex items-center justify-between px-2 text-[8px] text-white/90 font-mono">
+        <span className="w-1 h-1 rounded-full bg-slate-800"></span>
+        <span className="w-2.5 h-1.5 rounded-full bg-slate-900 border border-emerald-400/50"></span>
+      </div>
+
+      {/* Status Bar */}
+      <div className="h-8 bg-slate-950 flex items-center justify-between px-5 text-[9px] text-white font-bold pt-1 z-20 flex-shrink-0">
+        <span>12:30</span>
+        <div className="flex items-center gap-1">
+          <span className="material-symbols-outlined text-[9px]">signal_cellular_4_bar</span>
+          <span className="material-symbols-outlined text-[9px]">wifi</span>
+          <span className="text-[8px] opacity-80 font-mono">94%</span>
+        </div>
+      </div>
+
+      {/* Mobile App Screen Content */}
+      <div className="flex-1 bg-slate-50 relative overflow-y-auto flex flex-col p-3 pt-2 pb-5 scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        
+        {/* App Bar */}
+        <div className="flex items-center gap-2 mb-2.5 mt-0.5">
+          <div className="w-7 h-7 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-700 shadow-sm">
+            <span className="material-symbols-outlined text-[14px]">arrow_back</span>
+          </div>
+          <div>
+            <span className="text-[8px] text-slate-400 font-extrabold block leading-none">{churchName || '⛪ 지정교회'}</span>
+            <span className="text-[12px] font-extrabold text-slate-800 leading-none">디지털 주보</span>
+          </div>
+          <span className="ml-auto text-[8px] bg-emerald-100 text-emerald-700 font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 scale-90">
+            <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping inline-block mr-0.5"></span>
+            배포중
+          </span>
+        </div>
+
+        {/* Live Worship Card Stack Deck representation */}
+        <div className="rounded-xl p-3.5 text-white shadow-md relative overflow-hidden mb-3.5 transition-all duration-300" style={{ background: gradient }}>
+          <div className="absolute right-[-15px] bottom-[-15px] opacity-10 text-[70px] font-extrabold select-none">⛪</div>
+          <div className="flex justify-between items-start mb-1.5">
+            <span className="text-[8px] font-extrabold tracking-wider bg-white/20 px-1.5 py-0.5 rounded-full">WORSHIP DECK</span>
+            <span className="text-[8px] font-bold text-white/90">{date || '2026년 5월 31일'}</span>
+          </div>
+          <h4 className="text-[15px] font-extrabold mb-0.5 tracking-tight">{serviceType || '주일대예배'}</h4>
+          <p className="text-[9px] text-white/80 line-clamp-1 mb-2.5">{bulletinTitle || '예배 주보에 오신 것을 환영합니다.'}</p>
+          <div className="flex gap-1.5">
+            <span className="text-[8px] bg-white/25 px-1.5 py-0.5 rounded-lg font-bold">
+              순서 {orders?.length || 0}
+            </span>
+            <span className="text-[8px] bg-white/25 px-1.5 py-0.5 rounded-lg font-bold">
+              소식 {churchNews?.length || 0}
+            </span>
+          </div>
+        </div>
+
+        {/* Church theme slogan */}
+        {theme && (
+          <div className="bg-white border border-slate-100 rounded-xl p-2.5 shadow-sm mb-3 text-center">
+            <span className="text-[8px] font-extrabold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full mb-1 inline-block">금주의 표어</span>
+            <p className="text-[10px] text-slate-700 font-bold leading-relaxed italic">“ {theme} ”</p>
+          </div>
+        )}
+
+        {/* Bible Verse Card */}
+        {(bibleVerse || bibleVerseRef) && (
+          <div className="bg-amber-50/50 border border-amber-100/50 rounded-xl p-3 shadow-sm mb-3">
+            <div className="flex items-center gap-1 mb-1 text-amber-800 font-extrabold text-[9px]">
+              <span className="material-symbols-outlined text-[11px]">auto_stories</span>
+              <span>금주의 요절 말씀</span>
+            </div>
+            <p className="text-[10px] text-amber-900 leading-relaxed font-semibold mb-1">
+              {bibleVerse || '여기에 금주의 요절 말씀이 실시간으로 표기됩니다.'}
+            </p>
+            {bibleVerseRef && (
+              <span className="text-[8px] text-amber-700/80 font-bold block text-right">
+                - {bibleVerseRef}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Worship Order Timeline */}
+        <div className="bg-white border border-slate-100 rounded-2xl p-3.5 shadow-sm mb-3">
+          <h5 className="text-[10px] font-extrabold text-slate-800 mb-2.5 flex items-center gap-1.5 border-b border-slate-50 pb-1">
+            <span className="material-symbols-outlined text-[12px] text-indigo-500">list_alt</span>
+            예배 순서
+          </h5>
+
+          {orders && orders.length > 0 ? (
+            <div className="relative pl-3 border-l border-dashed border-slate-200 space-y-3.5">
+              {orders.map((o, idx) => (
+                <div key={o.id || idx} className="relative">
+                  {/* Timeline Dot Indicator */}
+                  <span className={`absolute -left-[20px] top-0 w-[15px] h-[15px] rounded-full flex items-center justify-center text-[9px] shadow-sm font-bold z-10 ${getOrderBg(o.type)}`}>
+                    {getOrderIcon(o.type)}
+                  </span>
+                  
+                  {/* Content details */}
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-extrabold text-slate-800 leading-tight">{o.title || '순서명 미입력'}</span>
+                      {o.targetKey && (
+                        <span className="text-[7px] bg-slate-100 text-slate-600 px-1 py-0.2 rounded font-bold whitespace-nowrap">
+                          {o.targetKey}
+                        </span>
+                      )}
+                    </div>
+                    {o.detail && (
+                      <span className="text-[8px] text-slate-400 mt-0.5 font-medium leading-none">{o.detail}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-5 text-slate-400 text-[9px]">
+              등록된 예배 순서가 없습니다.<br/>주보에 순서를 추가해 주세요.
+            </div>
+          )}
+        </div>
+
+        {/* Church News Notification Talk */}
+        <div className="bg-white border border-slate-100 rounded-2xl p-3.5 shadow-sm">
+          <h5 className="text-[10px] font-extrabold text-slate-800 mb-2.5 flex items-center gap-1.5 border-b border-slate-50 pb-1">
+            <span className="material-symbols-outlined text-[12px] text-indigo-500">campaign</span>
+            교회 소식
+          </h5>
+
+          {churchNews && churchNews.filter(n => n.trim()).length > 0 ? (
+            <div className="space-y-2.5">
+              {churchNews.filter(n => n.trim()).map((news, idx) => (
+                <div key={idx} className="flex gap-1.5 items-start">
+                  <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[8px] font-extrabold flex-shrink-0 shadow-sm">
+                    ⛪
+                  </div>
+                  <div className="flex flex-col gap-0.5 max-w-[82%]">
+                    <span className="text-[7px] text-slate-400 font-extrabold">{churchName || '교회'} 알림</span>
+                    <div className="bg-indigo-50/50 border border-indigo-100/30 rounded-xl rounded-tl-none px-2 py-1.5 text-[9px] text-slate-700 leading-relaxed font-semibold">
+                      {news}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-5 text-slate-400 text-[9px]">
+              금주의 교회 소식이 없습니다.
+            </div>
+          )}
+        </div>
+
+      </div>
+
+      {/* Screen bottom Home Indicator */}
+      <div className="h-3.5 bg-slate-950 flex items-center justify-center flex-shrink-0 z-20">
+        <div className="w-20 h-0.5 bg-white/20 rounded-full"></div>
+      </div>
+    </div>
+  );
+};
+
+/* ── 디지털 주보 관리 및 편집 모달 (SlideOver 스타일 + 실시간 스마트폰 프리뷰 탑재) ── */
 const ChurchBulletinEditModal = ({ bulletin, onSave, onClose, churchName, churchCode }) => {
   const [date, setDate] = useState(bulletin?.date || '');
   const [serviceType, setServiceType] = useState(bulletin?.serviceType || '주일대예배');
@@ -46,6 +249,9 @@ const ChurchBulletinEditModal = ({ bulletin, onSave, onClose, churchName, church
   const [selectedTemplateName, setSelectedTemplateName] = useState('');
   const [newTemplateName, setNewTemplateName] = useState('');
   const [templateMessage, setTemplateMessage] = useState('');
+
+  // 반응형 스마트폰 미리보기 탭 상태 (모바일 전용)
+  const [editorTab, setEditorTab] = useState('form'); // 'form' | 'preview'
 
   const fetchTemplates = () => {
     if (!churchCode) return;
@@ -202,15 +408,15 @@ const ChurchBulletinEditModal = ({ bulletin, onSave, onClose, churchName, church
   return (
     <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-md animate-fade-in" onClick={onClose} style={{ pointerEvents: 'auto' }}>
       <div 
-        className="bg-white w-full max-w-2xl rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-[0_-20px_50px_rgba(10,37,64,0.15)] flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-slide-up"
+        className="bg-white w-full max-w-5xl rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-[0_-20px_50px_rgba(10,37,64,0.15)] flex flex-col h-[95vh] sm:h-[88vh] animate-slide-up"
         onClick={e => e.stopPropagation()}
         style={{ pointerEvents: 'auto' }}
       >
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-indigo-50/80 to-transparent rounded-t-[2.5rem]">
+        <div className="px-6 pt-5 pb-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-indigo-50/80 to-transparent rounded-t-[2.5rem] flex-shrink-0">
           <div>
             <h3 className="text-[17px] font-extrabold text-slate-800 font-['Manrope','Pretendard']">디지털 주보(예배) 관리 및 편집</h3>
-            <p className="text-[11px] text-indigo-500 font-semibold mt-0.5">{churchName} — 기장성도앱 연동</p>
+            <p className="text-[11px] text-indigo-500 font-semibold mt-0.5">{churchName} — 기장성도앱 실시간 연동 에디터</p>
           </div>
           <button 
             type="button"
@@ -221,270 +427,323 @@ const ChurchBulletinEditModal = ({ bulletin, onSave, onClose, churchName, church
           </button>
         </div>
 
-        {/* Scrollable Form Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6 scrollbar-thin" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-[12px] text-indigo-700 leading-relaxed" style={{ borderRadius: 16, padding: 16, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8' }}>
-            <p className="font-bold flex items-center gap-1.5 mb-1 text-[13px]" style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
-              <span className="material-symbols-outlined text-[16px] text-indigo-500">cell_tower</span>
-              성도앱 실시간 연동 안내
-            </p>
-            여기에서 주보 내용을 작성하고 [저장하기]를 누르면, 지교회 성도분들이 설치한 **기장성도앱의 디지털 주보 탭**에 내용이 실시간으로 동기화되어 배포됩니다.
+        {/* Mobile Tab Control (Only visible on small devices) */}
+        <div className="px-6 pt-3 flex-shrink-0 lg:hidden">
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
+            <button
+              type="button"
+              onClick={() => setEditorTab('form')}
+              className={`flex-1 py-2 text-center text-xs font-bold rounded-xl transition-all ${
+                editorTab === 'form' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'
+              }`}
+            >
+              📝 주보 작성 및 편집
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditorTab('preview')}
+              className={`flex-1 py-2 text-center text-xs font-bold rounded-xl transition-all ${
+                editorTab === 'preview' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'
+              }`}
+            >
+              📱 성도앱 미리보기
+            </button>
           </div>
+        </div>
 
-          {/* 템플릿 불러오기 / 저장 컨트롤 패널 */}
-          <div style={{ background: '#f8fafc', padding: 16, borderRadius: 16, border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <h4 style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 4, margin: 0 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#0070eb' }}>auto_awesome</span>
-              주보 템플릿 저장 및 불러오기
-            </h4>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {/* 불러오기 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>작성된 템플릿 불러오기</span>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <select 
-                    value={selectedTemplateName} 
-                    onChange={e => {
-                      setSelectedTemplateName(e.target.value);
-                      handleLoadTemplate(e.target.value);
-                    }}
-                    style={{ flex: 1, padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: 10, fontSize: 12, fontWeight: 600, background: '#fff', outline: 'none' }}
-                  >
-                    <option value="">-- 불러올 템플릿 선택 --</option>
-                    {templates.map(t => (
-                      <option key={t.templateName} value={t.templateName}>{t.templateName} ({t.serviceType})</option>
-                    ))}
-                  </select>
-                  {selectedTemplateName && (
+        {/* Modal Main Content (Desktop Split view / Mobile responsive tabs) */}
+        <div className="flex-1 overflow-hidden grid lg:grid-cols-12 gap-0 lg:gap-6 p-6 min-h-0">
+          
+          {/* Left Column: Form Editor (Always shown on desktop, toggle on mobile) */}
+          <div 
+            className={`lg:col-span-7 flex flex-col h-full overflow-y-auto space-y-6 pr-0 lg:pr-2 scrollbar-thin min-h-0 ${
+              editorTab === 'form' ? 'flex' : 'hidden lg:flex'
+            }`}
+            style={{ gap: 20 }}
+          >
+            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-[12px] text-indigo-700 leading-relaxed">
+              <p className="font-bold flex items-center gap-1.5 mb-1 text-[13px]">
+                <span className="material-symbols-outlined text-[16px] text-indigo-500">cell_tower</span>
+                성도앱 실시간 연동 안내
+              </p>
+              여기에서 주보 내용을 작성하고 [저장하기]를 누르면, 지교회 성도분들이 설치한 **기장성도앱의 디지털 주보 탭**에 내용이 실시간으로 동기화되어 배포됩니다.
+            </div>
+
+            {/* 템플릿 불러오기 / 저장 컨트롤 패널 */}
+            <div style={{ background: '#f8fafc', padding: 16, borderRadius: 16, border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <h4 style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 4, margin: 0 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#0070eb' }}>auto_awesome</span>
+                주보 템플릿 저장 및 불러오기
+              </h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* 불러오기 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>작성된 템플릿 불러오기</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <select 
+                      value={selectedTemplateName} 
+                      onChange={e => {
+                        setSelectedTemplateName(e.target.value);
+                        handleLoadTemplate(e.target.value);
+                      }}
+                      style={{ flex: 1, padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: 10, fontSize: 12, fontWeight: 600, background: '#fff', outline: 'none' }}
+                    >
+                      <option value="">-- 불러올 템플릿 선택 --</option>
+                      {templates.map(t => (
+                        <option key={t.templateName} value={t.templateName}>{t.templateName} ({t.serviceType})</option>
+                      ))}
+                    </select>
+                    {selectedTemplateName && (
+                      <button 
+                        type="button" 
+                        onClick={() => handleDeleteTemplate(selectedTemplateName)} 
+                        style={{ padding: '6px 10px', background: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: 10, fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* 저장하기 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>현재 입력내용을 템플릿으로 저장</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input 
+                      type="text" 
+                      placeholder="템플릿 이름 (예: 주일 1부예배 기본)" 
+                      value={newTemplateName} 
+                      onChange={e => setNewTemplateName(e.target.value)}
+                      style={{ flex: 1, padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: 10, fontSize: 12, outline: 'none' }}
+                    />
                     <button 
                       type="button" 
-                      onClick={() => handleDeleteTemplate(selectedTemplateName)} 
-                      style={{ padding: '6px 10px', background: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: 10, fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
+                      onClick={handleSaveAsTemplate} 
+                      style={{ padding: '6px 12px', background: '#0070eb', color: '#fff', border: 'none', borderRadius: 10, fontSize: 11, cursor: 'pointer', fontWeight: 700 }}
                     >
-                      삭제
+                      저장
                     </button>
-                  )}
+                  </div>
                 </div>
               </div>
 
-              {/* 저장하기 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>현재 입력내용을 템플릿으로 저장</span>
-                <div style={{ display: 'flex', gap: 6 }}>
+              {templateMessage && (
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', background: '#e0f2fe', padding: '6px 12px', borderRadius: 8, textAlign: 'center' }}>
+                  {templateMessage}
+                </div>
+              )}
+            </div>
+
+            {/* 주보 기본 정보 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <h4 style={{ fontSize: 12, fontWeight: 700, color: '#64748b', borderBottom: '1px solid #f1f5f9', paddingBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span className="material-symbols-outlined text-[16px] text-indigo-400">text_snippet</span>
+                주보 기본 정보
+              </h4>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>주보 제목</label>
                   <input 
                     type="text" 
-                    placeholder="템플릿 이름 (예: 주일 1부예배 기본)" 
-                    value={newTemplateName} 
-                    onChange={e => setNewTemplateName(e.target.value)}
-                    style={{ flex: 1, padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: 10, fontSize: 12, outline: 'none' }}
+                    value={bulletinTitle} 
+                    onChange={e => setBulletinTitle(e.target.value)}
+                    placeholder="예: 성령강림주일 예배 주보" 
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, outline: 'none' }}
                   />
-                  <button 
-                    type="button" 
-                    onClick={handleSaveAsTemplate} 
-                    style={{ padding: '6px 12px', background: '#0070eb', color: '#fff', border: 'none', borderRadius: 10, fontSize: 11, cursor: 'pointer', fontWeight: 700 }}
-                  >
-                    저장
-                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>예배 일자</label>
+                  <input 
+                    type="text" 
+                    value={date} 
+                    onChange={e => setDate(e.target.value)}
+                    placeholder="예: 2026년 5월 31일" 
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, outline: 'none' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>예배 구분</label>
+                  <input 
+                    type="text" 
+                    value={serviceType} 
+                    onChange={e => setServiceType(e.target.value)}
+                    placeholder="예: 주일대예배, 주일오후예배" 
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, outline: 'none' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>금주의 표어</label>
+                  <input 
+                    type="text" 
+                    value={theme} 
+                    onChange={e => setTheme(e.target.value)}
+                    placeholder="예: 생명, 평화, 정의를 심고 일구는 공동체" 
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, outline: 'none' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>금주의 요절 말씀 (본문)</label>
+                  <input 
+                    type="text" 
+                    value={bibleVerse} 
+                    onChange={e => setBibleVerse(e.target.value)}
+                    placeholder="예: 오직 정의를 물 같이, 공의를 마르지 않는 강 같이..." 
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, outline: 'none' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>요절 장절 정보</label>
+                  <input 
+                    type="text" 
+                    value={bibleVerseRef} 
+                    onChange={e => setBibleVerseRef(e.target.value)}
+                    placeholder="예: 아모스 5:24" 
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, outline: 'none' }}
+                  />
                 </div>
               </div>
             </div>
 
-            {templateMessage && (
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', background: '#e0f2fe', padding: '6px 12px', borderRadius: 8, textAlign: 'center' }}>
-                {templateMessage}
-              </div>
-            )}
-          </div>
-
-          {/* 주보 기본 정보 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <h4 style={{ fontSize: 12, fontWeight: 700, color: '#64748b', borderBottom: '1px solid #f1f5f9', paddingBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span className="material-symbols-outlined text-[16px] text-indigo-400">text_snippet</span>
-              주보 기본 정보
-            </h4>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>주보 제목</label>
-                <input 
-                  type="text" 
-                  value={bulletinTitle} 
-                  onChange={e => setBulletinTitle(e.target.value)}
-                  placeholder="예: 성령강림주일 예배 주보" 
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, outline: 'none' }}
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>예배 일자</label>
-                <input 
-                  type="text" 
-                  value={date} 
-                  onChange={e => setDate(e.target.value)}
-                  placeholder="예: 2026년 5월 31일" 
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, outline: 'none' }}
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>예배 구분</label>
-                <input 
-                  type="text" 
-                  value={serviceType} 
-                  onChange={e => setServiceType(e.target.value)}
-                  placeholder="예: 주일대예배, 주일오후예배" 
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, outline: 'none' }}
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>금주의 표어</label>
-                <input 
-                  type="text" 
-                  value={theme} 
-                  onChange={e => setTheme(e.target.value)}
-                  placeholder="예: 생명, 평화, 정의를 심고 일구는 공동체" 
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, outline: 'none' }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>금주의 요절 말씀 (본문)</label>
-                <input 
-                  type="text" 
-                  value={bibleVerse} 
-                  onChange={e => setBibleVerse(e.target.value)}
-                  placeholder="예: 오직 정의를 물 같이, 공의를 마르지 않는 강 같이..." 
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, outline: 'none' }}
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>요절 장절 정보</label>
-                <input 
-                  type="text" 
-                  value={bibleVerseRef} 
-                  onChange={e => setBibleVerseRef(e.target.value)}
-                  placeholder="예: 아모스 5:24" 
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, outline: 'none' }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* 예배 순서 상세 설정 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <h4 style={{ fontSize: 12, fontWeight: 700, color: '#64748b', borderBottom: '1px solid #f1f5f9', paddingBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span className="material-symbols-outlined text-[16px] text-indigo-400">format_list_numbered</span>
-                예배 순서 배열
-              </span>
-              <span style={{ fontSize: 10, fontWeight: 400, color: '#94a3b8' }}>순서명 입력 시 성도앱에 노출됩니다</span>
-            </h4>
-            
+            {/* 예배 순서 상세 설정 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {orders.map((o, idx) => (
-                <div key={o.id} style={{ background: '#f8fafc', padding: 16, borderRadius: 16, border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    <span style={{ width: 24, height: 24, borderRadius: 99, background: '#cbd5e1', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11, flexShrink: 0 }}>
+              <h4 style={{ fontSize: 12, fontWeight: 700, color: '#64748b', borderBottom: '1px solid #f1f5f9', paddingBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span className="material-symbols-outlined text-[16px] text-indigo-400">format_list_numbered</span>
+                  예배 순서 배열
+                </span>
+                <span style={{ fontSize: 10, fontWeight: 400, color: '#94a3b8' }}>순서명 입력 시 성도앱에 노출됩니다</span>
+              </h4>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {orders.map((o, idx) => (
+                  <div key={o.id} style={{ background: '#f8fafc', padding: 16, borderRadius: 16, border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <span style={{ width: 24, height: 24, borderRadius: 99, background: '#cbd5e1', color: '#475569', display: 'flex', alignItems: 'center', justify_content: 'center', fontWeight: 700, fontSize: 11, flexShrink: 0 }}>
+                        {idx + 1}
+                      </span>
+                      <input 
+                        placeholder="순서명 (예: 개회선언, 신앙고백, 찬양)" 
+                        value={o.title}
+                        onChange={e => updateOrder(o.id, 'title', e.target.value)}
+                        style={{ flex: 1, padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, fontWeight: 700, outline: 'none', background: '#fff' }}
+                      />
+                      <select 
+                        value={o.type} 
+                        onChange={e => updateOrder(o.id, 'type', e.target.value)}
+                        style={{ width: 100, padding: '8px 10px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 12, fontWeight: 600, outline: 'none', background: '#fff' }}
+                      >
+                        <option value="TEXT">텍스트</option>
+                        <option value="HYMN">찬송가</option>
+                        <option value="BIBLE">성경</option>
+                        <option value="LITURGY">교독문</option>
+                        <option value="PRAYER">대표기도</option>
+                        <option value="SERMON">설교</option>
+                      </select>
+                      <button 
+                        onClick={() => removeOrder(o.id)} 
+                        style={{ width: 32, height: 32, borderRadius: 10, background: '#fee2e2', color: '#ef4444', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justify_content: 'center' }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <input 
+                        placeholder="상세 내용 (예: 다같이, 인도자, 맡은이 이름 등)" 
+                        value={o.detail}
+                        onChange={e => updateOrder(o.id, 'detail', e.target.value)}
+                        style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 12, outline: 'none', background: '#fff' }}
+                      />
+                      <input 
+                        placeholder="참조 키 (예: 찬송가 3장, 교독문 12번 등)" 
+                        value={o.targetKey}
+                        onChange={e => updateOrder(o.id, 'targetKey', e.target.value)}
+                        style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 12, outline: 'none', background: '#fff' }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button 
+                type="button"
+                onClick={addOrder} 
+                style={{ width: '100%', padding: '10px 0', border: '2px dashed #bfdbfe', background: 'transparent', color: '#3b82f6', borderRadius: 12, cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justify_content: 'center', gap: 4 }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
+                예배 순서 추가하기
+              </button>
+            </div>
+
+            {/* 교회 소식 설정 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <h4 style={{ fontSize: 12, fontWeight: 700, color: '#64748b', borderBottom: '1px solid #f1f5f9', paddingBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span className="material-symbols-outlined text-[16px] text-indigo-400">notifications</span>
+                교회 소식 / 알림판
+              </h4>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {churchNews.map((news, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ width: 20, height: 20, borderRadius: 99, background: '#f1f5f9', color: '#64748b', display: 'flex', alignItems: 'center', justify_content: 'center', fontWeight: 700, fontSize: 10, flexShrink: 0 }}>
                       {idx + 1}
                     </span>
                     <input 
-                      placeholder="순서명 (예: 개회선언, 신앙고백, 찬양)" 
-                      value={o.title}
-                      onChange={e => updateOrder(o.id, 'title', e.target.value)}
-                      style={{ flex: 1, padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, fontWeight: 700, outline: 'none', background: '#fff' }}
+                      placeholder="소식 내용을 한 줄씩 입력해 주세요 (예: 다음주 대표기도는 홍길동 장로입니다)" 
+                      value={news}
+                      onChange={e => updateNews(idx, e.target.value)}
+                      style={{ flex: 1, padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, outline: 'none' }}
                     />
-                    <select 
-                      value={o.type} 
-                      onChange={e => updateOrder(o.id, 'type', e.target.value)}
-                      style={{ width: 100, padding: '8px 10px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 12, fontWeight: 600, outline: 'none', background: '#fff' }}
-                    >
-                      <option value="TEXT">텍스트</option>
-                      <option value="HYMN">찬송가</option>
-                      <option value="BIBLE">성경</option>
-                      <option value="LITURGY">교독문</option>
-                      <option value="PRAYER">대표기도</option>
-                      <option value="SERMON">설교</option>
-                    </select>
                     <button 
-                      onClick={() => removeOrder(o.id)} 
-                      style={{ width: 32, height: 32, borderRadius: 10, background: '#fee2e2', color: '#ef4444', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      onClick={() => removeNews(idx)} 
+                      style={{ width: 32, height: 32, borderRadius: 10, background: '#fee2e2', color: '#ef4444', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justify_content: 'center' }}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
                     </button>
                   </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <input 
-                      placeholder="상세 내용 (예: 다같이, 인도자, 맡은이 이름 등)" 
-                      value={o.detail}
-                      onChange={e => updateOrder(o.id, 'detail', e.target.value)}
-                      style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 12, outline: 'none', background: '#fff' }}
-                    />
-                    <input 
-                      placeholder="참조 키 (예: 찬송가 3장, 교독문 12번 등)" 
-                      value={o.targetKey}
-                      onChange={e => updateOrder(o.id, 'targetKey', e.target.value)}
-                      style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 12, outline: 'none', background: '#fff' }}
-                    />
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              
+              <button 
+                type="button"
+                onClick={addNews} 
+                style={{ width: '100%', padding: '10px 0', border: '2px dashed #bfdbfe', background: 'transparent', color: '#3b82f6', borderRadius: 12, cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justify_content: 'center', gap: 4 }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
+                소식 입력란 추가하기
+              </button>
             </div>
 
-            <button 
-              type="button"
-              onClick={addOrder} 
-              style={{ width: '100%', padding: '10px 0', border: '2px dashed #bfdbfe', background: 'transparent', color: '#3b82f6', borderRadius: 12, cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
-              예배 순서 추가하기
-            </button>
           </div>
 
-          {/* 교회 소식 설정 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <h4 style={{ fontSize: 12, fontWeight: 700, color: '#64748b', borderBottom: '1px solid #f1f5f9', paddingBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span className="material-symbols-outlined text-[16px] text-indigo-400">notifications</span>
-              교회 소식 / 알림판
-            </h4>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {churchNews.map((news, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ width: 20, height: 20, borderRadius: 99, background: '#f1f5f9', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 10, flexShrink: 0 }}>
-                    {idx + 1}
-                  </span>
-                  <input 
-                    placeholder="소식 내용을 한 줄씩 입력해 주세요 (예: 다음주 대표기도는 홍길동 장로입니다)" 
-                    value={news}
-                    onChange={e => updateNews(idx, e.target.value)}
-                    style={{ flex: 1, padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 13, outline: 'none' }}
-                  />
-                  <button 
-                    onClick={() => removeNews(idx)} 
-                    style={{ width: 32, height: 32, borderRadius: 10, background: '#fee2e2', color: '#ef4444', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
-                  </button>
-                </div>
-              ))}
-            </div>
-            
-            <button 
-              type="button"
-              onClick={addNews} 
-              style={{ width: '100%', padding: '10px 0', border: '2px dashed #bfdbfe', background: 'transparent', color: '#3b82f6', borderRadius: 12, cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
-              소식 입력란 추가하기
-            </button>
+          {/* Right Column: Interactive Smartphone Preview (Always shown on desktop, toggle on mobile) */}
+          <div 
+            className={`lg:col-span-5 items-center justify-center bg-slate-50 border border-slate-100 rounded-3xl p-6 min-h-0 ${
+              editorTab === 'preview' ? 'flex' : 'hidden lg:flex'
+            }`}
+          >
+            <GijangSaintAppMockup
+              serviceType={serviceType}
+              bulletinTitle={bulletinTitle}
+              date={date}
+              theme={theme}
+              bibleVerse={bibleVerse}
+              bibleVerseRef={bibleVerseRef}
+              orders={orders}
+              churchNews={churchNews}
+              churchName={churchName}
+            />
           </div>
 
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '20px 24px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 12, background: '#f8fafc', borderRadius: '0 0 40px 40px' }}>
+        <div style={{ padding: '20px 24px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 12, background: '#f8fafc', borderRadius: '0 0 40px 40px' }} className="flex-shrink-0">
           <button 
             type="button"
             onClick={onClose} 
@@ -864,92 +1123,89 @@ const ChurchTab = ({ user }) => {
                       '저녁예배': 'linear-gradient(135deg, #b45309, #f59e0b)',
                     };
                     const gradient = serviceGradients[b.serviceType] || 'linear-gradient(135deg, #475569, #64748b)';
-                    
+                    const serviceIcon = b.serviceType.includes('청년') ? '🕊️' : b.serviceType.includes('오후') ? '☀️' : b.serviceType.includes('저녁') ? '🌙' : '⛪';
+
                     return (
-                      <div 
-                        key={idx}
-                        className="group hover:-translate-y-1 transition-all duration-300"
-                        style={{ 
-                          ...S.card, 
-                          padding: 0, 
-                          overflow: 'hidden', 
-                          border: '1px solid #e2e8f0', 
-                          display: 'flex', 
-                          flexDirection: 'column', 
-                          height: '100%', 
-                          boxShadow: '0 10px 30px rgba(10,37,64,0.04)',
-                          borderRadius: 20
-                        }}
-                      >
-                        {/* Header Banner */}
-                        <div style={{ background: gradient, padding: '20px 24px', color: '#fff', position: 'relative' }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.8, letterSpacing: '0.05em', marginBottom: 2 }}>
-                            WORSHIP DECK
-                          </div>
-                          <h4 style={{ fontSize: 16, fontWeight: 800, margin: 0, fontFamily: "'Manrope', 'Pretendard'", display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>menu_book</span>
-                            {b.serviceType}
-                          </h4>
-                          <span style={{ position: 'absolute', top: 20, right: 20, fontSize: 10, padding: '3px 8px', borderRadius: 99, background: 'rgba(255,255,255,0.2)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <span style={{ width: 6, height: 6, borderRadius: 99, background: '#4ade80', display: 'inline-block' }}></span>
-                            배포중
-                          </span>
-                        </div>
+                      <div key={idx} className="relative group min-h-[300px] flex flex-col">
+                        {/* Stacked card layers in background */}
+                        <div className="absolute -bottom-2.5 left-4 right-4 h-12 bg-white border border-slate-200/60 rounded-[24px] shadow-[0_4px_12px_rgba(0,0,0,0.03)] -z-10 opacity-50 scale-[0.92] group-hover:-bottom-3.5 transition-all duration-300"></div>
+                        <div className="absolute -bottom-1.5 left-2 right-2 h-12 bg-white border border-slate-200/80 rounded-[24px] shadow-[0_4px_12px_rgba(0,0,0,0.04)] -z-10 opacity-80 scale-[0.96] group-hover:-bottom-2 transition-all duration-300"></div>
 
-                        {/* Body Details */}
-                        <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                          <div>
-                            <strong style={{ fontSize: 14, color: '#0A2540', display: 'block', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {b.bulletinTitle || "주보 제목 미입력"}
-                            </strong>
-                            <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#94a3b8' }}>calendar_today</span>
-                              {b.date || "예배 일자 미지정"}
+                        {/* Main deck card */}
+                        <div 
+                          className="bg-white rounded-[24px] border border-slate-200/90 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col flex-1 z-10 group-hover:-translate-y-1.5 transition-all duration-300"
+                        >
+                          {/* Header Banner */}
+                          <div style={{ background: gradient, padding: '20px 24px', color: '#fff', position: 'relative' }}>
+                            <div className="absolute right-[-15px] bottom-[-20px] opacity-10 text-[70px] select-none pointer-events-none">{serviceIcon}</div>
+                            <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.85, letterSpacing: '0.08em', marginBottom: 2 }}>
+                              WORSHIP DECK
+                            </div>
+                            <h4 style={{ fontSize: 16, fontWeight: 800, margin: 0, fontFamily: "'Manrope', 'Pretendard'", display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>menu_book</span>
+                              {b.serviceType}
+                            </h4>
+                            <span style={{ position: 'absolute', top: 20, right: 20, fontSize: 10, padding: '3px 8px', borderRadius: 99, background: 'rgba(255,255,255,0.22)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3 }}>
+                              <span style={{ width: 6, height: 6, borderRadius: 99, background: '#4ade80', display: 'inline-block' }}></span>
+                              실시간 배포중
+                            </span>
+                          </div>
+
+                          {/* Body Details */}
+                          <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                            <div>
+                              <strong style={{ fontSize: 14, color: '#0A2540', display: 'block', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {b.bulletinTitle || "주일 예배에 성도님들을 초대합니다"}
+                              </strong>
+                              <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#94a3b8' }}>calendar_today</span>
+                                {b.date || "이번 주일 예배"}
+                              </div>
+                            </div>
+
+                            {b.theme && (
+                              <div className="bg-slate-50/80 border border-slate-100/50 rounded-xl p-3 text-[11px] text-slate-600 font-bold italic overflow-hidden text-overflow-ellipsis white-space-nowrap">
+                                💬 표어: {b.theme}
+                              </div>
+                            )}
+
+                            {/* Stats badges */}
+                            <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
+                              <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: '#eff6ff', color: '#1d4ed8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>format_list_numbered</span>
+                                순서 {b.orders?.length || 0}
+                              </span>
+                              <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: '#f0fdf4', color: '#166534', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>notifications</span>
+                                소식 {b.churchNews?.length || 0}
+                              </span>
                             </div>
                           </div>
 
-                          {b.theme && (
-                            <div style={{ background: '#f8fafc', padding: 10, borderRadius: 12, border: '1px solid #f1f5f9', fontSize: 11, color: '#475569', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              💬 표어: {b.theme}
-                            </div>
-                          )}
-
-                          {/* Stats badges */}
-                          <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
-                            <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: '#eff6ff', color: '#1d4ed8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>format_list_numbered</span>
-                              순서 {b.orders?.length || 0}
-                            </span>
-                            <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: '#f0fdf4', color: '#166534', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>notifications</span>
-                              소식 {b.churchNews?.length || 0}
-                            </span>
+                          {/* Actions */}
+                          <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 8, background: '#f8fafc' }}>
+                            <button 
+                              type="button"
+                              className="active:scale-95 transition-transform"
+                              style={{ ...S.gradientBtn, flex: 1, padding: '8px 0', fontSize: 12, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                              onClick={() => {
+                                setBulletinData(b);
+                                setCurrentServiceType(b.serviceType);
+                                setShowBulletinEdit(true);
+                              }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
+                              주보 편집
+                            </button>
+                            <button 
+                              type="button"
+                              className="active:scale-95 transition-transform"
+                              style={{ ...S.ghostBtn, padding: '8px 12px', borderRadius: 12, color: '#ef4444', border: '1px solid #fca5a5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              onClick={() => deleteBulletinData(b.serviceType)}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
+                            </button>
                           </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 8, background: '#f8fafc' }}>
-                          <button 
-                            type="button"
-                            className="active:scale-95 transition-transform"
-                            style={{ ...S.gradientBtn, flex: 1, padding: '8px 0', fontSize: 12, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                            onClick={() => {
-                              setBulletinData(b);
-                              setCurrentServiceType(b.serviceType);
-                              setShowBulletinEdit(true);
-                            }}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
-                            주보 편집
-                          </button>
-                          <button 
-                            type="button"
-                            className="active:scale-95 transition-transform"
-                            style={{ ...S.ghostBtn, padding: '8px 12px', borderRadius: 12, color: '#ef4444', border: '1px solid #fca5a5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            onClick={() => deleteBulletinData(b.serviceType)}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
-                          </button>
                         </div>
                       </div>
                     );
@@ -957,21 +1213,16 @@ const ChurchTab = ({ user }) => {
 
                   {/* 새 예배 데크 개설 카드 (Placeholder Deck Card) */}
                   <div 
+                    className="hover:border-indigo-400 hover:bg-indigo-50/5 hover:-translate-y-1 transition-all duration-300 flex flex-col items-center justify-center min-h-[300px] text-center p-6 gap-4"
                     style={{ 
                       border: '2px dashed #cbd5e1', 
-                      borderRadius: 20, 
-                      padding: 24, 
-                      background: '#f8fafc', 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      minHeight: 280, 
-                      textAlign: 'center', 
-                      gap: 16 
+                      borderRadius: 24, 
+                      background: '#f8fafc',
                     }}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: 40, color: '#94a3b8' }}>post_add</span>
+                    <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                      <span className="material-symbols-outlined text-[28px]">post_add</span>
+                    </div>
                     <div>
                       <h5 style={{ fontSize: 14, fontWeight: 700, color: '#475569', margin: '0 0 4px 0' }}>새 예배 데크 추가</h5>
                       <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>성도앱에 별도 카드로 표현될<br/>새로운 예배 주보를 개설합니다.</p>
@@ -1001,11 +1252,11 @@ const ChurchTab = ({ user }) => {
                             e.target.value = '';
                           }
                         }}
-                        style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 12, fontSize: 12, textAlign: 'center', outline: 'none', background: '#fff' }}
+                        style={{ padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: 12, fontSize: 12, textAlign: 'center', outline: 'none', background: '#fff' }}
                       />
                       <button 
                         type="button"
-                        style={{ ...S.gradientBtn, padding: '8px 16px', fontSize: 12, width: '100%', background: 'linear-gradient(135deg, #475569, #64748b)', borderRadius: 12 }}
+                        style={{ ...S.gradientBtn, padding: '10px 16px', fontSize: 12, width: '100%', background: 'linear-gradient(135deg, #475569, #64748b)', borderRadius: 12 }}
                         onClick={() => {
                           const inp = document.getElementById('grid-new-service-input');
                           if (inp && inp.value.trim()) {
