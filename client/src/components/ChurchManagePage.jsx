@@ -247,6 +247,8 @@ const ChurchManagePage = () => {
   const [saving, setSaving] = useState(false);
   const [editMap, setEditMap] = useState(false);
   const [toast, setToast] = useState('');
+  const [copiedIndex, setCopiedIndex] = useState(null);
+  const [copiedFallback, setCopiedFallback] = useState(false);
 
   const chrCode = church?.ChrCode?.trim?.() || user?.chrCode?.trim?.() || '';
 
@@ -539,11 +541,19 @@ const ChurchManagePage = () => {
                         onClick={() => {
                           navigator.clipboard.writeText(va.virtual_account);
                           showToast(`${va.account_type || '가상계좌'} 번호가 복사되었습니다.`);
+                          setCopiedIndex(i);
+                          setTimeout(() => setCopiedIndex(null), 2000);
                         }}
-                        className="px-3.5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] active:scale-95 transition-all shadow-sm flex items-center gap-1 flex-shrink-0"
+                        className={`px-3.5 py-1.5 rounded-full font-bold text-[11px] active:scale-95 transition-all shadow-sm flex items-center gap-1 flex-shrink-0 ${
+                          copiedIndex === i 
+                            ? 'bg-green-600 hover:bg-green-700 text-white shadow-green-100' 
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}
                       >
-                        <span className="material-symbols-outlined text-[12px]">content_copy</span>
-                        복사
+                        <span className="material-symbols-outlined text-[12px]">
+                          {copiedIndex === i ? 'check_circle' : 'content_copy'}
+                        </span>
+                        {copiedIndex === i ? '복사 완료' : '복사'}
                       </button>
                     </div>
                   ))}
@@ -564,11 +574,19 @@ const ChurchManagePage = () => {
                     onClick={() => {
                       navigator.clipboard.writeText(church.mission_virtual_account);
                       showToast('선교주일헌금 계좌번호가 복사되었습니다.');
+                      setCopiedFallback(true);
+                      setTimeout(() => setCopiedFallback(false), 2000);
                     }}
-                    className="px-3.5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] active:scale-95 transition-all shadow-sm flex items-center gap-1 flex-shrink-0"
+                    className={`px-3.5 py-1.5 rounded-full font-bold text-[11px] active:scale-95 transition-all shadow-sm flex items-center gap-1 flex-shrink-0 ${
+                      copiedFallback 
+                        ? 'bg-green-600 hover:bg-green-700 text-white shadow-green-100' 
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
                   >
-                    <span className="material-symbols-outlined text-[12px]">content_copy</span>
-                    복사
+                    <span className="material-symbols-outlined text-[12px]">
+                      {copiedFallback ? 'check_circle' : 'content_copy'}
+                    </span>
+                    {copiedFallback ? '복사 완료' : '복사'}
                   </button>
                 </div>
               ) : (
