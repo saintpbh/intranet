@@ -193,17 +193,57 @@ class MSSQLConnectionPool:
         )
 
     def get_connection(self):
-        try:
-            # 대기 없이 사용 가능한 기존 커넥션 선인출
-            return self.pool.get(block=False)
-        except queue.Empty:
-            with self.lock:
-                if self.active_connections < self.max_connections:
-                    conn = self._create_connection()
-                    self.active_connections += 1
+        while True:
+            try:
+                # 대기 없이 사용 가능한 기존 커넥션 선인출
+                conn = self.pool.get(block=False)
+                
+                # [생존 검증 가드 장착]
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT 1")
+                    cursor.close()
+                    # 검증에 성공하면 즉시 반환
                     return conn
-            # 최대 연결 개수에 도달한 경우 빈 슬롯이 생길 때까지 타임아웃 동안 대기
-            return self.pool.get(block=True, timeout=self.timeout)
+                except Exception:
+                    # 연결이 이미 유실되었으므로 폐기하고 풀 카운트 1 차감
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+                    with self.lock:
+                        self.active_connections = max(0, self.active_connections - 1)
+                    # 루프를 돌아 새로운 혹은 사용 가능한 커넥션을 다시 획득
+                    continue
+            except queue.Empty:
+                with self.lock:
+                    if self.active_connections < self.max_connections:
+                        try:
+                            conn = self._create_connection()
+                            self.active_connections += 1
+                            return conn
+                        except Exception as create_err:
+                            logging.error(f"[DB] Failed to create new pool connection: {create_err}")
+                            raise create_err
+                # 최대 연결 개수에 도달한 경우 빈 슬롯이 생길 때까지 타임아웃 동안 대기
+                try:
+                    conn = self.pool.get(block=True, timeout=self.timeout)
+                    # 대기해서 얻어온 커넥션도 다시 한 번 검증
+                    try:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT 1")
+                        cursor.close()
+                        return conn
+                    except Exception:
+                        try:
+                            conn.close()
+                        except Exception:
+                            pass
+                        with self.lock:
+                            self.active_connections = max(0, self.active_connections - 1)
+                        continue
+                except queue.Empty:
+                    raise TimeoutError("Database connection pool timeout. No connections available.")
 
     def release_connection(self, conn):
         try:
@@ -264,8 +304,17 @@ async def startup_event():
         logging.info("[Startup] Checking SQLite connection...")
         sqlite_conn = sqlite3.connect('requests.db')
         sqlite_conn.execute("SELECT 1")
+        # Create cache table if not exists
+        sqlite_conn.execute("""
+            CREATE TABLE IF NOT EXISTS pen_no_cache (
+                minister_code TEXT PRIMARY KEY,
+                pen_no TEXT,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        sqlite_conn.commit()
         sqlite_conn.close()
-        logging.info("[Startup] SQLite connection successful.")
+        logging.info("[Startup] SQLite connection and cache table verification successful.")
     except Exception as e:
         logging.critical(f"[Startup] SQLite connection failed! Error: {e}")
         import os
@@ -4833,9 +4882,27 @@ async def search_churches(q: str = Query("", min_length=1)):
 # ── 연금 납입 현황 및 예상 연금 계산 API ──────────────────────────────────
 
 def _get_pen_no(minister_code: str):
-    """MinisterCode → PenNo 매핑 (TB_PEN100.MemberCode = MinisterCode)"""
+    """MinisterCode → PenNo 매핑 (TB_PEN100.MemberCode = MinisterCode)
+    
+    1. 로컬 SQLite 캐시(requests.db.pen_no_cache)에서 먼저 조회하여 초고속 반환 (DB 커넥션 절약)
+    2. 캐시 미스 시 원격 MSSQL 조회 후 캐시 삽입
+    """
+    # 1. SQLite 캐시 확인
+    try:
+        sqlite_conn = sqlite3.connect('requests.db')
+        c = sqlite_conn.cursor()
+        c.execute("SELECT pen_no FROM pen_no_cache WHERE minister_code = ?", (minister_code,))
+        row = c.fetchone()
+        sqlite_conn.close()
+        if row:
+            return row[0].strip() if row[0] else None
+    except Exception as cache_err:
+        logging.warning(f"[Pension] Local cache read warning: {cache_err}")
+
+    # 2. 캐시 미스 시 원격 MSSQL 조회
     conn = get_connection()
     cursor = conn.cursor(as_dict=True)
+    pen_no = None
     try:
         cursor.execute(
             "SELECT TOP 1 PenNo FROM TB_PEN100 WHERE MemberCode = %s AND (EndDate = '' OR EndDate IS NULL)",
@@ -4843,16 +4910,35 @@ def _get_pen_no(minister_code: str):
         )
         row = cursor.fetchone()
         if row:
-            return row['PenNo'].strip()
-        # enddate 있는 경우도 fallback
-        cursor.execute(
-            "SELECT TOP 1 PenNo FROM TB_PEN100 WHERE MemberCode = %s ORDER BY StartDate DESC",
-            (minister_code,)
-        )
-        row = cursor.fetchone()
-        return row['PenNo'].strip() if row else None
+            pen_no = row['PenNo'].strip()
+        else:
+            # enddate 있는 경우도 fallback
+            cursor.execute(
+                "SELECT TOP 1 PenNo FROM TB_PEN100 WHERE MemberCode = %s ORDER BY StartDate DESC",
+                (minister_code,)
+            )
+            row = cursor.fetchone()
+            if row:
+                pen_no = row['PenNo'].strip()
     finally:
         conn.close()
+
+    # 3. 신규 획득 시 로컬 SQLite 캐시 갱신
+    if pen_no:
+        try:
+            sqlite_conn = sqlite3.connect('requests.db')
+            c = sqlite_conn.cursor()
+            c.execute("""
+                INSERT INTO pen_no_cache (minister_code, pen_no, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(minister_code) DO UPDATE SET pen_no = excluded.pen_no, updated_at = CURRENT_TIMESTAMP
+            """, (minister_code, pen_no))
+            sqlite_conn.commit()
+            sqlite_conn.close()
+        except Exception as cache_err:
+            logging.warning(f"[Pension] Local cache write warning: {cache_err}")
+
+    return pen_no
 
 
 @app.get("/api/pension/{minister_code}/summary")
@@ -5165,6 +5251,205 @@ async def estimate_pension(minister_code: str, payload: dict):
         logging.warning(f'[Pension] Estimate save warning: {save_err}')
 
     return result
+
+
+@app.get("/api/pension/{minister_code}/dashboard")
+def get_pension_dashboard(minister_code: str):
+    """연금 납입 및 예상 연금 통합 대시보드 API
+    
+    단 1회의 DB 커넥션 수립으로 아래 데이터를 일괄 조회하여 반환 (성능 최적화의 핵심)
+    1. MemberName (교역자 성함)
+    2. 연도별 납입 요약 (yearly summary)
+    3. 계산용 기초 데이터 (calc-data)
+    4. 당해 연도 월별 상세 (detail)
+    5. 마지막 예상 연금 계산 이력 (last-estimate)
+    """
+    import math
+    conn = get_connection()
+    cursor = conn.cursor(as_dict=True)
+    try:
+        # 1. 연금 고유번호 획득 (로컬 SQLite 캐시 우선 활용되는 _get_pen_no 사용)
+        pen_no = _get_pen_no(minister_code)
+        if not pen_no:
+            return {
+                "minister_code": minister_code,
+                "pen_no": None,
+                "summary": [],
+                "total_years": 0,
+                "total_amount": 0,
+                "message": "연금 가입 정보가 없습니다."
+            }
+
+        # 2. MemberName 조회 (TB_PEN100)
+        cursor.execute("SELECT TOP 1 MemberName FROM TB_PEN100 WHERE PenNo = %s", (pen_no,))
+        name_row = cursor.fetchone()
+        minister_name = name_row['MemberName'].strip() if name_row else ''
+
+        # 3. 연도별 납입 요약 (Finish = 'Y' 통계)
+        cursor.execute("""
+            SELECT LEFT(YYMM, 4) AS year,
+                   COUNT(*) AS months_paid,
+                   SUM(ISNULL(inContribute, 0) + ISNULL(inShare, 0) + ISNULL(inArrear, 0)) AS total_amt
+            FROM TB_PEN110
+            WHERE PenNo = %s AND RTRIM(ISNULL(Finish,'')) = 'Y'
+            GROUP BY LEFT(YYMM, 4)
+            ORDER BY LEFT(YYMM, 4) DESC
+        """, (pen_no,))
+        yearly = cursor.fetchall()
+        for yr in yearly:
+            yr['total_amt'] = int(yr['total_amt'] or 0)
+            yr['months_paid'] = int(yr['months_paid'] or 0)
+
+        total_amount = sum(r['total_amt'] for r in yearly) if yearly else 0
+        total_months = sum(r['months_paid'] for r in yearly) if yearly else 0
+
+        # 4. 당해 연도(또는 최근 연도) 월별 상세
+        latest_year = yearly[0]['year'] if yearly else str(datetime.now().year)
+        cursor.execute("""
+            SELECT YYMM,
+                   ISNULL(inContribute, 0) + ISNULL(inShare, 0) + ISNULL(inArrear, 0) AS amt,
+                   RTRIM(ISNULL(Finish,'')) AS finish
+            FROM TB_PEN110
+            WHERE PenNo = %s AND LEFT(YYMM, 4) = %s
+            ORDER BY YYMM
+        """, (pen_no, latest_year))
+        rows = cursor.fetchall()
+
+        paid_map = {}
+        for r in rows:
+            mm = str(r['YYMM']).strip()[4:6]
+            if r['finish'] == 'Y':
+                paid_map[mm] = int(r['amt'] or 0)
+
+        monthly = []
+        for m in range(1, 13):
+            mm = f"{m:02d}"
+            amt = paid_map.get(mm, 0)
+            monthly.append({"month": m, "paid": amt > 0, "amt": amt})
+        year_total = sum(v for v in paid_map.values())
+        months_paid = len([v for v in paid_map.values() if v > 0])
+        detail_data = {"year": latest_year, "monthly": monthly, "year_total": year_total, "months_paid": months_paid}
+
+        # 5. 계산기용 기초 데이터 조회 (TB_PEN350, TB_Chr200, TB_PEN904)
+        cursor.execute("""
+            SELECT Lev1_Cnt, Lev2_Cnt, Lev3_Cnt, Lev4_Cnt, Amt, RetirementAge
+            FROM TB_PEN350
+            WHERE PenNo = %s
+        """, (pen_no,))
+        pen350 = cursor.fetchone()
+
+        lev1 = int(pen350['Lev1_Cnt'] or 0) if pen350 else 0
+        lev2 = int(pen350['Lev2_Cnt'] or 0) if pen350 else 0
+        lev3 = int(pen350['Lev3_Cnt'] or 0) if pen350 else 0
+        lev4 = int(pen350['Lev4_Cnt'] or 0) if pen350 else 0
+        retirement_age = int(pen350['RetirementAge'] or 0) if pen350 else 0
+
+        # 생년월일 (TB_Chr200)
+        cursor.execute("SELECT BirthDay FROM TB_Chr200 WHERE MinisterCode = %s", (minister_code,))
+        birth_row = cursor.fetchone()
+        birth = ''
+        birth_year = 0
+        birth_month = 0
+        if birth_row and birth_row['BirthDay']:
+            birth = str(birth_row['BirthDay']).strip()
+            if len(birth) >= 6:
+                birth_year = int(birth[:4])
+                birth_month = int(birth[4:6])
+
+        # 기준 봉급액 (TB_PEN904)
+        cursor.execute("SELECT TOP 1 YY, DefaultPay FROM TB_PEN904 ORDER BY YY DESC")
+        pay_row = cursor.fetchone()
+        amt = int(pay_row['DefaultPay']) if pay_row else 0
+        pay_year = pay_row['YY'].strip() if pay_row else ''
+
+        # 실제 레벨별 납입 횟수 (TB_PEN110)
+        cursor.execute("""
+            SELECT ISNULL(PenLevel, 2) AS PenLevel, COUNT(DISTINCT YYMM) AS cnt
+            FROM TB_PEN110
+            WHERE PenNo = %s AND RTRIM(ISNULL(Finish,'')) = 'Y'
+            GROUP BY PenLevel
+        """, (pen_no,))
+        pen_level_rows = cursor.fetchall()
+        actual_lev = {1: 0, 2: 0, 3: 0, 4: 0}
+        for plr in pen_level_rows:
+            lvl = int(plr['PenLevel'] or 2)
+            if lvl in actual_lev:
+                actual_lev[lvl] = int(plr['cnt'] or 0)
+        total_paid_months = sum(actual_lev.values())
+
+        if lev1 == 0 and lev2 == 0 and lev3 == 0 and lev4 == 0 and total_paid_months > 0:
+            lev1 = actual_lev[1]
+            lev2 = actual_lev[2]
+            lev3 = actual_lev[3]
+            lev4 = actual_lev[4]
+
+        calc_data = {
+            "pen_no": pen_no,
+            "lev1_cnt": lev1, "lev2_cnt": lev2, "lev3_cnt": lev3, "lev4_cnt": lev4,
+            "birth": birth, "birth_year": birth_year, "birth_month": birth_month,
+            "retirement_age": retirement_age,
+            "amt": amt, "pay_year": pay_year,
+            "total_paid_months": total_paid_months,
+        }
+
+        # 6. 최신 예상 연금 계산 이력 조회 (TB_PEN_ESTIMATE)
+        cursor.execute("""
+            SELECT RetireAge, EstimatedMonthly, ContributionRate, RetirementRate, BaseSalary, UpdatedAt
+            FROM TB_PEN_ESTIMATE
+            WHERE MinisterCode = %s
+        """, (minister_code,))
+        estimate_row = cursor.fetchone()
+        last_estimate = None
+        if estimate_row:
+            last_estimate = {
+                "found": True,
+                "retire_age": int(estimate_row['RetireAge'] or 0),
+                "estimated_monthly": int(estimate_row['EstimatedMonthly'] or 0),
+                "contribution_rate": float(estimate_row['ContributionRate'] or 0),
+                "retirement_rate": float(estimate_row['RetirementRate'] or 0),
+                "base_salary": int(estimate_row['BaseSalary'] or 0),
+                "calc_date": str(estimate_row['UpdatedAt'])[:10] if estimate_row.get('UpdatedAt') else ''
+            }
+        else:
+            # MSSQL에 없으면 Firestore에서 확인
+            try:
+                db = firestore.client()
+                doc = db.collection('pension_estimates').document(minister_code).get()
+                if doc.exists:
+                    d = doc.to_dict()
+                    calc_date = ''
+                    if d.get('updated_at'):
+                        calc_date = str(d['updated_at'])[:10]
+                    last_estimate = {
+                        "found": True,
+                        "retire_age": d.get('retire_age'),
+                        "estimated_monthly": d.get('estimated_monthly'),
+                        "contribution_rate": d.get('contribution_rate'),
+                        "retirement_rate": d.get('retirement_rate'),
+                        "base_salary": d.get('base_salary'),
+                        "calc_date": calc_date
+                    }
+            except Exception as fs_err:
+                logging.warning(f"[Pension] Firestore check inside dashboard warning: {fs_err}")
+
+        return {
+            "minister_code": minister_code.strip(),
+            "minister_name": minister_name,
+            "pen_no": pen_no,
+            "summary": yearly,
+            "total_years": len(yearly),
+            "total_months": total_months,
+            "total_amount": total_amount,
+            "detail": detail_data,
+            "calc_data": calc_data,
+            "last_estimate": last_estimate
+        }
+
+    except Exception as e:
+        logging.error(f'[Pension] Dashboard error: {e}')
+        return {"error": str(e)}
+    finally:
+        conn.close()
 
 
 @app.get("/api/pension/{minister_code}/last-estimate")

@@ -20,33 +20,55 @@ const PensionStatus = ({ user, onBack }) => {
   const [estimateLoading, setEstimateLoading] = useState(false);
   const [lastEstimate, setLastEstimate] = useState(null);
 
-  // Fetch summary
+  // Fetch unified dashboard data
   useEffect(() => {
     if (!user?.code) return;
     setLoading(true);
-    fetch(`${API_BASE}/api/pension/${user.code}/summary`)
-      .then(r => r.ok ? r.json() : Promise.reject('Failed'))
+    setError(null);
+    fetch(`${API_BASE}/api/pension/${user.code}/dashboard`)
+      .then(r => r.ok ? r.json() : Promise.reject('연금 대시보드 데이터를 가져오는데 실패했습니다.'))
       .then(data => {
         if (data.error) throw new Error(data.error);
+        
+        // 1. Set summary
         setSummary(data);
-        if (data.summary?.length > 0) setSelectedYear(data.summary[0].year);
+        
+        // 2. Set detail (based on latest year)
+        if (data.detail) {
+          setDetail(data.detail);
+          setSelectedYear(data.detail.year);
+        }
+        
+        // 3. Set last estimate
+        if (data.last_estimate?.found) {
+          setLastEstimate(data.last_estimate);
+          if (data.last_estimate.retire_age) {
+            setRetireAge(data.last_estimate.retire_age);
+          }
+        }
+        
+        // 4. Set calculation basic data
+        if (data.calc_data) {
+          setCalcData(data.calc_data);
+          const toYM = (cnt) => ({ y: Math.floor(cnt/12), m: cnt%12 });
+          const l1 = toYM(data.calc_data.lev1_cnt), l2 = toYM(data.calc_data.lev2_cnt);
+          const l3 = toYM(data.calc_data.lev3_cnt), l4 = toYM(data.calc_data.lev4_cnt);
+          setLev({ l1y:l1.y, l1m:l1.m, l2y:l2.y, l2m:l2.m, l3y:l3.y, l3m:l3.m, l4y:l4.y, l4m:l4.m });
+          if (data.calc_data.retirement_age && !data.last_estimate?.found) {
+            setRetireAge(data.calc_data.retirement_age);
+          }
+        }
       })
       .catch(err => setError(typeof err === 'string' ? err : err.message))
       .finally(() => setLoading(false));
   }, [user]);
 
-  // Fetch last estimate
-  useEffect(() => {
-    if (!user?.code) return;
-    fetch(`${API_BASE}/api/pension/${user.code}/last-estimate`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.found) setLastEstimate(data); })
-      .catch(() => {});
-  }, [user]);
-
-  // Fetch detail
+  // Fetch detail (when user changes selectedYear manually)
   useEffect(() => {
     if (!user?.code || !selectedYear) return;
+    // Don't refetch if the current detail already matches the selectedYear
+    if (detail && detail.year === selectedYear) return;
+    
     setDetailLoading(true);
     fetch(`${API_BASE}/api/pension/${user.code}/detail?year=${selectedYear}`)
       .then(r => r.ok ? r.json() : Promise.reject('Failed'))
@@ -54,26 +76,6 @@ const PensionStatus = ({ user, onBack }) => {
       .catch(() => setDetail(null))
       .finally(() => setDetailLoading(false));
   }, [user, selectedYear]);
-
-  // Fetch calc data
-  const loadCalcData = useCallback(() => {
-    if (!user?.code) return;
-    setCalcLoading(true);
-    fetch(`${API_BASE}/api/pension/${user.code}/calc-data`)
-      .then(r => r.ok ? r.json() : Promise.reject('Failed'))
-      .then(data => {
-        if (data.error) { setCalcData(null); return; }
-        setCalcData(data);
-        const toYM = (cnt) => ({ y: Math.floor(cnt/12), m: cnt%12 });
-        const l1 = toYM(data.lev1_cnt), l2 = toYM(data.lev2_cnt);
-        const l3 = toYM(data.lev3_cnt), l4 = toYM(data.lev4_cnt);
-        setLev({ l1y:l1.y, l1m:l1.m, l2y:l2.y, l2m:l2.m, l3y:l3.y, l3m:l3.m, l4y:l4.y, l4m:l4.m });
-      })
-      .catch(() => setCalcData(null))
-      .finally(() => setCalcLoading(false));
-  }, [user]);
-
-  useEffect(() => { if (tab === 'calculator') loadCalcData(); }, [tab, loadCalcData]);
 
   // Calculate estimate
   const doEstimate = useCallback(async () => {
