@@ -218,6 +218,35 @@ const ChurchDetail = ({ church, onBack }) => {
           </div>
         )}
 
+        {/* 선교주일 헌금 가상계좌 */}
+        {church.mission_virtual_account && (
+          <div className="bg-indigo-50/60 rounded-[2rem] p-6 shadow-sm border border-indigo-100 flex items-center gap-4 relative overflow-hidden group">
+            {/* Background design */}
+            <div className="absolute top-0 right-0 w-16 h-16 rounded-full bg-indigo-500/5 -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
+            
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-[24px]">account_balance_wallet</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">선교주일 헌금 가상계좌</p>
+              <h4 className="font-extrabold text-[15px] text-slate-800 font-mono tracking-wide">
+                신한은행 <span className="text-indigo-600">{church.mission_virtual_account}</span>
+              </h4>
+            </div>
+            <button 
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(church.mission_virtual_account);
+                alert('가상계좌번호가 복사되었습니다.');
+              }}
+              className="px-3.5 py-1.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] active:scale-95 transition-all shadow-sm flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-[12px]">content_copy</span>
+              복사
+            </button>
+          </div>
+        )}
+
         {/* Bento Grid: Info & Map Actions */}
         <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-surface-variant/50">
           <h3 className="font-['Manrope',_'Pretendard'] font-bold text-lg text-primary mb-4 flex items-center gap-2">

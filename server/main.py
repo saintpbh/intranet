@@ -871,20 +871,22 @@ def replicate_mssql_to_local_scheduled():
 
 @app.get("/api/churches")
 def get_churches(search: str = ""):
-    """원격 MSSQL 조인 병목을 제거하고, 로컬 SQLite 복제 마트를 통해 10ms 초고속 서빙"""
+    """원격 MSSQL 조인 병목을 제거하고, 로컬 SQLite 복제 마트를 통해 10ms 초고속 서빙하며 가상계좌 포함"""
     conn = sqlite3.connect('requests.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     try:
         search_pattern = f"%{search}%"
-        # 로컬 SQLite 테이블인 local_churches를 바로 SELECT 쿼리
+        # local_churches와 church_virtual_accounts를 LEFT JOIN하여 가상계좌 인출
         c.execute("""
             SELECT 
-                ChrCode, CHRNAME, NOHNAME, SICHALNAME, 
-                Tel_Church, Tel_Mobile, Tel_Fax, ADDRESS, JUSO, PostNo, Email, MOCKNAME
-            FROM local_churches
-            WHERE CHRNAME LIKE ? OR NOHNAME LIKE ?
-            ORDER BY NOHNAME, CHRNAME
+                lc.ChrCode, lc.CHRNAME, lc.NOHNAME, lc.SICHALNAME, 
+                lc.Tel_Church, lc.Tel_Mobile, lc.Tel_Fax, lc.ADDRESS, lc.JUSO, lc.PostNo, lc.Email, lc.MOCKNAME,
+                cva.virtual_account AS mission_virtual_account
+            FROM local_churches lc
+            LEFT JOIN church_virtual_accounts cva ON lc.ChrCode = cva.chr_code AND cva.account_type = '선교주일헌금'
+            WHERE lc.CHRNAME LIKE ? OR lc.NOHNAME LIKE ?
+            ORDER BY lc.NOHNAME, lc.CHRNAME
             LIMIT 100
         """, (search_pattern, search_pattern))
         results = [dict(r) for r in c.fetchall()]

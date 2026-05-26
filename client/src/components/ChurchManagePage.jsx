@@ -626,6 +626,14 @@ const ChurchManagePage = () => {
               </h3>
               <div className="divide-y divide-slate-50">
                 <DataRow icon="tag" label="교회코드" value={chrCode} />
+                {church.mission_virtual_account && (
+                  <DataRow 
+                    icon="account_balance_wallet" 
+                    label="선교주일 헌금 가상계좌" 
+                    value={`신한은행 ${church.mission_virtual_account}`} 
+                    highlight 
+                  />
+                )}
                 <DataRow icon="church" label="교회명" value={(church.CHRNAME || '').trim()} highlight />
                 <DataRow icon="groups" label="노회" value={(church.NOHNAME || '').trim()} />
                 <DataRow icon="map" label="시찰" value={(church.SICHALNAME || '').trim()} />
