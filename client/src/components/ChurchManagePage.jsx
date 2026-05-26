@@ -335,7 +335,24 @@ const ChurchManagePage = () => {
         }
       }
 
-      if (found) setChurch(found);
+      if (found) {
+        setChurch(found);
+        // 백그라운드에서 실시간 최신 정보 (선교주일 가상계좌 등) 한 번 더 Fetch해서 병합
+        if (navigator.onLine && found.ChrCode && !found._isHeadquarters) {
+          fetch(`${API_BASE}/api/churches?search=${encodeURIComponent(found.ChrCode.trim())}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(apiData => {
+              if (apiData) {
+                const churches = Array.isArray(apiData) ? apiData : (apiData.data || []);
+                const latest = churches.find(c => (c.ChrCode || '').trim() === found.ChrCode.trim());
+                if (latest && latest.mission_virtual_account) {
+                  setChurch(prev => prev ? { ...prev, mission_virtual_account: latest.mission_virtual_account } : prev);
+                }
+              }
+            })
+            .catch(err => console.warn('[ChurchManage] Realtime merge failed:', err));
+        }
+      }
       else setError('교회 데이터를 찾을 수 없습니다. 데이터 동기화 후 다시 시도해 주세요.');
     } catch (e) { setError('교회 정보를 불러올 수 없습니다: ' + e.message); }
     finally { setLoading(false); }
