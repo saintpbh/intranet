@@ -345,8 +345,12 @@ const ChurchManagePage = () => {
               if (apiData) {
                 const churches = Array.isArray(apiData) ? apiData : (apiData.data || []);
                 const latest = churches.find(c => (c.ChrCode || '').trim() === found.ChrCode.trim());
-                if (latest && latest.mission_virtual_account) {
-                  setChurch(prev => prev ? { ...prev, mission_virtual_account: latest.mission_virtual_account } : prev);
+                if (latest) {
+                  setChurch(prev => prev ? { 
+                    ...prev, 
+                    mission_virtual_account: latest.mission_virtual_account || prev.mission_virtual_account || '',
+                    virtual_accounts: latest.virtual_accounts || prev.virtual_accounts || []
+                  } : prev);
                 }
               }
             })
@@ -503,6 +507,78 @@ const ChurchManagePage = () => {
                 </div>
               </div>
             )}
+
+            {/* ── 가상계좌 관리 카드 ── */}
+            <div className={S.card + ' p-5 relative overflow-hidden group'}>
+              {/* Premium abstract background pattern */}
+              <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-blue-500/5 -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
+              <div className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-indigo-500/5 pointer-events-none"></div>
+              
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-['Manrope','Pretendard'] text-[15px] font-bold text-slate-800 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-blue-600 text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>account_balance_wallet</span>
+                  총회 가상계좌 정보
+                  <span className="text-[10px] text-blue-500 font-bold bg-blue-50 px-2 py-0.5 rounded-full ml-1">실시간</span>
+                </h3>
+              </div>
+
+              {church.virtual_accounts && church.virtual_accounts.length > 0 ? (
+                <div className="space-y-3">
+                  {church.virtual_accounts.map((va, i) => (
+                    <div key={i} className="bg-gradient-to-r from-blue-50/60 to-indigo-50/30 rounded-2xl p-4 border border-blue-100/50 flex items-center justify-between gap-3 shadow-sm active:scale-[0.99] transition-transform">
+                      <div className="min-w-0 flex-1">
+                        <span className="px-2 py-0.5 rounded bg-blue-600/10 text-blue-700 text-[9px] font-extrabold uppercase tracking-wide mb-1 inline-block">
+                          {va.account_type || '가상계좌'}
+                        </span>
+                        <h4 className="font-bold text-[14px] text-slate-800 font-mono tracking-wide mt-0.5">
+                          신한은행 <span className="text-blue-600">{va.virtual_account}</span>
+                        </h4>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(va.virtual_account);
+                          showToast(`${va.account_type || '가상계좌'} 번호가 복사되었습니다.`);
+                        }}
+                        className="px-3.5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] active:scale-95 transition-all shadow-sm flex items-center gap-1 flex-shrink-0"
+                      >
+                        <span className="material-symbols-outlined text-[12px]">content_copy</span>
+                        복사
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : church.mission_virtual_account ? (
+                // Fallback for single virtual account if virtual_accounts list hasn't loaded yet
+                <div className="bg-gradient-to-r from-blue-50/60 to-indigo-50/30 rounded-2xl p-4 border border-blue-100/50 flex items-center justify-between gap-3 shadow-sm">
+                  <div className="min-w-0 flex-1">
+                    <span className="px-2 py-0.5 rounded bg-blue-600/10 text-blue-700 text-[9px] font-extrabold uppercase tracking-wide mb-1 inline-block">
+                      선교주일헌금
+                    </span>
+                    <h4 className="font-bold text-[14px] text-slate-800 font-mono tracking-wide mt-0.5">
+                      신한은행 <span className="text-blue-600">{church.mission_virtual_account}</span>
+                    </h4>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(church.mission_virtual_account);
+                      showToast('선교주일헌금 계좌번호가 복사되었습니다.');
+                    }}
+                    className="px-3.5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] active:scale-95 transition-all shadow-sm flex items-center gap-1 flex-shrink-0"
+                  >
+                    <span className="material-symbols-outlined text-[12px]">content_copy</span>
+                    복사
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 text-center">
+                  <span className="material-symbols-outlined text-3xl text-slate-300 mb-2 block" style={{ fontVariationSettings: "'FILL' 0" }}>account_balance</span>
+                  <p className="text-slate-500 text-[13px] font-semibold leading-relaxed">등록된 총회 가상계좌가 없습니다.</p>
+                  <p className="text-slate-400 text-[11px] mt-0.5">가상계좌가 발급되면 여기에 실시간으로 표시됩니다.</p>
+                </div>
+              )}
+            </div>
 
             {/* ── 기장지도 정보 (요약 카드) ── */}
             <div className={S.card + ' p-5 relative overflow-hidden group'}>

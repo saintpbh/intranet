@@ -808,13 +808,30 @@ def upload_directory_json_to_firebase():
         
         c.execute("""
             SELECT 
-                lc.ChrCode, lc.CHRNAME, lc.NohCode, lc.NOHNAME, lc.SichalCode, lc.SICHALNAME, lc.OrgYN, lc.Environment, lc.PostNo, lc.ADDRESS, lc.JUSO,
-                lc.EstDate, lc.EndDate, lc.Tel_Church, lc.Tel_Home, lc.Tel_Mobile, lc.Tel_Fax, lc.HomePage, lc.Email, lc.Remark, lc.Cnt, lc.HJcode, lc.MOCKNAME,
-                cva.virtual_account AS mission_virtual_account
-            FROM local_churches lc
-            LEFT JOIN church_virtual_accounts cva ON lc.ChrCode = cva.chr_code AND cva.account_type = '선교주일헌금'
+                ChrCode, CHRNAME, NohCode, NOHNAME, SichalCode, SICHALNAME, OrgYN, Environment, PostNo, ADDRESS, JUSO,
+                EstDate, EndDate, Tel_Church, Tel_Home, Tel_Mobile, Tel_Fax, HomePage, Email, Remark, Cnt, HJcode, MOCKNAME
+            FROM local_churches
         """)
         churches = [dict(r) for r in c.fetchall()]
+        
+        c.execute("SELECT chr_code, account_type, virtual_account FROM church_virtual_accounts")
+        va_rows = [dict(r) for r in c.fetchall()]
+        va_by_church = {}
+        for va in va_rows:
+            code = va["chr_code"].strip() if va.get("chr_code") else ""
+            if not code: continue
+            if code not in va_by_church:
+                va_by_church[code] = []
+            va_by_church[code].append({
+                "account_type": va["account_type"].strip(),
+                "virtual_account": va["virtual_account"].strip()
+            })
+            
+        for ch in churches:
+            code = ch["ChrCode"].strip()
+            ch["virtual_accounts"] = va_by_church.get(code, [])
+            mission_va = next((v["virtual_account"] for v in ch["virtual_accounts"] if v["account_type"] == "선교주일헌금"), None)
+            ch["mission_virtual_account"] = mission_va or ""
         
         c.execute("SELECT PriestCode, PriestName, ChrCode, ChrName, NohName, Tel_Mobile, Email, Address, Juso, PostNo FROM local_elders")
         elders = [dict(r) for r in c.fetchall()]
@@ -873,26 +890,56 @@ def replicate_mssql_to_local_scheduled():
 
 @app.get("/api/churches")
 def get_churches(search: str = ""):
-    """원격 MSSQL 조인 병목을 제거하고, 로컬 SQLite 복제 마트를 통해 10ms 초고속 서빙하며 가상계좌 포함"""
+    """원격 MSSQL 조인 병목을 제거하고, 로컬 SQLite 복제 마트를 통해 10ms 초고속 서빙하며 모든 가상계좌 목록 포함"""
     conn = sqlite3.connect('requests.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     try:
         search_pattern = f"%{search}%"
-        # local_churches와 church_virtual_accounts를 LEFT JOIN하여 가상계좌 인출
         c.execute("""
             SELECT 
-                lc.ChrCode, lc.CHRNAME, lc.NOHNAME, lc.SICHALNAME, 
-                lc.Tel_Church, lc.Tel_Mobile, lc.Tel_Fax, lc.ADDRESS, lc.JUSO, lc.PostNo, lc.Email, lc.MOCKNAME,
-                cva.virtual_account AS mission_virtual_account
-            FROM local_churches lc
-            LEFT JOIN church_virtual_accounts cva ON lc.ChrCode = cva.chr_code AND cva.account_type = '선교주일헌금'
-            WHERE lc.CHRNAME LIKE ? OR lc.NOHNAME LIKE ?
-            ORDER BY lc.NOHNAME, lc.CHRNAME
+                ChrCode, CHRNAME, NOHNAME, SICHALNAME, 
+                Tel_Church, Tel_Mobile, Tel_Fax, ADDRESS, JUSO, PostNo, Email, MOCKNAME
+            FROM local_churches
+            WHERE CHRNAME LIKE ? OR NOHNAME LIKE ?
+            ORDER BY NOHNAME, CHRNAME
             LIMIT 100
         """, (search_pattern, search_pattern))
-        results = [dict(r) for r in c.fetchall()]
-        return results
+        churches = [dict(r) for r in c.fetchall()]
+        
+        if churches:
+            chr_codes = [ch["ChrCode"].strip() for ch in churches if ch.get("ChrCode")]
+            placeholders = ",".join("?" for _ in chr_codes)
+            c.execute(f"""
+                SELECT chr_code, account_type, virtual_account
+                FROM church_virtual_accounts
+                WHERE chr_code IN ({placeholders})
+            """, chr_codes)
+            va_rows = [dict(r) for r in c.fetchall()]
+            
+            va_by_church = {}
+            for va in va_rows:
+                code = va["chr_code"].strip() if va.get("chr_code") else ""
+                if not code: continue
+                if code not in va_by_church:
+                    va_by_church[code] = []
+                va_by_church[code].append({
+                    "account_type": va["account_type"].strip(),
+                    "virtual_account": va["virtual_account"].strip()
+                })
+                
+            for ch in churches:
+                code = ch["ChrCode"].strip()
+                ch["virtual_accounts"] = va_by_church.get(code, [])
+                # Backward compatibility
+                mission_va = next((v["virtual_account"] for v in ch["virtual_accounts"] if v["account_type"] == "선교주일헌금"), None)
+                ch["mission_virtual_account"] = mission_va or ""
+        else:
+            for ch in churches:
+                ch["virtual_accounts"] = []
+                ch["mission_virtual_account"] = ""
+                
+        return churches
     except Exception as e:
         logging.error(f"[API] get_churches local error: {e}")
         return {"error": str(e)}
@@ -966,13 +1013,30 @@ def sync_directory_fast():
         
         c.execute("""
             SELECT 
-                lc.ChrCode, lc.CHRNAME, lc.NohCode, lc.NOHNAME, lc.SichalCode, lc.SICHALNAME, lc.OrgYN, lc.Environment, lc.PostNo, lc.ADDRESS, lc.JUSO,
-                lc.EstDate, lc.EndDate, lc.Tel_Church, lc.Tel_Home, lc.Tel_Mobile, lc.Tel_Fax, lc.HomePage, lc.Email, lc.Remark, lc.Cnt, lc.HJcode, lc.MOCKNAME,
-                cva.virtual_account AS mission_virtual_account
-            FROM local_churches lc
-            LEFT JOIN church_virtual_accounts cva ON lc.ChrCode = cva.chr_code AND cva.account_type = '선교주일헌금'
+                ChrCode, CHRNAME, NohCode, NOHNAME, SichalCode, SICHALNAME, OrgYN, Environment, PostNo, ADDRESS, JUSO,
+                EstDate, EndDate, Tel_Church, Tel_Home, Tel_Mobile, Tel_Fax, HomePage, Email, Remark, Cnt, HJcode, MOCKNAME
+            FROM local_churches
         """)
         churches = [dict(r) for r in c.fetchall()]
+        
+        c.execute("SELECT chr_code, account_type, virtual_account FROM church_virtual_accounts")
+        va_rows = [dict(r) for r in c.fetchall()]
+        va_by_church = {}
+        for va in va_rows:
+            code = va["chr_code"].strip() if va.get("chr_code") else ""
+            if not code: continue
+            if code not in va_by_church:
+                va_by_church[code] = []
+            va_by_church[code].append({
+                "account_type": va["account_type"].strip(),
+                "virtual_account": va["virtual_account"].strip()
+            })
+            
+        for ch in churches:
+            code = ch["ChrCode"].strip()
+            ch["virtual_accounts"] = va_by_church.get(code, [])
+            mission_va = next((v["virtual_account"] for v in ch["virtual_accounts"] if v["account_type"] == "선교주일헌금"), None)
+            ch["mission_virtual_account"] = mission_va or ""
         
         c.execute("SELECT PriestCode, PriestName, ChrCode, ChrName, NohName, Tel_Mobile, Email, Address, Juso, PostNo FROM local_elders")
         elders = [dict(r) for r in c.fetchall()]
@@ -1045,15 +1109,28 @@ def sync_directory():
         try:
             sql_conn = sqlite3.connect('requests.db')
             sql_c = sql_conn.cursor()
-            sql_c.execute("SELECT chr_code, virtual_account FROM church_virtual_accounts WHERE account_type = '선교주일헌금'")
-            va_map = {row[0].strip(): row[1].strip() for row in sql_c.fetchall() if row[0]}
+            sql_c.execute("SELECT chr_code, account_type, virtual_account FROM church_virtual_accounts")
+            va_rows = sql_c.fetchall()
             sql_conn.close()
+            
+            va_by_church = {}
+            for row in va_rows:
+                code = row[0].strip() if row[0] else ""
+                if not code: continue
+                if code not in va_by_church:
+                    va_by_church[code] = []
+                va_by_church[code].append({
+                    "account_type": row[1].strip() if row[1] else "",
+                    "virtual_account": row[2].strip() if row[2] else ""
+                })
         except:
-            va_map = {}
+            va_by_church = {}
 
         for row in churches:
             code = str(row.get("ChrCode", "")).strip()
-            row["mission_virtual_account"] = va_map.get(code, "")
+            row["virtual_accounts"] = va_by_church.get(code, [])
+            mission_va = next((v["virtual_account"] for v in row["virtual_accounts"] if v["account_type"] == "선교주일헌금"), None)
+            row["mission_virtual_account"] = mission_va or ""
 
         # Fetch all elders
         cursor.execute("""
