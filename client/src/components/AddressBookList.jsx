@@ -15,20 +15,16 @@ const AddressBookList = ({ searchTerm, onSelect }) => {
         const response = await fetch(`${API_BASE}/api/addressbook?search=${encodeURIComponent(searchTerm)}`);
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}));
-          if (errData.error === 'db_connection_failed') {
-            setError('새로운 데이터 베이스로 연결중입니다.... (시간이 필요합니다)');
-          } else {
-            setError(errData.message || '새로운 데이터 베이스로 연결중입니다.... (시간이 필요합니다)');
-          }
+          setError(errData.message || '서버 데이터베이스 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
           return;
         }
         const json = await response.json();
         if (json.error) {
-          setError(json.error === 'db_connection_failed' ? '새로운 데이터 베이스로 연결중입니다.... (시간이 필요합니다)' : json.error);
+          setError(json.error === 'db_connection_failed' ? '데이터베이스 연결 오류가 발생했습니다.' : json.error);
           return;
         }
         setData(json);
-      } catch (err) { setError('새로운 데이터 베이스로 연결중입니다.... (시간이 필요합니다)'); } finally { setLoading(false); }
+      } catch (err) { setError('네트워크 연결이 불안정합니다. 인터넷 상태를 확인해 주세요.'); } finally { setLoading(false); }
     };
     fetchData();
   }, [searchTerm]);

@@ -10,6 +10,8 @@ def zip_server_folder(source_dir, output_filename):
             if '.venv' in dirs: dirs.remove('.venv')
             if '__pycache__' in dirs: dirs.remove('__pycache__')
             if '.git' in dirs: dirs.remove('.git')
+            if 'uploads' in dirs: dirs.remove('uploads')
+            if 'node_modules' in dirs: dirs.remove('node_modules')
             
             for file in files:
                 if file.endswith('.pyc'): continue
@@ -42,12 +44,11 @@ def deploy():
         print("Executing setup commands on server...")
         commands = [
             f"systemctl stop prok_api.service || true",
-            f"apt-get update && apt-get install -y python3-venv python3-pip unzip",
-            f"rm -rf {remote_dir}",
+            f"systemctl disable prok_api.service || true",
+            f"rm -f /etc/systemd/system/prok_api.service || true",
+            f"systemctl stop prok-api.service || true",
             f"mkdir -p {remote_dir}",
             f"unzip -o {remote_zip} -d {remote_dir}",
-            f"cd {remote_dir} && python3 -m venv .venv",
-            f"cd {remote_dir} && .venv/bin/pip install -r requirements.txt",
         ]
         
         for cmd in commands:
@@ -61,34 +62,37 @@ def deploy():
 
             if exit_status != 0:
                 print(f"Command failed with exit code {exit_status}")
-
                 break
 
-        # Create systemd service
+        # Create systemd service (aligned with original prok-api.service)
         service_content = f"""[Unit]
-Description=PROK FastAPI Backend
+Description=PROK API Server (FastAPI/Uvicorn)
 After=network.target
 
 [Service]
+Type=simple
 User=root
 WorkingDirectory={remote_dir}
-ExecStart={remote_dir}/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 5005 --workers 4 --timeout-keep-alive 60
+ExecStart={remote_dir}/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 5005
 Restart=always
-LimitNOFILE=65535
+RestartSec=5
+StandardOutput=append:/var/log/prok-api.log
+StandardError=append:/var/log/prok-api.log
+Environment=PATH={remote_dir}/.venv/bin:/usr/local/bin:/usr/bin:/bin
 
 [Install]
 WantedBy=multi-user.target
 """
         print("Creating systemd service...")
-        stdin, stdout, stderr = client.exec_command("cat > /etc/systemd/system/prok_api.service")
+        stdin, stdout, stderr = client.exec_command("cat > /etc/systemd/system/prok-api.service")
         stdin.write(service_content)
         stdin.flush()
         stdin.close()
         
         client.exec_command("systemctl daemon-reload")
-        client.exec_command("systemctl enable prok_api.service")
-        client.exec_command("systemctl restart prok_api.service")
-        print("Service prok_api started. Run 'systemctl status prok_api' to check.")
+        client.exec_command("systemctl enable prok-api.service")
+        client.exec_command("systemctl restart prok-api.service")
+        print("Service prok-api started. Run 'systemctl status prok-api' to check.")
         
         client.close()
         print("Deployment complete.")

@@ -86,7 +86,7 @@ const OfflineIndicator = () => {
   const message = isOffline
     ? '오프라인 모드 — 인터넷 연결을 확인하세요'
     : isServerDown
-      ? '새로운 데이터 베이스로 연결중입니다.... (시간이 필요합니다)'
+      ? '서버와 연결을 복구하는 중입니다... 잠시만 기다려주세요.'
       : '';
   const icon = isOffline ? 'wifi_off' : 'cloud_off';
   const bgColor = isOffline ? '#ef4444' : '#f59e0b';
