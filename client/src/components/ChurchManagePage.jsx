@@ -236,6 +236,227 @@ const GijangMapEditModal = ({ mapData, onSave, onClose, churchName }) => {
   );
 };
 
+/* ── 총회 DB 기본정보 변경 요청 모달 (SlideOver 스타일) ── */
+const ChurchInfoEditRequestModal = ({ church, user, onSave, onClose }) => {
+  const [selectedFields, setSelectedFields] = useState({});
+  const [fieldValues, setFieldValues] = useState({
+    CHRNAME: church?.CHRNAME || '',
+    NOHNAME: church?.NOHNAME || '',
+    SICHALNAME: church?.SICHALNAME || '',
+    MOCKNAME: church?.MOCKNAME || '',
+    EstDate: church?.EstDate || '',
+    Environment: church?.Environment || '',
+    OrgYN: church?.OrgYN || ''
+  });
+  const [reason, setReason] = useState('');
+
+  const toggleField = (field) => {
+    setSelectedFields(prev => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  const handleValueChange = (field, val) => {
+    setFieldValues(prev => ({ ...prev, [field]: val }));
+  };
+
+  const handleSubmit = () => {
+    const changes = Object.keys(selectedFields)
+      .filter(k => selectedFields[k])
+      .map(k => {
+        let oldVal = church?.[k] || '';
+        let newVal = fieldValues[k];
+        return {
+          field: k,
+          old_value: String(oldVal).trim(),
+          new_value: String(newVal).trim()
+        };
+      });
+
+    if (changes.length === 0) {
+      alert('변경을 신청할 항목을 하나 이상 선택하고 새로운 값을 입력해주세요.');
+      return;
+    }
+
+    if (!reason.trim()) {
+      alert('변경 사유를 입력해주세요.');
+      return;
+    }
+
+    onSave({
+      changes,
+      reason
+    });
+  };
+
+  const fieldMeta = [
+    { key: 'CHRNAME', label: '교회명', icon: 'church', type: 'text' },
+    { key: 'NOHNAME', label: '노회', icon: 'groups', type: 'text' },
+    { key: 'SICHALNAME', label: '시찰', icon: 'map', type: 'text' },
+    { key: 'MOCKNAME', label: '담임목사', icon: 'person', type: 'text' },
+    { key: 'EstDate', label: '설립일', icon: 'calendar_month', type: 'date-text' },
+    { key: 'Environment', label: '환경', icon: 'landscape', type: 'environment' },
+    { key: 'OrgYN', label: '조직유무', icon: 'verified', type: 'org' }
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-md animate-fade-in" onClick={onClose}>
+      <div 
+        className="bg-white w-full max-w-xl rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-[0_-20px_50px_rgba(10,37,64,0.15)] flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-slide-up"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-blue-50/80 to-transparent rounded-t-[2.5rem]">
+          <div>
+            <h3 className="text-[17px] font-extrabold text-slate-800 font-['Manrope','Pretendard']">총회 DB 변경 요청</h3>
+            <p className="text-[11px] text-blue-500 font-semibold mt-0.5">{church?.CHRNAME || ''} — 행정 정보 신청</p>
+          </div>
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition-colors active:scale-95"
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+
+        {/* Scrollable Form Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6 scrollbar-thin">
+          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-[12px] text-blue-700 leading-relaxed">
+            <p className="font-bold flex items-center gap-1.5 mb-1 text-[13px]">
+              <span className="material-symbols-outlined text-[16px]">info</span>
+              신청 안내 및 주의사항
+            </p>
+            총회 DB 기본정보는 행정 심사(제출 → 노회 서기 확인 → 총회 수정 완료)를 통해 공식 반영되는 중요 데이터입니다. 변경할 항목을 체크한 후 올바른 정보를 입력해 주세요.
+          </div>
+
+          {/* Fields list */}
+          <div className="space-y-4">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px] text-blue-400">playlist_add_check</span>
+              변경할 항목 선택 및 입력
+            </label>
+
+            <div className="space-y-3">
+              {fieldMeta.map(f => {
+                const isSelected = selectedFields[f.key];
+                return (
+                  <div key={f.key} className={`border rounded-2xl p-4 transition-all ${isSelected ? 'border-blue-400 bg-blue-50/10 shadow-sm' : 'border-slate-100 bg-white hover:border-slate-200'}`}>
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => toggleField(f.key)}
+                        className="flex items-center gap-2.5 text-left min-w-0"
+                      >
+                        <span className={`material-symbols-outlined text-[20px] transition-colors ${isSelected ? 'text-blue-600' : 'text-slate-300'}`}>
+                          {isSelected ? 'check_box' : 'check_box_outline_blank'}
+                        </span>
+                        <span className="material-symbols-outlined text-[16px] text-slate-400 flex-shrink-0">{f.icon}</span>
+                        <span className="text-[13px] font-bold text-slate-700">{f.label}</span>
+                      </button>
+                      <span className="text-[11px] text-slate-400">
+                        현재: {
+                          f.key === 'Environment'
+                            ? (ENV_MAP[String(church?.[f.key] || '').trim()] || String(church?.[f.key] || '').trim() || '미지정')
+                            : f.key === 'OrgYN'
+                            ? (String(church?.[f.key] || '').trim() === '1' ? '조직교회' : String(church?.[f.key] || '').trim() === '0' ? '미조직' : '미지정')
+                            : f.key === 'EstDate'
+                            ? (formatEstDate(String(church?.[f.key] || '').trim()) || '미지정')
+                            : (String(church?.[f.key] || '').trim() || '미지정')
+                        }
+                      </span>
+                    </div>
+
+                    {isSelected && (
+                      <div className="mt-3.5 pt-3 border-t border-slate-100 animate-fade-in">
+                        <label className="text-[10px] font-bold text-blue-500 block mb-1.5">새로운 {f.label} 입력</label>
+                        {f.type === 'text' && (
+                          <input
+                            type="text"
+                            value={fieldValues[f.key]}
+                            onChange={e => handleValueChange(f.key, e.target.value)}
+                            placeholder={`새로운 ${f.label}을 입력해 주세요.`}
+                            className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-[13px] focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none text-slate-700 font-medium"
+                          />
+                        )}
+                        {f.type === 'date-text' && (
+                          <input
+                            type="text"
+                            value={fieldValues[f.key]}
+                            onChange={e => handleValueChange(f.key, e.target.value)}
+                            placeholder="예시: 19451202 (8자리 숫자)"
+                            maxLength={8}
+                            className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-[13px] focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none text-slate-700 font-mono"
+                          />
+                        )}
+                        {f.type === 'environment' && (
+                          <select
+                            value={fieldValues[f.key]}
+                            onChange={e => handleValueChange(f.key, e.target.value)}
+                            className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-[13px] focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none text-slate-700 font-medium bg-white"
+                          >
+                            <option value="">선택해 주세요</option>
+                            <option value="1">도시</option>
+                            <option value="2">읍</option>
+                            <option value="3">면</option>
+                            <option value="4">농어촌</option>
+                          </select>
+                        )}
+                        {f.type === 'org' && (
+                          <select
+                            value={fieldValues[f.key]}
+                            onChange={e => handleValueChange(f.key, e.target.value)}
+                            className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-[13px] focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none text-slate-700 font-medium bg-white"
+                          >
+                            <option value="">선택해 주세요</option>
+                            <option value="1">조직교회</option>
+                            <option value="0">미조직</option>
+                          </select>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 변경 사유 */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px] text-blue-400">edit_note</span>
+              변경 사유 (필수)
+            </label>
+            <textarea 
+              value={reason} 
+              onChange={e => setReason(e.target.value)}
+              placeholder="정보를 변경해야 하는 자세한 사유를 적어주세요. 노회 및 총회 행정 담당자 심사에 필요합니다."
+              className="w-full border border-slate-200 rounded-2xl p-4 text-[13px] min-h-[100px] max-h-[200px] focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition-all resize-y text-slate-700 leading-relaxed"
+            />
+          </div>
+
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-5 border-t border-slate-100 flex gap-3 bg-slate-50 rounded-b-[2.5rem]">
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="flex-1 py-3.5 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm bg-white hover:bg-slate-50 transition-colors active:scale-95"
+          >
+            취소
+          </button>
+          <button 
+            type="button"
+            onClick={handleSubmit} 
+            className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold text-sm shadow-lg shadow-blue-100 transition-all active:scale-95"
+          >
+            변경 신청 제출하기
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ChurchManagePage = () => {
   const { user, isLoggedIn } = useAuth();
   const [church, setChurch] = useState(null);       // TB_Chr100 (IndexedDB or API)
@@ -246,6 +467,7 @@ const ChurchManagePage = () => {
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [editMap, setEditMap] = useState(false);
+  const [showInfoEdit, setShowInfoEdit] = useState(false);
   const [toast, setToast] = useState('');
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [copiedFallback, setCopiedFallback] = useState(false);
@@ -417,6 +639,36 @@ const ChurchManagePage = () => {
       }
     } catch (e) { showToast('저장 오류: ' + e.message); }
     finally { setSaving(false); setEditMap(false); }
+  };
+
+  // ── 총회 DB 기본정보 변경 요청 제출 ──
+  const handleSubmitInfoEditRequest = async ({ changes, reason }) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/info-edit-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          minister_code: user?.code || '',
+          minister_name: user?.name || '',
+          noh_code: user?.noh_code || '',
+          noh_name: user?.presbytery || '',
+          changes,
+          reason,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('총회 DB 변경 요청이 제출되었습니다.\n노회 서기 확인 및 총회 승인 단계를 거쳐 공식 반영됩니다.');
+        setShowInfoEdit(false);
+      } else {
+        alert('요청 제출 중 오류가 발생했습니다.');
+      }
+    } catch (e) {
+      alert('서버 요청 실패: ' + e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!isLoggedIn) return <SimpleLogin />;
@@ -733,7 +985,14 @@ const ChurchManagePage = () => {
               <h3 className={S.title}>
                 <span className="material-symbols-outlined text-blue-500">info</span>
                 총회 DB 기본정보
-                <span className="text-[10px] text-slate-400 font-normal ml-auto">읽기전용</span>
+                <button 
+                  type="button"
+                  onClick={() => setShowInfoEdit(true)}
+                  className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors active:scale-95 shadow-sm ml-auto"
+                  title="변경 요청"
+                >
+                  <span className="material-symbols-outlined text-[16px]">edit</span>
+                </button>
               </h3>
               <div className="divide-y divide-slate-50">
                 <DataRow icon="tag" label="교회코드" value={chrCode} />
@@ -790,6 +1049,16 @@ const ChurchManagePage = () => {
           churchName={getChurchDisplayName()}
           onClose={() => setEditMap(false)}
           onSave={saveMapData}
+        />
+      )}
+
+      {/* ── 총회 DB 변경 요청 모달 ── */}
+      {showInfoEdit && (
+        <ChurchInfoEditRequestModal
+          church={church}
+          user={user}
+          onClose={() => setShowInfoEdit(false)}
+          onSave={handleSubmitInfoEditRequest}
         />
       )}
 
