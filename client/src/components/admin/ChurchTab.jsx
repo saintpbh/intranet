@@ -520,6 +520,7 @@ const ChurchTab = ({ user }) => {
   const [bulletinLoading, setBulletinLoading] = useState(false);
   const [currentServiceType, setCurrentServiceType] = useState('주일대예배');
   const [serviceTypeList, setServiceTypeList] = useState(['주일대예배', '주일오후예배', '청년예배', '저녁예배']);
+  const [bulletinList, setBulletinList] = useState([]);
 
   // ── 지도·교회관리 state ──
   const [church, setChurch] = useState(null);
@@ -605,6 +606,18 @@ const ChurchTab = ({ user }) => {
       .catch(err => console.warn('[ChurchTab] Failed to fetch services list:', err));
   };
 
+  const fetchBulletinList = () => {
+    if (!targetCode) return;
+    setBulletinLoading(true);
+    fetch(`${API_BASE}/api/churches/${targetCode}/bulletins`)
+      .then(res => res.ok ? res.json() : [])
+      .then(list => {
+        setBulletinList(Array.isArray(list) ? list : []);
+      })
+      .catch(err => console.warn('[ChurchTab] Failed to load bulletins list:', err))
+      .finally(() => setBulletinLoading(false));
+  };
+
   const fetchBulletinData = (serviceType = currentServiceType) => {
     if (!targetCode) return;
     setBulletinLoading(true);
@@ -643,7 +656,7 @@ const ChurchTab = ({ user }) => {
       .then(data => {
         if (data.success) {
           showChurchToast('✅ 주보 실시간 배포 완료');
-          fetchBulletinData(bulletinPayload.serviceType);
+          fetchBulletinList();
           fetchServiceTypes();
         } else {
           alert('주보 저장 실패');
@@ -656,16 +669,32 @@ const ChurchTab = ({ user }) => {
       });
   };
 
+  const deleteBulletinData = (serviceType) => {
+    if (!window.confirm(`'${serviceType}' 주보(순서/소식 전체)를 삭제하시겠습니까?\n삭제 즉시 성도앱에서도 연동이 해제됩니다.`)) return;
+    setBulletinLoading(true);
+    fetch(`${API_BASE}/api/churches/${targetCode}/bulletin/${encodeURIComponent(serviceType)}`, {
+      method: 'DELETE'
+    })
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(() => {
+        showChurchToast('✕ 주보가 성공적으로 삭제되었습니다.');
+        fetchBulletinList();
+        fetchServiceTypes();
+      })
+      .catch(() => alert('주보 삭제 통신 오류'))
+      .finally(() => setBulletinLoading(false));
+  };
+
   useEffect(() => { 
     if (activeMenu === 'map-church' && targetCode) { 
       fetchChurch(); 
       fetchInquiries(); 
     } 
     if (activeMenu === 'bulletin' && targetCode) {
-      fetchBulletinData(currentServiceType);
+      fetchBulletinList();
       fetchServiceTypes();
     }
-  }, [activeMenu, targetCode, currentServiceType]);
+  }, [activeMenu, targetCode]);
 
   const saveChurch = () => {
     if (!targetCode) return;
@@ -815,136 +844,195 @@ const ChurchTab = ({ user }) => {
                 )}
               </div>
 
-              {/* 예배 다중 생성 및 선택판 */}
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center', background: '#fff', padding: '16px 20px', borderRadius: 20, border: '1px solid #e2e8f0', marginBottom: 24, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#475569', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#0070eb' }}>calendar_today</span>
-                    관리할 예배 선택:
-                  </span>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {serviceTypeList.map(st => (
-                      <button 
-                        key={st}
-                        onClick={() => setCurrentServiceType(st)}
-                        style={{
-                          padding: '6px 14px',
-                          borderRadius: 12,
-                          border: currentServiceType === st ? '2px solid #0070eb' : '1px solid #e2e8f0',
-                          background: currentServiceType === st ? '#eff6ff' : '#fff',
-                          color: currentServiceType === st ? '#0070eb' : '#64748b',
-                          fontWeight: currentServiceType === st ? 800 : 500,
-                          fontSize: 12,
-                          cursor: 'pointer',
-                          transition: 'all 0.15s'
-                        }}
-                      >
-                        {st}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input 
-                    type="text" 
-                    placeholder="새 예배명 (예: 청년예배)" 
-                    id="new-service-input"
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && e.target.value.trim()) {
-                        const val = e.target.value.trim();
-                        if (!serviceTypeList.includes(val)) {
-                          setServiceTypeList([...serviceTypeList, val]);
-                        }
-                        setCurrentServiceType(val);
-                        e.target.value = '';
-                      }
-                    }}
-                    style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 10, fontSize: 12, width: 140, outline: 'none' }}
-                  />
-                  <button 
-                    onClick={() => {
-                      const inp = document.getElementById('new-service-input');
-                      if (inp && inp.value.trim()) {
-                        const val = inp.value.trim();
-                        if (!serviceTypeList.includes(val)) {
-                          setServiceTypeList([...serviceTypeList, val]);
-                        }
-                        setCurrentServiceType(val);
-                        inp.value = '';
-                      }
-                    }}
-                    style={{ ...S.gradientBtn, padding: '8px 14px', fontSize: 11 }}
-                  >
-                    + 추가
-                  </button>
-                </div>
+              {/* 예배 주보 데크 그리드 (Worship Service Decks Grid) */}
+              <div style={{ marginBottom: 12 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 700, color: '#475569', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#0070eb' }}>layers</span>
+                  배포 중인 예배 주보 데크 ({bulletinList.length}개)
+                </h4>
               </div>
 
               {bulletinLoading ? (
                 <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>불러오는 중...</div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {bulletinData ? (
-                    <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: 16 }}>
-                        <div>
-                          <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 99, background: '#d1fae5', color: '#059669', fontWeight: 700, marginRight: 8 }}>
-                            ● 실시간 배포중
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 24, marginBottom: 28 }}>
+                  {bulletinList.map((b, idx) => {
+                    const serviceGradients = {
+                      '주일대예배': 'linear-gradient(135deg, #1e3a8a, #3b82f6)',
+                      '주일오후예배': 'linear-gradient(135deg, #0f766e, #14b8a6)',
+                      '청년예배': 'linear-gradient(135deg, #6d28d9, #a855f7)',
+                      '저녁예배': 'linear-gradient(135deg, #b45309, #f59e0b)',
+                    };
+                    const gradient = serviceGradients[b.serviceType] || 'linear-gradient(135deg, #475569, #64748b)';
+                    
+                    return (
+                      <div 
+                        key={idx}
+                        className="group hover:-translate-y-1 transition-all duration-300"
+                        style={{ 
+                          ...S.card, 
+                          padding: 0, 
+                          overflow: 'hidden', 
+                          border: '1px solid #e2e8f0', 
+                          display: 'flex', 
+                          flexDirection: 'column', 
+                          height: '100%', 
+                          boxShadow: '0 10px 30px rgba(10,37,64,0.04)',
+                          borderRadius: 20
+                        }}
+                      >
+                        {/* Header Banner */}
+                        <div style={{ background: gradient, padding: '20px 24px', color: '#fff', position: 'relative' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.8, letterSpacing: '0.05em', marginBottom: 2 }}>
+                            WORSHIP DECK
+                          </div>
+                          <h4 style={{ fontSize: 16, fontWeight: 800, margin: 0, fontFamily: "'Manrope', 'Pretendard'", display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>menu_book</span>
+                            {b.serviceType}
+                          </h4>
+                          <span style={{ position: 'absolute', top: 20, right: 20, fontSize: 10, padding: '3px 8px', borderRadius: 99, background: 'rgba(255,255,255,0.2)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: 99, background: '#4ade80', display: 'inline-block' }}></span>
+                            배포중
                           </span>
-                          <strong style={{ fontSize: 16, color: '#0A2540' }}>{bulletinData.bulletinTitle || "주보 제목 미입력"}</strong>
-                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                            {bulletinData.date || "일자 미입력"} | {bulletinData.serviceType || "주일대예배"}
-                          </div>
                         </div>
-                        <button style={S.gradientBtn} onClick={() => setShowBulletinEdit(true)}>📝 주보 편집하기</button>
-                      </div>
-                      
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                        <div style={{ background: '#f8fafc', padding: 16, borderRadius: 16, border: '1px solid #f1f5f9' }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#0070eb', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>format_list_numbered</span>
-                            예배 순서 ({bulletinData.orders?.length || 0}개)
+
+                        {/* Body Details */}
+                        <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                          <div>
+                            <strong style={{ fontSize: 14, color: '#0A2540', display: 'block', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {b.bulletinTitle || "주보 제목 미입력"}
+                            </strong>
+                            <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#94a3b8' }}>calendar_today</span>
+                              {b.date || "예배 일자 미지정"}
+                            </div>
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            {(bulletinData.orders || []).slice(0, 5).map((o, idx) => (
-                              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#475569' }}>
-                                <span style={{ fontWeight: 600 }}>{idx + 1}. {o.title}</span>
-                                <span style={{ color: '#94a3b8', marginLeft: 'auto' }}>{o.detail} {o.targetKey ? `(${o.targetKey})` : ''}</span>
-                              </div>
-                            ))}
-                            {bulletinData.orders?.length > 5 && (
-                              <div style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 4 }}>외 {bulletinData.orders.length - 5}개의 순서가 더 있습니다.</div>
-                            )}
+
+                          {b.theme && (
+                            <div style={{ background: '#f8fafc', padding: 10, borderRadius: 12, border: '1px solid #f1f5f9', fontSize: 11, color: '#475569', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              💬 표어: {b.theme}
+                            </div>
+                          )}
+
+                          {/* Stats badges */}
+                          <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
+                            <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: '#eff6ff', color: '#1d4ed8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>format_list_numbered</span>
+                              순서 {b.orders?.length || 0}
+                            </span>
+                            <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: '#f0fdf4', color: '#166534', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>notifications</span>
+                              소식 {b.churchNews?.length || 0}
+                            </span>
                           </div>
                         </div>
 
-                        <div style={{ background: '#f8fafc', padding: 16, borderRadius: 16, border: '1px solid #f1f5f9' }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#0070eb', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>notifications</span>
-                            교회 소식 ({bulletinData.churchNews?.length || 0}개)
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            {(bulletinData.churchNews || []).slice(0, 3).map((n, idx) => (
-                              <div key={idx} style={{ fontSize: 12, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                📢 {n}
-                              </div>
-                            ))}
-                            {bulletinData.churchNews?.length > 3 && (
-                              <div style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 4 }}>외 {bulletinData.churchNews.length - 3}개의 소식이 더 있습니다.</div>
-                            )}
-                          </div>
+                        {/* Actions */}
+                        <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 8, background: '#f8fafc' }}>
+                          <button 
+                            type="button"
+                            className="active:scale-95 transition-transform"
+                            style={{ ...S.gradientBtn, flex: 1, padding: '8px 0', fontSize: 12, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                            onClick={() => {
+                              setBulletinData(b);
+                              setCurrentServiceType(b.serviceType);
+                              setShowBulletinEdit(true);
+                            }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
+                            주보 편집
+                          </button>
+                          <button 
+                            type="button"
+                            className="active:scale-95 transition-transform"
+                            style={{ ...S.ghostBtn, padding: '8px 12px', borderRadius: 12, color: '#ef4444', border: '1px solid #fca5a5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            onClick={() => deleteBulletinData(b.serviceType)}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
+                          </button>
                         </div>
                       </div>
+                    );
+                  })}
+
+                  {/* 새 예배 데크 개설 카드 (Placeholder Deck Card) */}
+                  <div 
+                    style={{ 
+                      border: '2px dashed #cbd5e1', 
+                      borderRadius: 20, 
+                      padding: 24, 
+                      background: '#f8fafc', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      minHeight: 280, 
+                      textAlign: 'center', 
+                      gap: 16 
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 40, color: '#94a3b8' }}>post_add</span>
+                    <div>
+                      <h5 style={{ fontSize: 14, fontWeight: 700, color: '#475569', margin: '0 0 4px 0' }}>새 예배 데크 추가</h5>
+                      <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>성도앱에 별도 카드로 표현될<br/>새로운 예배 주보를 개설합니다.</p>
                     </div>
-                  ) : (
-                    <div style={{ ...S.card, textAlign: 'center', padding: 48, cursor: 'pointer' }} onClick={() => setShowBulletinEdit(true)}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 48, color: '#cbd5e1', marginBottom: 12 }}>article</span>
-                      <h4 style={{ fontSize: 15, fontWeight: 700, color: '#475569', marginBottom: 4 }}>등록된 모바일 디지털 주보가 없습니다.</h4>
-                      <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 16 }}>새 주보를 작성하고 성도앱에 실시간 배포해 보세요.</p>
-                      <button style={S.gradientBtn}>➕ 새 주보 작성하기</button>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+                      <input 
+                        type="text" 
+                        placeholder="새 예배명 (예: 청년예배)" 
+                        id="grid-new-service-input"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && e.target.value.trim()) {
+                            const val = e.target.value.trim();
+                            setBulletinData({
+                              church_code: targetCode,
+                              serviceType: val,
+                              bulletinTitle: '',
+                              date: '',
+                              theme: '',
+                              bibleVerse: '',
+                              bibleVerseRef: '',
+                              orders: [],
+                              churchNews: []
+                            });
+                            setCurrentServiceType(val);
+                            setShowBulletinEdit(true);
+                            e.target.value = '';
+                          }
+                        }}
+                        style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 12, fontSize: 12, textAlign: 'center', outline: 'none', background: '#fff' }}
+                      />
+                      <button 
+                        type="button"
+                        style={{ ...S.gradientBtn, padding: '8px 16px', fontSize: 12, width: '100%', background: 'linear-gradient(135deg, #475569, #64748b)', borderRadius: 12 }}
+                        onClick={() => {
+                          const inp = document.getElementById('grid-new-service-input');
+                          if (inp && inp.value.trim()) {
+                            const val = inp.value.trim();
+                            setBulletinData({
+                              church_code: targetCode,
+                              serviceType: val,
+                              bulletinTitle: '',
+                              date: '',
+                              theme: '',
+                              bibleVerse: '',
+                              bibleVerseRef: '',
+                              orders: [],
+                              churchNews: []
+                            });
+                            setCurrentServiceType(val);
+                            setShowBulletinEdit(true);
+                            inp.value = '';
+                          } else {
+                            alert('새 예배명을 입력해 주세요.');
+                          }
+                        }}
+                      >
+                        ➕ 예배 개설하고 주보 만들기
+                      </button>
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
             </>

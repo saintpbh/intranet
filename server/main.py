@@ -12,6 +12,8 @@ import pymssql
 import json
 import shutil
 import sqlite3
+
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'requests.db')
 from datetime import datetime
 import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -302,7 +304,7 @@ async def startup_event():
     # 1. SQLite DB (requests.db) check
     try:
         logging.info("[Startup] Checking SQLite connection...")
-        sqlite_conn = sqlite3.connect('requests.db')
+        sqlite_conn = sqlite3.connect(DB_PATH)
         sqlite_conn.execute("SELECT 1")
         
         # Create cache and local replication tables
@@ -6353,7 +6355,7 @@ def get_bulletin_internal(church_code: str, service_type: Optional[str] = None):
             "updated_at": "2026-05-26T13:12:00.123456"
         }
 
-    conn = sqlite3.connect('requests.db')
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     if service_type and service_type.strip():
@@ -6410,7 +6412,7 @@ def save_bulletin_post(church_code: str, payload: WorshipBulletinPayload):
     return save_bulletin_internal(church_code, payload)
 
 def save_bulletin_internal(church_code: str, payload: WorshipBulletinPayload):
-    conn = sqlite3.connect('requests.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     orders_str = json.dumps([item.dict() for item in payload.orders], ensure_ascii=False)
     news_str = json.dumps(payload.churchNews, ensure_ascii=False)
@@ -6456,6 +6458,52 @@ def get_bulletin_services(church_code: str):
     rows = c.fetchall()
     conn.close()
     return [r[0] for r in rows]
+
+# --- Get All Full Bulletins ---
+@app.get("/api/churches/{church_code}/bulletins")
+def get_bulletins_all(church_code: str):
+    conn = sqlite3.connect('requests.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM church_bulletins WHERE church_code=? ORDER BY service_type", (church_code.strip(),))
+    rows = c.fetchall()
+    conn.close()
+    
+    res = []
+    for row in rows:
+        row_dict = dict(row)
+        try:
+            orders = json.loads(row_dict.get('orders') or '[]')
+        except Exception:
+            orders = []
+        try:
+            church_news = json.loads(row_dict.get('church_news') or '[]')
+        except Exception:
+            church_news = []
+            
+        res.append({
+            "church_code": church_code.strip(),
+            "date": row_dict.get('date') or "",
+            "serviceType": row_dict.get('service_type') or "",
+            "bulletinTitle": row_dict.get('bulletin_title') or "",
+            "theme": row_dict.get('theme') or "",
+            "bibleVerse": row_dict.get('bible_verse') or "",
+            "bibleVerseRef": row_dict.get('bible_verse_ref') or "",
+            "orders": orders,
+            "churchNews": church_news,
+            "updated_at": row_dict.get('updated_at') or ""
+        })
+    return res
+
+# --- Delete Specific Bulletin ---
+@app.delete("/api/churches/{church_code}/bulletin/{service_type}")
+def delete_church_bulletin(church_code: str, service_type: str):
+    conn = sqlite3.connect('requests.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM church_bulletins WHERE church_code=? AND service_type=?", (church_code.strip(), service_type.strip()))
+    conn.commit()
+    conn.close()
+    return {"success": True}
 
 # --- Bulletin Templates Endpoints ---
 @app.get("/api/churches/{church_code}/bulletin-templates")

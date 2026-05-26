@@ -898,9 +898,19 @@ const ChurchManagePage = () => {
   const [showInfoEdit, setShowInfoEdit] = useState(false);
   const [bulletinData, setBulletinData] = useState(null);
   const [showBulletinEdit, setShowBulletinEdit] = useState(false);
+  const [bulletinDeck, setBulletinDeck] = useState({});
+  const [deckLoading, setDeckLoading] = useState(false);
   const [toast, setToast] = useState('');
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [copiedFallback, setCopiedFallback] = useState(false);
+
+  const WORSHIP_SERVICES = [
+    { type: '주일대예배', icon: 'church', color: 'from-indigo-600 to-blue-500', desc: '주일 오전 공동체 메인 예배' },
+    { type: '주일1부예배', icon: 'wb_sunny', color: 'from-amber-500 to-orange-500', desc: '아침을 여는 경건한 예배' },
+    { type: '청년예배', icon: 'diversity_3', color: 'from-emerald-500 to-teal-600', desc: '청년들의 생동감 넘치는 찬양예배' },
+    { type: '주일오후예배', icon: 'campaign', color: 'from-purple-500 to-pink-500', desc: '오후 찬양과 헌신 예배' },
+    { type: '수요기도회', icon: 'auto_stories', color: 'from-cyan-500 to-blue-500', desc: '수요일 저녁 말씀과 기도회' }
+  ];
 
   const chrCode = church?.ChrCode?.trim?.() || user?.chrCode?.trim?.() || '';
 
@@ -1050,13 +1060,62 @@ const ChurchManagePage = () => {
     }
   }, []);
 
+  const fetchBulletinDeck = useCallback(async (code) => {
+    if (!code) return;
+    setDeckLoading(true);
+    const deck = {};
+    try {
+      await Promise.all(
+        WORSHIP_SERVICES.map(async (ws) => {
+          try {
+            const res = await fetch(`${API_BASE}/api/churches/${code}/bulletin?service_type=${encodeURIComponent(ws.type)}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data && data.updated_at) {
+                deck[ws.type] = data;
+              } else {
+                deck[ws.type] = null;
+              }
+            }
+          } catch (err) {
+            console.warn(`[ChurchManage] Failed to fetch deck for ${ws.type}:`, err.message);
+          }
+        })
+      );
+      setBulletinDeck(deck);
+    } catch (e) {
+      console.warn('[ChurchManage] Bulletin deck fetch error:', e.message);
+    } finally {
+      setDeckLoading(false);
+    }
+  }, []);
+
+  const openBulletinEdit = async (serviceType) => {
+    let existing = bulletinDeck[serviceType];
+    if (!existing) {
+      existing = {
+        date: '',
+        serviceType: serviceType,
+        bulletinTitle: `${new Date().getFullYear()}년 ${serviceType} 주보`,
+        theme: mapData?.theme || '',
+        bibleVerse: '',
+        bibleVerseRef: '',
+        orders: [],
+        churchNews: ['']
+      };
+    }
+    setBulletinData(existing);
+    setShowBulletinEdit(true);
+  };
+
   useEffect(() => { if (isLoggedIn) fetchChurch(); }, [isLoggedIn, fetchChurch]);
   useEffect(() => { 
     if (chrCode) {
       fetchMapData(chrCode); 
       fetchBulletinData(chrCode);
+      fetchBulletinDeck(chrCode);
     }
-  }, [chrCode, fetchMapData, fetchBulletinData]);
+  }, [chrCode, fetchMapData, fetchBulletinData, fetchBulletinDeck]);
 
   useEffect(() => {
     const handleResetView = () => {
@@ -1138,6 +1197,7 @@ const ChurchManagePage = () => {
         if (data.success) {
           showToast('디지털 주보가 실시간 배포되었습니다.');
           fetchBulletinData(chrCode);
+          fetchBulletinDeck(chrCode);
         } else {
           showToast('주보 저장 실패');
         }
@@ -1482,59 +1542,89 @@ const ChurchManagePage = () => {
               )}
             </div>
 
-            {/* ── 기장성도앱 디지털 주보 관리 ── */}
-            <div className={S.card + ' p-5 relative overflow-hidden group'}>
-              <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-indigo-500/5 -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
+            {/* ── 기장성도앱 디지털 주보 관리 (예쁜 카드 덱 UI 리뉴얼) ── */}
+            <div className={S.card + ' p-5 relative overflow-hidden'}>
+              <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-indigo-500/5 -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
               
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-5 border-b border-slate-100 pb-3">
                 <h3 className="font-['Manrope','Pretendard'] text-[15px] font-bold text-slate-800 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-indigo-500 text-[18px]">menu_book</span>
-                  디지털 주보(예배) 관리
-                  <span className="text-[10px] text-indigo-500 font-bold bg-indigo-50 px-2 py-0.5 rounded-full ml-1">성도앱 연동</span>
+                  <span className="material-symbols-outlined text-indigo-600 text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>menu_book</span>
+                  디지털 주보 관리 대시보드
+                  <span className="text-[10px] text-indigo-600 font-extrabold bg-indigo-50 px-2.5 py-0.5 rounded-full ml-1">실시간 덱</span>
                 </h3>
-                <button 
-                  type="button"
-                  onClick={() => setShowBulletinEdit(true)}
-                  className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors active:scale-95 shadow-sm"
-                >
-                  <span className="material-symbols-outlined text-[16px]">edit</span>
-                </button>
+                {deckLoading && (
+                  <span className="material-symbols-outlined animate-spin text-[16px] text-slate-400">progress_activity</span>
+                )}
               </div>
 
-              {bulletinData ? (
-                <div className="space-y-3">
-                  <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-100 flex justify-between items-center">
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">최근 등록된 주보</p>
-                      <p className="text-[13px] font-bold text-slate-700 mt-0.5">
-                        {bulletinData.bulletinTitle || "주보 제목 미입력"}
-                      </p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        {bulletinData.date || "일자 미입력"} | {bulletinData.serviceType || "주일대예배"}
-                      </p>
+              {/* 예배별 카드 덱 목록 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {WORSHIP_SERVICES.map((ws) => {
+                  const data = bulletinDeck[ws.type];
+                  const isLive = data && data.updated_at;
+
+                  return (
+                    <div 
+                      key={ws.type}
+                      onClick={() => openBulletinEdit(ws.type)}
+                      className={`relative overflow-hidden rounded-2xl border p-4.5 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-md active:scale-98 flex flex-col justify-between min-h-[140px] group/card ${
+                        isLive 
+                          ? 'border-indigo-100 bg-gradient-to-br from-white to-indigo-50/10 shadow-sm' 
+                          : 'border-slate-100 bg-slate-50/50 hover:bg-white hover:border-slate-200'
+                      }`}
+                    >
+                      {/* 카드 헤더 */}
+                      <div className="flex justify-between items-start gap-2.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${ws.color} text-white flex items-center justify-center shadow-sm`}>
+                            <span className="material-symbols-outlined text-[18px]">{ws.icon}</span>
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-[13.5px] text-slate-800 group-hover/card:text-indigo-600 transition-colors">{ws.type}</h4>
+                            <p className="text-[10.5px] text-slate-400 mt-0.5 leading-normal">{ws.desc}</p>
+                          </div>
+                        </div>
+                        
+                        {/* 실시간 배포 상태 뱃지 */}
+                        {isLive ? (
+                          <span className="px-2.5 py-0.5 rounded-full bg-green-600/10 text-green-700 text-[9px] font-extrabold flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                            배포중
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-slate-200/50 text-slate-500 text-[9px] font-bold">
+                            미작성
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 카드 바디 (최근 데이터 현황 또는 작성 유도) */}
+                      <div className="mt-4 border-t border-slate-100/70 pt-3 flex justify-between items-center text-[11px] text-slate-500">
+                        {isLive ? (
+                          <>
+                            <div className="flex gap-2">
+                              <span>순서: <strong className="text-slate-700 font-bold">{data.orders?.length || 0}개</strong></span>
+                              <span className="text-slate-200">|</span>
+                              <span>소식: <strong className="text-slate-700 font-bold">{data.churchNews?.length || 0}개</strong></span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 italic">
+                              {data.date}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-slate-400 italic">등록된 주보 정보가 없습니다</span>
+                            <span className="text-indigo-600 font-bold flex items-center gap-0.5 group-hover/card:translate-x-0.5 transition-transform">
+                              작성하기
+                              <span className="material-symbols-outlined text-[13px]">chevron_right</span>
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <span className="px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-[10px] font-bold flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping"></span>
-                      실시간 배포중
-                    </span>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-500">
-                    <div className="bg-slate-50/50 p-2 rounded-lg border border-slate-100/50">
-                      <strong>예배 순서:</strong> {bulletinData.orders?.length || 0}개 등록됨
-                    </div>
-                    <div className="bg-slate-50/50 p-2 rounded-lg border border-slate-100/50">
-                      <strong>교회 소식:</strong> {bulletinData.churchNews?.length || 0}개 등록됨
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 text-center cursor-pointer" onClick={() => setShowBulletinEdit(true)}>
-                  <span className="material-symbols-outlined text-3xl text-slate-300 mb-2 block" style={{ fontVariationSettings: "'FILL' 0" }}>article</span>
-                  <p className="text-slate-500 text-[13px] font-semibold">등록된 디지털 주보가 없습니다.</p>
-                  <p className="text-slate-400 text-[11px] mt-0.5">여기를 클릭하여 주보를 새로 작성하고 성도앱에 실시간으로 배포해 보세요.</p>
-                </div>
-              )}
+                  );
+                })}
+              </div>
             </div>
 
             {/* ── 기본 정보 (TB_Chr100 — 간략히 표시) ── */}
