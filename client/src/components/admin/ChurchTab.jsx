@@ -384,8 +384,22 @@ const ChurchTab = ({ user }) => {
     return () => clearTimeout(handler);
   }, [adminSearchTerm]);
 
+  const [customChurchCode, setCustomChurchCode] = useState(user?.chr_code || '000000');
+  const [debouncedChurchCode, setDebouncedChurchCode] = useState(user?.chr_code || '000000');
+
+  useEffect(() => {
+    const handler = setTimeout(() => { setDebouncedChurchCode(customChurchCode); }, 500);
+    return () => clearTimeout(handler);
+  }, [customChurchCode]);
+
+  useEffect(() => {
+    if (adminSelectedChurch?.ChrCode) {
+      setCustomChurchCode(adminSelectedChurch.ChrCode);
+    }
+  }, [adminSelectedChurch]);
+
   const isAdmin = user?.role === 'assembly' || user?.id === 'admin';
-  const targetCode = isAdmin ? adminSelectedChurch?.ChrCode : user?.chr_code;
+  const targetCode = isAdmin ? (adminSelectedChurch?.ChrCode || debouncedChurchCode) : debouncedChurchCode;
 
   const showChurchToast = (msg) => { setChurchToast(msg); setTimeout(() => setChurchToast(''), 2500); };
 
@@ -523,33 +537,94 @@ const ChurchTab = ({ user }) => {
 
       {activeMenu === 'bulletin' && (
         <>
-          {isAdmin && !targetCode ? (
+          {isAdmin && !adminSelectedChurch && customChurchCode !== '000000' ? (
             <div style={S.card}>
               <div style={{ marginBottom: 16 }}>
                 <h3 style={{ ...S.heading, fontSize: 18, marginBottom: 4 }}>주보 관리할 교회 검색</h3>
                 <p style={{ ...S.subText, marginBottom: 16 }}>주보를 열람하거나 편집할 교회를 선택해 주세요.</p>
-                <input
-                  type="text"
-                  placeholder="관리할 교회명 또는 노회명 검색..."
-                  value={adminSearchTerm}
-                  onChange={(e) => setAdminSearchTerm(e.target.value)}
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 15, background: '#f8fafc' }}
-                />
+                <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+                  <input
+                    type="text"
+                    placeholder="관리할 교회명 또는 노회명 검색..."
+                    value={adminSearchTerm}
+                    onChange={(e) => setAdminSearchTerm(e.target.value)}
+                    style={{ flex: 1, padding: '12px 16px', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 15, background: '#f8fafc' }}
+                  />
+                  <button 
+                    style={{ ...S.gradientBtn, background: 'linear-gradient(135deg, #1e293b, #334155)', display: 'flex', alignItems: 'center', gap: 6 }} 
+                    onClick={() => {
+                      setAdminSelectedChurch({ CHRNAME: '00교회 (샘플)', ChrCode: '000000' });
+                      setCustomChurchCode('000000');
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>play_circle</span>
+                    00교회 샘플 테스트 바로가기
+                  </button>
+                </div>
               </div>
               <div style={{ background: '#f8fafc', borderRadius: 12, overflow: 'hidden' }}>
-                <ChurchList searchTerm={debouncedAdminSearch} onSelect={setAdminSelectedChurch} />
+                <ChurchList searchTerm={debouncedAdminSearch} onSelect={(chr) => { setAdminSelectedChurch(chr); if (chr && chr.ChrCode) setCustomChurchCode(chr.ChrCode); }} />
               </div>
             </div>
           ) : (
             <>
               {churchToast && <div style={{ position:'fixed',top:80,left:'50%',transform:'translateX(-50%)',zIndex:99,padding:'8px 20px',background:'#059669',color:'#fff',borderRadius:12,fontWeight:700,fontSize:13,boxShadow:'0 8px 24px rgba(0,0,0,0.15)' }}>{churchToast}</div>}
+              
+              {/* 교회코드 직접 입력 및 연동 제어판 */}
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)', padding: '16px 20px', borderRadius: 20, border: '1px solid #e2e8f0', marginBottom: 24 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#0070eb', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>sensors</span>
+                      성도앱 연동 교회코드 설정
+                    </span>
+                    <span style={{ fontSize: 11, color: '#64748b' }}>
+                      기장성도앱 로그인 시 입력하는 교회코드와 일치해야 실시간 연동이 활성화됩니다.
+                    </span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>교회코드:</span>
+                    <input 
+                      type="text" 
+                      value={customChurchCode} 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustomChurchCode(val);
+                        if (adminSelectedChurch && adminSelectedChurch.ChrCode !== val) {
+                          setAdminSelectedChurch(null);
+                        }
+                      }} 
+                      placeholder="000000" 
+                      style={{ 
+                        padding: '8px 12px', 
+                        borderRadius: 12, 
+                        border: '2px solid #0070eb', 
+                        fontSize: 14, 
+                        fontWeight: 800, 
+                        width: 140, 
+                        textAlign: 'center', 
+                        outline: 'none',
+                        color: '#0A2540',
+                        background: '#fff'
+                      }}
+                    />
+                    <span style={{ fontSize: 12, padding: '6px 12px', borderRadius: 10, background: '#e0f2fe', color: '#0369a1', fontWeight: 700 }}>
+                      {customChurchCode === '000000' ? '⛪ 00교회 (샘플)' : (adminSelectedChurch?.CHRNAME ? `⛪ ${adminSelectedChurch.CHRNAME}` : '⛪ 지정 교회')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20 }}>
                 <div>
-                  <h3 style={{ ...S.heading, fontSize: 18, marginBottom: 4 }}>디지털 주보(예배) 관리 — {isAdmin ? `${adminSelectedChurch?.CHRNAME || ''} 교회` : '내 교회 주보'}</h3>
+                  <h3 style={{ ...S.heading, fontSize: 18, marginBottom: 4 }}>
+                    디지털 주보(예배) 관리 — {isAdmin ? (adminSelectedChurch?.CHRNAME || (customChurchCode === '000000' ? '00교회 (샘플)' : '지정 교회')) : '내 교회 주보'}
+                  </h3>
                   <p style={S.subText}>기장성도앱에 실시간으로 연동되어 배포되는 모바일 주보를 관리합니다.</p>
                 </div>
-                {isAdmin && targetCode && (
-                  <button style={{ ...S.ghostBtn, fontSize: 12, padding: '6px 12px' }} onClick={() => { setAdminSelectedChurch(null); setBulletinData(null); }}>
+                {isAdmin && (
+                  <button style={{ ...S.ghostBtn, fontSize: 12, padding: '6px 12px' }} onClick={() => { setAdminSelectedChurch(null); setCustomChurchCode(''); setBulletinData(null); }}>
                     <span className="material-symbols-outlined" style={{ fontSize: 14, verticalAlign: 'middle', marginRight: 4 }}>search</span>
                     다른 교회 검색
                   </button>
