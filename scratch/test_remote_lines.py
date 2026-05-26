@@ -12,31 +12,12 @@ def main():
     ssh.connect(HOST, port=22, username=USER, password=PASS, timeout=15)
     print("Connected!")
     
-    sftp = ssh.open_sftp()
-    with sftp.open('/root/prok_api/main.py', 'rb') as f:
-        content_bytes = f.read()
-        
-    content = content_bytes.decode('utf-8', errors='replace')
-    lines = content.splitlines()
+    cmd = 'python3 -c "import sqlite3; conn=sqlite3.connect(\'/root/prok_api/requests.db\'); conn.row_factory=sqlite3.Row; c=conn.cursor(); c.execute(\'SELECT ChrCode, CHRNAME, NOHNAME FROM local_churches WHERE ChrCode = \\\'100092\\\'\'); row=c.fetchone(); print(dict(row) if row else None); conn.close()"'
     
-    # Print the line that matches sync_directory_fast
-    for idx, line in enumerate(lines):
-        if 'sync_directory_fast' in line:
-            print(f"Line {idx+1}: {line}")
-            # Print next 30 lines
-            for i in range(1, 30):
-                print(f"Line {idx+1+i}: {lines[idx+i]}")
-                # Print hex representation of the line containing account_type
-                if 'account_type' in lines[idx+i]:
-                    print("Hex bytes of account_type line:", lines[idx+i].encode('utf-8').hex())
-                    # Also decode with cp949 or euc-kr
-                    try:
-                        print("Decoded as cp949:", lines[idx+i].encode('utf-8').decode('cp949'))
-                    except Exception as e:
-                        print("cp949 decode error:", e)
-            break
-        
-    sftp.close()
+    stdin, stdout, stderr = ssh.exec_command(cmd)
+    print("[STDOUT]")
+    print(stdout.read().decode('utf-8', errors='replace').strip())
+    
     ssh.close()
 
 if __name__ == "__main__":

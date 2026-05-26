@@ -901,10 +901,10 @@ def get_churches(search: str = ""):
                 ChrCode, CHRNAME, NOHNAME, SICHALNAME, 
                 Tel_Church, Tel_Mobile, Tel_Fax, ADDRESS, JUSO, PostNo, Email, MOCKNAME
             FROM local_churches
-            WHERE CHRNAME LIKE ? OR NOHNAME LIKE ?
+            WHERE CHRNAME LIKE ? OR NOHNAME LIKE ? OR ChrCode = ?
             ORDER BY NOHNAME, CHRNAME
             LIMIT 100
-        """, (search_pattern, search_pattern))
+        """, (search_pattern, search_pattern, search.strip()))
         churches = [dict(r) for r in c.fetchall()]
         
         if churches:
