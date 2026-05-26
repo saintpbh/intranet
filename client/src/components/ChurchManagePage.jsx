@@ -13,50 +13,223 @@ function formatEstDate(raw) {
   return `${raw.slice(0, 4)}년 ${raw.slice(4, 6)}월 ${raw.slice(6, 8)}일`;
 }
 
-/* ── 편집 가능 필드 모달 ── */
-const EditModal = ({ title, value, onSave, onClose, multiline = false }) => {
-  const [v, setV] = useState(value || '');
-  return (
-    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-bold text-slate-800">{title}</h3>
-        {multiline ? (
-          <textarea className="w-full border border-slate-200 rounded-xl p-3 text-sm min-h-[120px] focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" value={v} onChange={e => setV(e.target.value)} />
-        ) : (
-          <input className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" value={v} onChange={e => setV(e.target.value)} />
-        )}
-        <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm">취소</button>
-          <button onClick={() => onSave(v)} className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm shadow-lg shadow-blue-200">저장</button>
-        </div>
-      </div>
-    </div>
+/* ── 기장지도 통합 편집 모달 (SlideOver 스타일) ── */
+const GijangMapEditModal = ({ mapData, onSave, onClose, churchName }) => {
+  const [intro, setIntro] = useState(mapData?.intro_text || '');
+  const [worshipTimes, setWorshipTimes] = useState(
+    (mapData?.worship_times || []).map(w => ({ title: w.title || w.name || '', time: w.time || '' }))
   );
-};
+  const [youtubeVideoId, setYoutubeVideoId] = useState(mapData?.youtube_video_id || '');
+  const [youtubeChannelId, setYoutubeChannelId] = useState(mapData?.youtube_channel_id || '');
+  const [homepageUrl, setHomepageUrl] = useState(mapData?.homepage_url || '');
+  const [parkingInfo, setParkingInfo] = useState(mapData?.parking_info || '');
+  const [transportInfo, setTransportInfo] = useState(mapData?.transport_info || '');
 
-/* ── 예배시간 편집 모달 ── */
-const WorshipEditModal = ({ times, onSave, onClose }) => {
-  // 기존 데이터 호환: name → title 변환
-  const normalize = (arr) => (arr || []).map(r => ({ title: r.title || r.name || '', time: r.time || '' }));
-  const [rows, setRows] = useState(normalize(times)?.length ? normalize(times) : [{ title: '', time: '' }]);
-  const add = () => setRows([...rows, { title: '', time: '' }]);
-  const remove = i => setRows(rows.filter((_, idx) => idx !== i));
-  const update = (i, k, v) => { const n = [...rows]; n[i] = { ...n[i], [k]: v }; setRows(n); };
+  // 예배시간 추가/삭제
+  const addWorship = () => setWorshipTimes([...worshipTimes, { title: '', time: '' }]);
+  const removeWorship = i => setWorshipTimes(worshipTimes.filter((_, idx) => idx !== i));
+  const updateWorship = (i, k, v) => {
+    const n = [...worshipTimes];
+    n[i] = { ...n[i], [k]: v };
+    setWorshipTimes(n);
+  };
+
+  const handleSave = () => {
+    // 빈 예배시간 행 필터링
+    const filteredWorship = worshipTimes.filter(w => w.title.trim() || w.time.trim());
+    onSave({
+      intro_text: intro,
+      worship_times: filteredWorship,
+      youtube_video_id: youtubeVideoId,
+      youtube_channel_id: youtubeChannelId,
+      homepage_url: homepageUrl,
+      parking_info: parkingInfo,
+      transport_info: transportInfo,
+    });
+  };
+
   return (
-    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 space-y-4 animate-slide-up max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-bold text-slate-800">예배시간 편집</h3>
-        {rows.map((r, i) => (
-          <div key={i} className="flex gap-2 items-center">
-            <input placeholder="예배명" className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" value={r.title} onChange={e => update(i, 'title', e.target.value)} />
-            <input placeholder="시간" className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" value={r.time} onChange={e => update(i, 'time', e.target.value)} />
-            <button onClick={() => remove(i)} className="text-red-400 text-xl font-bold px-1">×</button>
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-md animate-fade-in" onClick={onClose}>
+      <div 
+        className="bg-white w-full max-w-xl rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-[0_-20px_50px_rgba(10,37,64,0.15)] flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-slide-up"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-indigo-50/80 to-transparent rounded-t-[2.5rem]">
+          <div>
+            <h3 className="text-[17px] font-extrabold text-slate-800 font-['Manrope','Pretendard']">기장지도 교회정보 편집</h3>
+            <p className="text-[11px] text-indigo-500 font-semibold mt-0.5">{churchName}</p>
           </div>
-        ))}
-        <button onClick={add} className="text-blue-600 text-sm font-semibold flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">add</span>추가</button>
-        <div className="flex gap-3 pt-2">
-          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm">취소</button>
-          <button onClick={() => onSave(rows.filter(r => r.title || r.time))} className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm shadow-lg shadow-blue-200">저장</button>
+          <button 
+            onClick={onClose} 
+            className="w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition-colors active:scale-95"
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+
+        {/* Scrollable Form Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6 scrollbar-thin">
+          
+          {/* 교회 소개 */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px] text-indigo-400">waving_hand</span>
+              인삿말 (교회 소개)
+            </label>
+            <textarea 
+              value={intro} 
+              onChange={e => setIntro(e.target.value)}
+              placeholder="교회 방문자들에게 보여줄 따뜻한 인삿말을 적어주세요."
+              className="w-full border border-slate-200 rounded-2xl p-4 text-[13px] min-h-[100px] max-h-[200px] focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none transition-all resize-y text-slate-700 leading-relaxed"
+            />
+          </div>
+
+          {/* 예배시간 동적 에디터 */}
+          <div className="space-y-3">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px] text-indigo-400">schedule</span>
+              예배시간 안내
+            </label>
+            <div className="space-y-2.5">
+              {worshipTimes.map((w, i) => (
+                <div key={i} className="flex gap-2 items-center animate-fade-in">
+                  <input 
+                    placeholder="예배명 (예: 주일낮예배)" 
+                    value={w.title}
+                    onChange={e => updateWorship(i, 'title', e.target.value)}
+                    className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-[13px] focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none text-slate-700 font-medium"
+                  />
+                  <input 
+                    placeholder="시간 (예: 오전 11:00)" 
+                    value={w.time}
+                    onChange={e => updateWorship(i, 'time', e.target.value)}
+                    className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-[13px] focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none text-slate-700 font-medium"
+                  />
+                  <button 
+                    onClick={() => removeWorship(i)} 
+                    className="w-9 h-9 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors flex items-center justify-center flex-shrink-0 active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button 
+              type="button"
+              onClick={addWorship} 
+              className="w-full py-2.5 rounded-xl border-2 border-dashed border-indigo-100 text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all font-bold text-[13px] flex items-center justify-center gap-1 active:scale-98"
+            >
+              <span className="material-symbols-outlined text-[16px]">add</span>
+              예배시간 행 추가하기
+            </button>
+          </div>
+
+          {/* 홈페이지 및 SNS 채널 */}
+          <div className="space-y-4">
+            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-1">온라인 미디어 정보</h4>
+            
+            {/* 홈페이지 */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[15px] text-green-500">language</span>
+                홈페이지 URL
+              </label>
+              <input 
+                type="url"
+                value={homepageUrl} 
+                onChange={e => setHomepageUrl(e.target.value)}
+                placeholder="https://example.com"
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-[13px] focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none text-slate-700 font-medium"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* 유튜브 비디오 ID */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[15px] text-red-500">smart_display</span>
+                  유튜브 비디오 ID
+                </label>
+                <input 
+                  type="text"
+                  value={youtubeVideoId} 
+                  onChange={e => setYoutubeVideoId(e.target.value)}
+                  placeholder="예: dQw4w9WgXcQ (메인 소개영상)"
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-[13px] focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none text-slate-700 font-medium"
+                />
+              </div>
+
+              {/* 유튜브 채널 ID */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[15px] text-red-500">subscriptions</span>
+                  유튜브 채널 ID
+                </label>
+                <input 
+                  type="text"
+                  value={youtubeChannelId} 
+                  onChange={e => setYoutubeChannelId(e.target.value)}
+                  placeholder="예: UC_x5XG1OV2P6uYZ5FHSFwNg"
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-[13px] focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none text-slate-700 font-medium"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 주차 및 오시는 길 */}
+          <div className="space-y-4">
+            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-1">오시는 길 및 주차</h4>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* 주차 안내 */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[15px] text-teal-500">local_parking</span>
+                  주차 안내
+                </label>
+                <textarea 
+                  value={parkingInfo} 
+                  onChange={e => setParkingInfo(e.target.value)}
+                  placeholder="교회 주차공간 또는 인근 유/무료 주차장 정보를 적어주세요."
+                  className="w-full border border-slate-200 rounded-xl p-3 text-[13px] min-h-[80px] focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none text-slate-700 leading-relaxed resize-none"
+                />
+              </div>
+
+              {/* 대중교통 안내 */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[15px] text-teal-500">directions_bus</span>
+                  대중교통 안내
+                </label>
+                <textarea 
+                  value={transportInfo} 
+                  onChange={e => setTransportInfo(e.target.value)}
+                  placeholder="인근 지하철역이나 버스정류장 및 도보 이동 경로를 알려주세요."
+                  className="w-full border border-slate-200 rounded-xl p-3 text-[13px] min-h-[80px] focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none text-slate-700 leading-relaxed resize-none"
+                />
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-5 border-t border-slate-100 flex gap-3 bg-slate-50 rounded-b-[2.5rem]">
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="flex-1 py-3.5 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm bg-white hover:bg-slate-50 transition-colors active:scale-95"
+          >
+            취소
+          </button>
+          <button 
+            type="button"
+            onClick={handleSave} 
+            className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold text-sm shadow-lg shadow-indigo-100 transition-all active:scale-95"
+          >
+            저장하기
+          </button>
         </div>
       </div>
     </div>
@@ -72,8 +245,7 @@ const ChurchManagePage = () => {
   const [mapLoading, setMapLoading] = useState(false);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [editField, setEditField] = useState(null);  // { key, title, multiline }
-  const [editWorship, setEditWorship] = useState(false);
+  const [editMap, setEditMap] = useState(false);
   const [toast, setToast] = useState('');
 
   const chrCode = church?.ChrCode?.trim?.() || user?.chrCode?.trim?.() || '';
@@ -191,28 +363,27 @@ const ChurchManagePage = () => {
 
   useEffect(() => {
     const handleResetView = () => {
-      setEditField(null);
-      setEditWorship(false);
+      setEditMap(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
     window.addEventListener('reset-church-view', handleResetView);
     return () => window.removeEventListener('reset-church-view', handleResetView);
   }, []);
 
-  // ── 기장지도 필드 저장 ──
-  const saveField = async (key, value) => {
+  // ── 기장지도 일괄 저장 ──
+  const saveMapData = async (fieldsObj) => {
     if (!chrCode) return;
     setSaving(true);
     try {
       let result;
       if (mapData) {
-        result = await updateChurchByChrCode(chrCode, { [key]: value });
+        result = await updateChurchByChrCode(chrCode, fieldsObj);
       } else {
         // 기장지도에 아직 없으면 신규 등록
         result = await insertChurch({
           chr_code: chrCode,
           name: getChurchDisplayName(),
-          [key]: value,
+          ...fieldsObj,
         });
       }
       if (result) {
@@ -222,7 +393,7 @@ const ChurchManagePage = () => {
         showToast('저장 실패 — 다시 시도해 주세요');
       }
     } catch (e) { showToast('저장 오류: ' + e.message); }
-    finally { setSaving(false); setEditField(null); setEditWorship(false); }
+    finally { setSaving(false); setEditMap(false); }
   };
 
   if (!isLoggedIn) return <SimpleLogin />;
@@ -316,14 +487,29 @@ const ChurchManagePage = () => {
               </div>
             )}
 
-            {/* ── 기장지도 정보 (편집 가능) ── */}
-            <div className={S.card + ' p-5'}>
-              <h3 className={S.title}>
-                <span className="material-symbols-outlined text-indigo-500">map</span>
-                기장지도 교회정보
-                {mapLoading && <span className="material-symbols-outlined animate-spin text-[14px] text-slate-400 ml-1">progress_activity</span>}
-                {!mapData && !mapLoading && !mapError && <span className="text-[11px] text-orange-500 font-medium ml-2">(미등록)</span>}
-              </h3>
+            {/* ── 기장지도 정보 (요약 카드) ── */}
+            <div className={S.card + ' p-5 relative overflow-hidden group'}>
+              {/* Background gradient pattern */}
+              <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-indigo-500/5 -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
+              
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-['Manrope','Pretendard'] text-[15px] font-bold text-slate-800 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-indigo-500 text-[18px]">map</span>
+                  기장지도 교회정보
+                  {mapLoading && <span className="material-symbols-outlined animate-spin text-[14px] text-slate-400 ml-1">progress_activity</span>}
+                  {!mapData && !mapLoading && !mapError && <span className="text-[11px] text-orange-500 font-medium ml-2">(미등록)</span>}
+                </h3>
+                {!mapError && (
+                  <button 
+                    type="button"
+                    onClick={() => setEditMap(true)}
+                    className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors active:scale-95 shadow-sm"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">edit</span>
+                  </button>
+                )}
+              </div>
+
               {mapError ? (
                 <div className="bg-slate-50 rounded-xl p-4 text-center">
                   <span className="material-symbols-outlined text-2xl text-slate-300 mb-2 block">cloud_off</span>
@@ -332,44 +518,102 @@ const ChurchManagePage = () => {
                   <button onClick={() => fetchMapData(chrCode)} className="mt-3 text-blue-600 text-sm font-semibold">다시 시도</button>
                 </div>
               ) : (
-              <>
-              <div className="divide-y divide-slate-50">
-                <EditableRow icon="waving_hand" label="인삿말" value={mapData?.intro_text} fieldKey="intro_text" multiline color="text-indigo-400" />
+                <div className="space-y-4">
+                  {mapData?.intro_text ? (
+                    <div className="bg-indigo-50/40 rounded-xl p-3.5 border border-indigo-100/50">
+                      <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">교회 소개</p>
+                      <p className="text-[13px] text-slate-700 leading-relaxed break-all whitespace-pre-wrap">{mapData.intro_text}</p>
+                    </div>
+                  ) : (
+                    <p className="text-[13px] text-slate-400 italic">등록된 교회 소개 인삿말이 없습니다.</p>
+                  )}
 
-                {/* 예배시간 */}
-                <div className={S.row + ' cursor-pointer group'} onClick={() => setEditWorship(true)}>
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="material-symbols-outlined text-[16px] text-indigo-400 flex-shrink-0">schedule</span>
-                    <div className="min-w-0 flex-1">
-                      <p className={S.label}>예배시간</p>
-                      {mapData?.worship_times?.length ? (
-                        <div className="mt-1 space-y-1">
-                          {mapData.worship_times.map((w, i) => (
-                            <p key={i} className="text-[13px] text-slate-700"><span className="font-semibold">{w.name}</span> <span className="text-slate-400">|</span> {w.time}</p>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-[13px] text-slate-300 italic mt-0.5">미입력 — 탭하여 입력</p>
-                      )}
+                  {/* 핵심 정보 격자 레이아웃 */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* 홈페이지 */}
+                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-green-50 text-green-500 flex items-center justify-center flex-shrink-0">
+                        <span className="material-symbols-outlined text-[18px]">language</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">홈페이지</p>
+                        {mapData?.homepage_url ? (
+                          <a href={mapData.homepage_url} target="_blank" rel="noopener noreferrer" className="text-[12px] font-semibold text-blue-600 truncate block hover:underline">
+                            바로가기
+                          </a>
+                        ) : (
+                          <span className="text-[12px] text-slate-400 italic">미등록</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 유튜브 채널 */}
+                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center flex-shrink-0">
+                        <span className="material-symbols-outlined text-[18px]">subscriptions</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">유튜브 채널</p>
+                        {mapData?.youtube_channel_id ? (
+                          <a href={`https://youtube.com/channel/${mapData.youtube_channel_id}`} target="_blank" rel="noopener noreferrer" className="text-[12px] font-semibold text-blue-600 truncate block hover:underline">
+                            바로가기
+                          </a>
+                        ) : (
+                          <span className="text-[12px] text-slate-400 italic">미등록</span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <span className="material-symbols-outlined text-[16px] text-slate-300 group-hover:text-blue-500 transition-colors self-center ml-2">edit</span>
-                </div>
 
-                <EditableRow icon="smart_display" label="유튜브 영상 ID" value={mapData?.youtube_video_id} fieldKey="youtube_video_id" color="text-red-400" />
-                <EditableRow icon="subscriptions" label="유튜브 채널 ID" value={mapData?.youtube_channel_id} fieldKey="youtube_channel_id" color="text-red-400" />
-                <EditableRow icon="language" label="홈페이지 URL" value={mapData?.homepage_url} fieldKey="homepage_url" color="text-green-400" />
-                <EditableRow icon="local_parking" label="주차 안내" value={mapData?.parking_info} fieldKey="parking_info" multiline color="text-teal-400" />
-                <EditableRow icon="directions_bus" label="대중교통 안내" value={mapData?.transport_info} fieldKey="transport_info" multiline color="text-teal-400" />
-              </div>
+                  {/* 예배시간 요약 */}
+                  {mapData?.worship_times?.length > 0 && (
+                    <div className="border-t border-slate-100 pt-3">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">schedule</span>
+                        주요 예배시간
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50/50 rounded-xl p-3 border border-slate-100/50">
+                        {mapData.worship_times.map((w, i) => (
+                          <div key={i} className="flex justify-between items-center text-[12px] border-b border-dashed border-slate-100 last:border-b-0 pb-1 last:pb-0">
+                            <span className="font-bold text-slate-700">{w.title || w.name}</span>
+                            <span className="text-slate-500">{w.time}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-              {/* 유튜브 미리보기 */}
-              {mapData?.youtube_video_id && (
-                <div className="mt-4 rounded-xl overflow-hidden">
-                  <iframe className="w-full aspect-video" src={`https://www.youtube.com/embed/${mapData.youtube_video_id}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="교회 영상"></iframe>
+                  {/* 교통 및 주차 */}
+                  {(mapData?.parking_info || mapData?.transport_info) && (
+                    <div className="border-t border-slate-100 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {mapData.parking_info && (
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[13px] text-teal-500">local_parking</span>
+                            주차 안내
+                          </p>
+                          <p className="text-[12px] text-slate-600 line-clamp-2 break-all">{mapData.parking_info}</p>
+                        </div>
+                      )}
+                      {mapData.transport_info && (
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[13px] text-teal-500">directions_bus</span>
+                            대중교통
+                          </p>
+                          <p className="text-[12px] text-slate-600 line-clamp-2 break-all">{mapData.transport_info}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 유튜브 미리보기 */}
+                  {mapData?.youtube_video_id && (
+                    <div className="mt-3 rounded-xl overflow-hidden shadow-sm border border-slate-100">
+                      <iframe className="w-full aspect-video" src={`https://www.youtube.com/embed/${mapData.youtube_video_id}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="교회 영상"></iframe>
+                    </div>
+                  )}
                 </div>
-              )}
-              </>
               )}
             </div>
 
@@ -420,21 +664,13 @@ const ChurchManagePage = () => {
         ) : null}
       </main>
 
-      {/* ── Edit Modals ── */}
-      {editField && (
-        <EditModal
-          title={editField.title}
-          value={editField.currentValue}
-          multiline={editField.multiline}
-          onClose={() => setEditField(null)}
-          onSave={v => saveField(editField.key, v)}
-        />
-      )}
-      {editWorship && (
-        <WorshipEditModal
-          times={mapData?.worship_times || []}
-          onClose={() => setEditWorship(false)}
-          onSave={v => saveField('worship_times', v)}
+      {/* ── Gijang Map Edit Modal ── */}
+      {editMap && (
+        <GijangMapEditModal
+          mapData={mapData}
+          churchName={getChurchDisplayName()}
+          onClose={() => setEditMap(false)}
+          onSave={saveMapData}
         />
       )}
 

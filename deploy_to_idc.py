@@ -15,6 +15,7 @@ def zip_server_folder(source_dir, output_filename):
             
             for file in files:
                 if file.endswith('.pyc'): continue
+                if file in ('requests.db', 'requests.db-journal'): continue
                 file_path = os.path.join(root, file)
                 arcname = os.path.relpath(file_path, source_dir)
                 zipf.write(file_path, arcname)
