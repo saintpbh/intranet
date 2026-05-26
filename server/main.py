@@ -1862,6 +1862,32 @@ def init_sqlite():
             url TEXT DEFAULT ''
         )
     ''')
+    
+    # --- Church Profiles (for Theme & Logo symbol custom storage) ---
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS church_profiles (
+            chr_code TEXT PRIMARY KEY,
+            theme TEXT,
+            logo_symbol TEXT,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # --- Church Bulletins (for digital bulletin board in saint app) ---
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS church_bulletins (
+            church_code TEXT PRIMARY KEY,
+            date TEXT,
+            service_type TEXT,
+            bulletin_title TEXT,
+            theme TEXT,
+            bible_verse TEXT,
+            bible_verse_ref TEXT,
+            orders TEXT,
+            church_news TEXT,
+            updated_at TEXT
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -4856,6 +4882,53 @@ def serve_profile_image(filename: str):
         return FileResponse(str(file_path))
     raise HTTPException(status_code=404, detail="File not found")
 
+@app.get("/api/uploads/logos/{filename}")
+def serve_logo_image(filename: str):
+    decoded_filename = unquote(filename)
+    file_path = UPLOAD_DIR / "logos" / decoded_filename
+    if file_path.is_file():
+        return FileResponse(str(file_path))
+    raise HTTPException(status_code=404, detail="File not found")
+
+@app.post("/api/churches/{chr_code}/logo")
+def upload_church_logo(chr_code: str, file: UploadFile = File(...)):
+    import uuid
+    import shutil
+    try:
+        # 1. 파일 검증 및 저장
+        _, ext = os.path.splitext(file.filename)
+        if not ext:
+            ext = ".jpg"
+        safe_uuid = uuid.uuid4().hex[:8]
+        filename = f"logo_{chr_code}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{safe_uuid}{ext}"
+        
+        # uploads/logos 디렉토리가 없으면 생성
+        logo_dir = UPLOAD_DIR / "logos"
+        logo_dir.mkdir(parents=True, exist_ok=True)
+        
+        file_path = logo_dir / filename
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        logo_url = f"/api/uploads/logos/{filename}"
+        
+        # 2. SQLite church_profiles 테이블에 logo_symbol 값으로 logo_url 저장
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        c.execute("SELECT 1 FROM church_profiles WHERE chr_code = ?", (chr_code,))
+        exists = c.fetchone()
+        if exists:
+            c.execute("UPDATE church_profiles SET logo_symbol = ?, updated_at = CURRENT_TIMESTAMP WHERE chr_code = ?", (logo_url, chr_code))
+        else:
+            c.execute("INSERT INTO church_profiles (chr_code, theme, logo_symbol) VALUES (?, '', ?)", (chr_code, logo_url))
+        conn.commit()
+        conn.close()
+            
+        return {"success": True, "logo_url": logo_url}
+    except Exception as e:
+        logging.error(f"[ChurchManageLogo] Upload error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @app.get("/api/uploads/ads/{filename}")
 def serve_ad_image(filename: str):
     decoded_filename = unquote(filename)
@@ -5139,8 +5212,9 @@ def _sb_headers():
 
 @app.get("/api/church-manage/{chr_code}")
 async def get_church_by_code(chr_code: str):
-    """교회코드(chr_code)로 Supabase churches 테이블에서 교회 정보 조회"""
+    """교회코드(chr_code)로 Supabase churches 테이블에서 교회 정보 조회 및 SQLite 성도앱 연동 정보 병합"""
     try:
+        # 1. Supabase에서 기본 기장지도 정보 조회
         r = _requests.get(
             f"{_SUPABASE_URL}/rest/v1/churches",
             headers=_sb_headers(),
@@ -5152,7 +5226,29 @@ async def get_church_by_code(chr_code: str):
         data = r.json()
         if not data:
             return JSONResponse(status_code=404, content={"error": "church_not_found", "message": "해당 교회코드로 등록된 교회를 찾을 수 없습니다."})
-        return data[0]
+        
+        church_info = dict(data[0])
+
+        # 2. SQLite requests.db에서 성도앱 전용 표어 및 로고 심볼 조회
+        theme = ""
+        logo_symbol = "PLUS"
+        try:
+            conn = sqlite3.connect('requests.db')
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute("SELECT theme, logo_symbol FROM church_profiles WHERE chr_code = ?", (chr_code,))
+            row = c.fetchone()
+            conn.close()
+            if row:
+                theme = row['theme'] or ""
+                logo_symbol = row['logo_symbol'] or "PLUS"
+        except Exception as db_err:
+            logging.error(f"[ChurchManage] SQLite read error: {db_err}")
+
+        # 3. 데이터 병합
+        church_info['theme'] = theme
+        church_info['logo_symbol'] = logo_symbol
+        return church_info
     except Exception as e:
         logging.error(f"[ChurchManage] GET error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -5170,32 +5266,235 @@ class ChurchUpdatePayload(BaseModel):
     phone: str | None = None
     parking_info: str | None = None
     transport_info: str | None = None
+    name: str | None = None
+    theme: str | None = None
+    logo_symbol: str | None = None
 
 
 @app.put("/api/church-manage/{chr_code}")
 async def update_church_by_code(chr_code: str, payload: ChurchUpdatePayload):
-    """교회코드(chr_code)로 교회 정보 업데이트"""
+    """교회코드(chr_code)로 교회 정보 및 성도앱 연동 표어/로고 업데이트"""
     try:
-        # None이 아닌 필드만 업데이트
-        update_data = {k: v for k, v in payload.dict().items() if v is not None}
-        if not update_data:
-            return JSONResponse(status_code=400, content={"error": "no_fields", "message": "업데이트할 필드가 없습니다."})
+        # 1. 성도앱 연동 필드(theme, logo_symbol) 추출 및 SQLite 저장
+        has_sqlite_updates = False
+        theme_val = payload.theme
+        logo_val = payload.logo_symbol
 
-        r = _requests.patch(
-            f"{_SUPABASE_URL}/rest/v1/churches",
-            headers=_sb_headers(),
-            params={"chr_code": f"eq.{chr_code}"},
-            json=update_data,
-            timeout=10,
-        )
-        if r.status_code not in (200, 204):
-            return JSONResponse(status_code=r.status_code, content={"error": r.text})
-        data = r.json() if r.text else []
-        if not data:
-            return JSONResponse(status_code=404, content={"error": "church_not_found"})
-        return data[0]
+        if theme_val is not None or logo_val is not None:
+            has_sqlite_updates = True
+            try:
+                conn = sqlite3.connect('requests.db')
+                c = conn.cursor()
+                # 기존 레코드가 있는지 확인
+                c.execute("SELECT 1 FROM church_profiles WHERE chr_code = ?", (chr_code,))
+                exists = c.fetchone()
+                
+                if exists:
+                    # 존재하는 경우 None이 아닌 필드만 선택적 업데이트
+                    if theme_val is not None and logo_val is not None:
+                        c.execute("UPDATE church_profiles SET theme = ?, logo_symbol = ?, updated_at = CURRENT_TIMESTAMP WHERE chr_code = ?", (theme_val, logo_val, chr_code))
+                    elif theme_val is not None:
+                        c.execute("UPDATE church_profiles SET theme = ?, updated_at = CURRENT_TIMESTAMP WHERE chr_code = ?", (theme_val, chr_code))
+                    elif logo_val is not None:
+                        c.execute("UPDATE church_profiles SET logo_symbol = ?, updated_at = CURRENT_TIMESTAMP WHERE chr_code = ?", (logo_val, chr_code))
+                else:
+                    # 신규 입력
+                    c.execute("INSERT INTO church_profiles (chr_code, theme, logo_symbol) VALUES (?, ?, ?)", (chr_code, theme_val or "", logo_val or "PLUS"))
+                
+                conn.commit()
+                conn.close()
+            except Exception as db_err:
+                logging.error(f"[ChurchManage] SQLite write error: {db_err}")
+                return JSONResponse(status_code=500, content={"error": f"SQLite write failed: {str(db_err)}"})
+
+        # 2. Supabase 연동 필드 필터링 및 업데이트
+        sb_payload = {
+            k: v for k, v in payload.dict().items() 
+            if k not in ('theme', 'logo_symbol') and v is not None
+        }
+
+        supabase_updated_data = {}
+        if sb_payload:
+            r = _requests.patch(
+                f"{_SUPABASE_URL}/rest/v1/churches",
+                headers=_sb_headers(),
+                params={"chr_code": f"eq.{chr_code}"},
+                json=sb_payload,
+                timeout=10,
+            )
+            if r.status_code not in (200, 204):
+                return JSONResponse(status_code=r.status_code, content={"error": r.text})
+            
+            data = r.json() if r.text else []
+            if data:
+                supabase_updated_data = dict(data[0])
+
+        # 3. Supabase 업데이트가 없었으면 현재 데이터를 Supabase에서 가져와서 병합용 기초로 삼음
+        if not supabase_updated_data:
+            r = _requests.get(
+                f"{_SUPABASE_URL}/rest/v1/churches",
+                headers=_sb_headers(),
+                params={"chr_code": f"eq.{chr_code}", "select": "*"},
+                timeout=10,
+            )
+            if r.status_code == 200 and r.json():
+                supabase_updated_data = dict(r.json()[0])
+            else:
+                supabase_updated_data = {"chr_code": chr_code}
+
+        # 4. 최신 SQLite 데이터 병합하여 반환
+        final_theme = theme_val
+        final_logo = logo_val
+        if final_theme is None or final_logo is None:
+            try:
+                conn = sqlite3.connect('requests.db')
+                conn.row_factory = sqlite3.Row
+                c = conn.cursor()
+                c.execute("SELECT theme, logo_symbol FROM church_profiles WHERE chr_code = ?", (chr_code,))
+                row = c.fetchone()
+                conn.close()
+                if row:
+                    if final_theme is None: final_theme = row['theme'] or ""
+                    if final_logo is None: final_logo = row['logo_symbol'] or "PLUS"
+            except Exception:
+                pass
+        
+        supabase_updated_data['theme'] = final_theme or ""
+        supabase_updated_data['logo_symbol'] = final_logo or "PLUS"
+        return supabase_updated_data
+
     except Exception as e:
         logging.error(f"[ChurchManage] PUT error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+class WorshipOrderPayload(BaseModel):
+    id: str
+    sequence: int
+    title: str
+    type: str # "TEXT" | "HYMN" | "BIBLE" | "LITURGY" | "PRAYER" | "SERMON"
+    detail: str
+    targetKey: str | None = None
+
+class WorshipBulletinPayload(BaseModel):
+    date: str
+    serviceType: str
+    bulletinTitle: str
+    theme: str
+    bibleVerse: str
+    bibleVerseRef: str
+    orders: list[WorshipOrderPayload]
+    churchNews: list[str]
+
+
+@app.get("/api/churches/{chr_code}/bulletin")
+def get_church_bulletin(chr_code: str):
+    """교회코드(chr_code)에 해당하는 디지털 주보 데이터 조회"""
+    try:
+        conn = sqlite3.connect('requests.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute('''
+            SELECT * FROM church_bulletins WHERE church_code = ?
+        ''', (chr_code,))
+        row = c.fetchone()
+        conn.close()
+        
+        if row:
+            import json
+            try:
+                orders = json.loads(row['orders']) if row['orders'] else []
+            except:
+                orders = []
+            try:
+                church_news = json.loads(row['church_news']) if row['church_news'] else []
+            except:
+                church_news = []
+                
+            return {
+                "church_code": row['church_code'],
+                "date": row['date'] or "",
+                "serviceType": row['service_type'] or "",
+                "bulletinTitle": row['bulletin_title'] or "",
+                "theme": row['theme'] or "",
+                "bibleVerse": row['bible_verse'] or "",
+                "bibleVerseRef": row['bible_verse_ref'] or "",
+                "orders": orders,
+                "churchNews": church_news,
+                "updated_at": row['updated_at']
+            }
+        else:
+            return {
+                "church_code": chr_code,
+                "date": "",
+                "serviceType": "",
+                "bulletinTitle": "",
+                "theme": "",
+                "bibleVerse": "",
+                "bibleVerseRef": "",
+                "orders": [],
+                "churchNews": [],
+                "updated_at": ""
+            }
+    except Exception as e:
+        logging.error(f"[Bulletin] GET error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.put("/api/churches/{chr_code}/bulletin")
+def update_church_bulletin(chr_code: str, payload: WorshipBulletinPayload):
+    """교회코드(chr_code)에 해당하는 디지털 주보 데이터 업서트(Upsert)"""
+    try:
+        import json
+        conn = sqlite3.connect('requests.db')
+        c = conn.cursor()
+        
+        orders_str = json.dumps([o.dict() for o in payload.orders], ensure_ascii=False)
+        news_str = json.dumps(payload.churchNews, ensure_ascii=False)
+        now_str = datetime.now().isoformat()
+        
+        c.execute("SELECT 1 FROM church_bulletins WHERE church_code = ?", (chr_code,))
+        exists = c.fetchone()
+        
+        if exists:
+            c.execute('''
+                UPDATE church_bulletins 
+                SET date = ?, service_type = ?, bulletin_title = ?, theme = ?, bible_verse = ?, bible_verse_ref = ?, orders = ?, church_news = ?, updated_at = ?
+                WHERE church_code = ?
+            ''', (
+                payload.date,
+                payload.serviceType,
+                payload.bulletinTitle,
+                payload.theme,
+                payload.bibleVerse,
+                payload.bibleVerseRef,
+                orders_str,
+                news_str,
+                now_str,
+                chr_code
+            ))
+        else:
+            c.execute('''
+                INSERT INTO church_bulletins (church_code, date, service_type, bulletin_title, theme, bible_verse, bible_verse_ref, orders, church_news, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                chr_code,
+                payload.date,
+                payload.serviceType,
+                payload.bulletinTitle,
+                payload.theme,
+                payload.bibleVerse,
+                payload.bibleVerseRef,
+                orders_str,
+                news_str,
+                now_str
+            ))
+            
+        conn.commit()
+        conn.close()
+        return {"success": True}
+    except Exception as e:
+        logging.error(f"[Bulletin] PUT error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
