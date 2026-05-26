@@ -980,37 +980,20 @@ const ChurchManagePage = () => {
               )}
             </div>
 
-            {/* ── 기본 정보 (TB_Chr100 — 읽기전용) ── */}
-            <div className={S.card + ' p-5'}>
-              <h3 className={S.title}>
-                <span className="material-symbols-outlined text-blue-500">info</span>
-                총회 DB 기본정보
-                <button 
-                  type="button"
-                  onClick={() => setShowInfoEdit(true)}
-                  className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors active:scale-95 shadow-sm ml-auto"
-                  title="변경 요청"
-                >
-                  <span className="material-symbols-outlined text-[16px]">edit</span>
-                </button>
-              </h3>
-              <div className="divide-y divide-slate-50">
-                <DataRow icon="tag" label="교회코드" value={chrCode} />
-                {church.mission_virtual_account && (
-                  <DataRow 
-                    icon="account_balance_wallet" 
-                    label="선교주일 헌금 가상계좌" 
-                    value={`신한은행 ${church.mission_virtual_account}`} 
-                    highlight 
-                  />
-                )}
-                <DataRow icon="church" label="교회명" value={(church.CHRNAME || '').trim()} highlight />
-                <DataRow icon="groups" label="노회" value={(church.NOHNAME || '').trim()} />
-                <DataRow icon="map" label="시찰" value={(church.SICHALNAME || '').trim()} />
-                <DataRow icon="person" label="담임목사" value={(church.MOCKNAME || '').trim()} highlight />
-                <DataRow icon="calendar_month" label="설립일" value={formatEstDate((church.EstDate || '').trim())} />
-                <DataRow icon="landscape" label="환경" value={ENV_MAP[(church.Environment || '').trim()] || (church.Environment || '').trim()} />
-                <DataRow icon="verified" label="조직유무" value={(church.OrgYN || '').trim() === '1' ? '조직교회' : (church.OrgYN || '').trim() === '0' ? '미조직' : ''} />
+            {/* ── 기본 정보 (TB_Chr100 — 간략히 표시) ── */}
+            <div 
+              onClick={() => setShowInfoEdit(true)}
+              className={S.card + ' p-5 cursor-pointer hover:border-blue-200 hover:bg-blue-50/5 transition-all duration-300 flex items-center justify-between group active:scale-[0.99]'}
+              title="상세 정보 확인 및 변경 요청"
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-blue-500 text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
+                <span className="font-['Manrope','Pretendard'] text-[15px] font-bold text-slate-800">
+                  총회 DB 기본정보
+                </span>
+              </div>
+              <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-100 transition-colors active:scale-95">
+                <span className="material-symbols-outlined text-[18px]">edit</span>
               </div>
             </div>
 
