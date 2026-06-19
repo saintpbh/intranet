@@ -59,9 +59,25 @@ const BottomTabBar = () => {
                   : 'text-slate-400 group hover:text-slate-600 pb-2'
               }`}
             >
-              <span className="material-symbols-outlined mb-1" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}>
-                {tab.icon}
-              </span>
+              {tab.icon === 'umbrella' ? (
+                <svg className="w-6 h-6 mb-1 text-current fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                  {/* Ferrule (top tip) */}
+                  <path d="M12 2v1" />
+                  {/* Canopy */}
+                  <path d="M3 12c0-5 4-9 9-9s9 4 9 9" />
+                  {/* Scalloped bottom edge */}
+                  <path d="M3 12c1.5 1 4.5 1 6 0 1.5 1 4.5 1 6 0 1.5 1 4.5 1 6 0" />
+                  {/* Ribs inside canopy */}
+                  <path d="M12 3c-1.5 3-2.5 6-3 9" />
+                  <path d="M12 3c1.5 3 2.5 6 3 9" />
+                  {/* Shaft & Hook handle */}
+                  <path d="M12 12v7a2 2 0 0 1-2 2h-1" />
+                </svg>
+              ) : (
+                <span className="material-symbols-outlined mb-1" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}>
+                  {tab.icon}
+                </span>
+              )}
               <span className="font-['Plus_Jakarta_Sans'] text-[10px] font-medium tracking-wide">
                 {tab.label}
               </span>
