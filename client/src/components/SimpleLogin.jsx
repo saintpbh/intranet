@@ -165,6 +165,70 @@ const SimpleLogin = () => {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobi/i.test(navigator.userAgent);
+
+  if (!isMobile) {
+    return (
+      <div className="min-h-screen bg-slate-900 font-['Plus_Jakarta_Sans',_'Pretendard'] text-slate-100 antialiased flex flex-col justify-between p-6">
+        <header className="w-full flex items-center justify-between max-w-4xl mx-auto py-4 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[28px] text-indigo-400">menu_book</span>
+            <span className="font-extrabold text-[16px] tracking-tight text-white uppercase">Gijang Address Book</span>
+          </div>
+          <span className="text-[11px] bg-slate-800 text-slate-300 font-semibold px-3 py-1 rounded-full border border-slate-700">
+            스마트폰 전용
+          </span>
+        </header>
+
+        <main className="max-w-md mx-auto w-full flex-grow flex flex-col justify-center py-12">
+          <div className="bg-slate-950/80 backdrop-blur-xl border border-slate-800/80 rounded-[2.5rem] p-8 shadow-[0_25px_60px_rgba(0,0,0,0.4)] text-center space-y-6">
+            <div className="w-20 h-20 rounded-full bg-indigo-500/10 mx-auto flex items-center justify-center border border-indigo-500/20 shadow-inner">
+              <span className="material-symbols-outlined text-[36px] text-indigo-400">cellphone</span>
+            </div>
+            
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black text-white tracking-tight">스마트폰 전용 PWA 서비스</h2>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                본 서비스는 스마트폰 화면(Android / iOS)에 최적화된 **스마트폰 전용 디지털 서비스**입니다. 
+              </p>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800/60 rounded-3xl p-5 flex flex-col items-center gap-4">
+              <img 
+                src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://prok-ga.web.app" 
+                alt="QR Code" 
+                className="w-40 h-40 rounded-2xl bg-white p-2 shadow-md border border-slate-800" 
+              />
+              <span className="text-[11px] text-slate-400 font-bold">
+                위 QR 코드를 카메라로 스캔하여<br/>스마트폰에서 바로 접속해 주세요.
+              </span>
+            </div>
+
+            <div className="pt-4 border-t border-slate-900/60 flex flex-col gap-3">
+              <div className="text-[12px] text-slate-500 leading-normal">
+                교회 코드 인증 및 주보 관리는 스마트폰 PWA 설치 후 간편하게 사용할 수 있습니다.
+              </div>
+              
+              <a 
+                href="/admin" 
+                className="inline-flex items-center justify-center gap-1.5 w-full py-4 bg-slate-900 text-slate-300 font-bold rounded-2xl border border-slate-800 hover:bg-slate-850 hover:text-white transition-all text-[14px]"
+              >
+                <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
+                관리자이신가요? 관리자 모드 바로가기
+              </a>
+            </div>
+          </div>
+        </main>
+
+        <footer className="w-full text-center py-4 border-t border-slate-900/40">
+          <p className="text-[11px] text-slate-600 font-medium">
+            &copy; 2026 한국기독교장로회 총회유지재단. All rights reserved.
+          </p>
+        </footer>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-surface font-['Plus_Jakarta_Sans',_'Pretendard'] text-on-surface antialiased flex flex-col justify-between">
       {/* Invisible reCAPTCHA Container */}
@@ -301,3 +365,4 @@ const SimpleLogin = () => {
 };
 
 export default SimpleLogin;
+
