@@ -5,7 +5,7 @@ const tabs = [
   { id: 'home', label: '홈', path: '/', icon: 'home' },
   { id: 'directory', label: '주소록', path: '/directory', icon: 'group' },
   { id: 'church', label: '교회', path: '/church', icon: 'church' },
-  { id: 'documents', label: '연금/생보', path: '/documents', icon: 'sheep' },
+  { id: 'documents', label: '연금/생보', path: '/documents', icon: 'umbrella' },
   { id: 'profile', label: '내 정보', path: '/profile', icon: 'person' },
 ];
 
@@ -59,25 +59,9 @@ const BottomTabBar = () => {
                   : 'text-slate-400 group hover:text-slate-600 pb-2'
               }`}
             >
-              {tab.icon === 'sheep' ? (
-                <svg className="w-6 h-6 mb-1 text-current fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                  {/* Head */}
-                  <path d="M6 12c-1.5 0-2.5 1-2.5 2s1 1.5 2 1.5h1" />
-                  <path d="M5 12c0-1.5 1-2.5 2.5-2.5" />
-                  {/* Body/Wool */}
-                  <path d="M7.5 9.5C7.5 8 9 7 10.5 7c1.5 0 2.5 1 3 2 .5-1 2-1 3 0 1 0 2 .5 2.5 1.5 1 0 2 1 2 2.5s-1 2.5-2.5 2.5" />
-                  <path d="M6.5 15.5h12" />
-                  {/* Legs */}
-                  <path d="M9 15.5v4" />
-                  <path d="M12 15.5v4" />
-                  <path d="M15 15.5v4" />
-                  <path d="M17 15.5v4" />
-                </svg>
-              ) : (
-                <span className="material-symbols-outlined mb-1" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}>
-                  {tab.icon}
-                </span>
-              )}
+              <span className="material-symbols-outlined mb-1" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}>
+                {tab.icon}
+              </span>
               <span className="font-['Plus_Jakarta_Sans'] text-[10px] font-medium tracking-wide">
                 {tab.label}
               </span>
