@@ -43,18 +43,19 @@ app.get('/api/churches', async (req, res) => {
     try {
         const pool = await poolPromise;
         const search = req.query.search || '';
+        const isNoh = search.includes('노회');
         
         const result = await pool.request()
             .input('search', sql.NVarChar, `%${search}%`)
             .query(`
-                SELECT TOP 100 
+                SELECT TOP ${isNoh ? 1000 : 100} 
                     c.ChrCode, c.ChrName, n.NohName, s.SichalName, 
                     c.Tel_Church, c.Tel_Mobile, c.Tel_Fax, c.Juso, c.PostNo, c.Email 
                 FROM TB_Chr100 c 
                 LEFT JOIN TB_Chr910 n ON c.NohCode = n.NohCode 
                 LEFT JOIN TB_Chr920 s ON c.NohCode = s.NohCode AND c.SichalCode = s.SichalCode
                 WHERE c.ChrName LIKE @search OR n.NohName LIKE @search
-                ORDER BY n.NohName, c.ChrName
+                ORDER BY ${isNoh ? 'c.ChrName, n.NohName' : 'n.NohName, c.ChrName'}
             `);
             
         res.json(result.recordset);
@@ -69,16 +70,17 @@ app.get('/api/ministers', async (req, res) => {
     try {
         const pool = await poolPromise;
         const search = req.query.search || '';
+        const isNoh = search.includes('노회');
         
         const result = await pool.request()
             .input('search', sql.NVarChar, `%${search}%`)
             .query(`
-                SELECT TOP 100 
+                SELECT TOP ${isNoh ? 1000 : 100} 
                     m.MinisterCode, m.MinisterName, m.CHRNAME, m.NOHNAME, m.DUTYNAME, 
                     m.TEL_MOBILE, m.TEL_CHURCH, m.JUSO 
                 FROM VI_MINISTER_INFO m
                 WHERE m.MinisterName LIKE @search OR m.CHRNAME LIKE @search OR m.NOHNAME LIKE @search
-                ORDER BY m.NOHNAME, m.CHRNAME, m.MinisterName
+                ORDER BY ${isNoh ? 'm.MinisterName, m.NOHNAME, m.CHRNAME' : 'm.NOHNAME, m.CHRNAME, m.MinisterName'}
             `);
             
         res.json(result.recordset);
@@ -93,16 +95,17 @@ app.get('/api/addressbook', async (req, res) => {
     try {
         const pool = await poolPromise;
         const search = req.query.search || '';
+        const isNoh = search.includes('노회');
         
         const result = await pool.request()
             .input('search', sql.NVarChar, `%${search}%`)
             .query(`
-                SELECT TOP 200 
+                SELECT TOP ${isNoh ? 1000 : 200} 
                     MINISTERCODE, MINISTERNAME, NOHNAME, CHRNAME, 
                     TEL_CHURCH, TEL_MOBILE, POSTNO, ADDRESS, JUSO, EMAIL
                 FROM VI_MIN_JANG_LIST_2
                 WHERE MINISTERNAME LIKE @search OR CHRNAME LIKE @search OR NOHNAME LIKE @search
-                ORDER BY NOHNAME, CHRNAME, MINISTERNAME
+                ORDER BY ${isNoh ? 'MINISTERNAME, NOHNAME, CHRNAME' : 'NOHNAME, CHRNAME, MINISTERNAME'}
             `);
             
         res.json(result.recordset);

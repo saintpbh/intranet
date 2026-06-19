@@ -119,6 +119,35 @@ export async function getCachedSearch(type, searchTerm) {
       ].filter(Boolean).map((s) => String(s).toLowerCase().trim());
       return searchables.some((s) => s.includes(term));
     });
+
+    if (term.includes('노회')) {
+      if (type === 'ministers') {
+        filtered.sort((a, b) => {
+          const nameA = (a.MinisterName || a.MINISTERNAME || '').trim();
+          const nameB = (b.MinisterName || b.MINISTERNAME || '').trim();
+          return nameA.localeCompare(nameB, 'ko');
+        });
+      } else if (type === 'elders') {
+        filtered.sort((a, b) => {
+          const nameA = (a.PriestName || '').trim();
+          const nameB = (b.PriestName || '').trim();
+          return nameA.localeCompare(nameB, 'ko');
+        });
+      } else if (type === 'churches') {
+        filtered.sort((a, b) => {
+          const nameA = (a.CHRNAME || a.ChrName || '').trim();
+          const nameB = (b.CHRNAME || b.ChrName || '').trim();
+          return nameA.localeCompare(nameB, 'ko');
+        });
+      } else if (type === 'addressbook') {
+        filtered.sort((a, b) => {
+          const nameA = (a.MINISTERNAME || '').trim();
+          const nameB = (b.MINISTERNAME || '').trim();
+          return nameA.localeCompare(nameB, 'ko');
+        });
+      }
+    }
+
     return filtered;
 
   } catch (err) {

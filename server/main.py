@@ -929,15 +929,26 @@ def get_churches(search: str = ""):
     c = conn.cursor()
     try:
         search_pattern = f"%{search}%"
-        c.execute("""
-            SELECT 
-                ChrCode, CHRNAME, NOHNAME, SICHALNAME, 
-                Tel_Church, Tel_Mobile, Tel_Fax, ADDRESS, JUSO, PostNo, Email, MOCKNAME
-            FROM local_churches
-            WHERE CHRNAME LIKE ? OR NOHNAME LIKE ? OR ChrCode = ?
-            ORDER BY NOHNAME, CHRNAME
-            LIMIT 100
-        """, (search_pattern, search_pattern, search.strip()))
+        if "노회" in search:
+            c.execute("""
+                SELECT 
+                    ChrCode, CHRNAME, NOHNAME, SICHALNAME, 
+                    Tel_Church, Tel_Mobile, Tel_Fax, ADDRESS, JUSO, PostNo, Email, MOCKNAME
+                FROM local_churches
+                WHERE CHRNAME LIKE ? OR NOHNAME LIKE ? OR ChrCode = ?
+                ORDER BY CHRNAME, NOHNAME
+                LIMIT 1000
+            """, (search_pattern, search_pattern, search.strip()))
+        else:
+            c.execute("""
+                SELECT 
+                    ChrCode, CHRNAME, NOHNAME, SICHALNAME, 
+                    Tel_Church, Tel_Mobile, Tel_Fax, ADDRESS, JUSO, PostNo, Email, MOCKNAME
+                FROM local_churches
+                WHERE CHRNAME LIKE ? OR NOHNAME LIKE ? OR ChrCode = ?
+                ORDER BY NOHNAME, CHRNAME
+                LIMIT 100
+            """, (search_pattern, search_pattern, search.strip()))
         churches = [dict(r) for r in c.fetchall()]
         
         if churches:
@@ -988,19 +999,34 @@ def get_ministers(search: str = ""):
     try:
         search_pattern = f"%{search}%"
         # 로컬 SQLite 내에서 local_ministers 테이블과 user_profiles 캐시 테이블을 직접 LEFT JOIN으로 한 번에 수집!
-        c.execute("""
-            SELECT 
-                m.MinisterCode, m.MinisterName, m.CHRNAME, m.NOHNAME, m.DUTYNAME, 
-                m.TEL_MOBILE, m.TEL_CHURCH, m.JUSO, m.EMAIL,
-                p.profile_image_url AS custom_image,
-                p.status_message AS status_message,
-                p.background_image_url AS background_image
-            FROM local_ministers m
-            LEFT JOIN user_profiles p ON m.MinisterCode = p.minister_code
-            WHERE m.MinisterName LIKE ? OR m.CHRNAME LIKE ? OR m.NOHNAME LIKE ?
-            ORDER BY m.NOHNAME, m.CHRNAME, m.MinisterName
-            LIMIT 100
-        """, (search_pattern, search_pattern, search_pattern))
+        if "노회" in search:
+            c.execute("""
+                SELECT 
+                    m.MinisterCode, m.MinisterName, m.CHRNAME, m.NOHNAME, m.DUTYNAME, 
+                    m.TEL_MOBILE, m.TEL_CHURCH, m.JUSO, m.EMAIL,
+                    p.profile_image_url AS custom_image,
+                    p.status_message AS status_message,
+                    p.background_image_url AS background_image
+                FROM local_ministers m
+                LEFT JOIN user_profiles p ON m.MinisterCode = p.minister_code
+                WHERE m.MinisterName LIKE ? OR m.CHRNAME LIKE ? OR m.NOHNAME LIKE ?
+                ORDER BY m.MinisterName, m.NOHNAME, m.CHRNAME
+                LIMIT 1000
+            """, (search_pattern, search_pattern, search_pattern))
+        else:
+            c.execute("""
+                SELECT 
+                    m.MinisterCode, m.MinisterName, m.CHRNAME, m.NOHNAME, m.DUTYNAME, 
+                    m.TEL_MOBILE, m.TEL_CHURCH, m.JUSO, m.EMAIL,
+                    p.profile_image_url AS custom_image,
+                    p.status_message AS status_message,
+                    p.background_image_url AS background_image
+                FROM local_ministers m
+                LEFT JOIN user_profiles p ON m.MinisterCode = p.minister_code
+                WHERE m.MinisterName LIKE ? OR m.CHRNAME LIKE ? OR m.NOHNAME LIKE ?
+                ORDER BY m.NOHNAME, m.CHRNAME, m.MinisterName
+                LIMIT 100
+            """, (search_pattern, search_pattern, search_pattern))
         results = [dict(r) for r in c.fetchall()]
         return results
     except Exception as e:
@@ -1017,15 +1043,26 @@ def get_addressbook(search: str = ""):
     c = conn.cursor()
     try:
         search_pattern = f"%{search}%"
-        c.execute("""
-            SELECT 
-                MINISTERCODE, MINISTERNAME, NOHNAME, CHRNAME, 
-                TEL_CHURCH, TEL_MOBILE, POSTNO, ADDRESS, JUSO, EMAIL
-            FROM local_addressbook
-            WHERE MINISTERNAME LIKE ? OR CHRNAME LIKE ? OR NOHNAME LIKE ?
-            ORDER BY NOHNAME, CHRNAME, MINISTERNAME
-            LIMIT 200
-        """, (search_pattern, search_pattern, search_pattern))
+        if "노회" in search:
+            c.execute("""
+                SELECT 
+                    MINISTERCODE, MINISTERNAME, NOHNAME, CHRNAME, 
+                    TEL_CHURCH, TEL_MOBILE, POSTNO, ADDRESS, JUSO, EMAIL
+                FROM local_addressbook
+                WHERE MINISTERNAME LIKE ? OR CHRNAME LIKE ? OR NOHNAME LIKE ?
+                ORDER BY MINISTERNAME, NOHNAME, CHRNAME
+                LIMIT 1000
+            """, (search_pattern, search_pattern, search_pattern))
+        else:
+            c.execute("""
+                SELECT 
+                    MINISTERCODE, MINISTERNAME, NOHNAME, CHRNAME, 
+                    TEL_CHURCH, TEL_MOBILE, POSTNO, ADDRESS, JUSO, EMAIL
+                FROM local_addressbook
+                WHERE MINISTERNAME LIKE ? OR CHRNAME LIKE ? OR NOHNAME LIKE ?
+                ORDER BY NOHNAME, CHRNAME, MINISTERNAME
+                LIMIT 200
+            """, (search_pattern, search_pattern, search_pattern))
         results = [dict(r) for r in c.fetchall()]
         return results
     except Exception as e:
@@ -1298,15 +1335,26 @@ def get_elders(search: str = ""):
     c = conn.cursor()
     try:
         search_pattern = f"%{search}%"
-        c.execute("""
-            SELECT 
-                PriestCode, PriestName, ChrCode, ChrName, NohName,
-                Tel_Mobile, Email, Address, Juso, PostNo
-            FROM local_elders
-            WHERE PriestName LIKE ? OR ChrName LIKE ? OR NohName LIKE ?
-            ORDER BY NohName, ChrName, PriestName
-            LIMIT 200
-        """, (search_pattern, search_pattern, search_pattern))
+        if "노회" in search:
+            c.execute("""
+                SELECT 
+                    PriestCode, PriestName, ChrCode, ChrName, NohName,
+                    Tel_Mobile, Email, Address, Juso, PostNo
+                FROM local_elders
+                WHERE PriestName LIKE ? OR ChrName LIKE ? OR NohName LIKE ?
+                ORDER BY PriestName, NohName, ChrName
+                LIMIT 1000
+            """, (search_pattern, search_pattern, search_pattern))
+        else:
+            c.execute("""
+                SELECT 
+                    PriestCode, PriestName, ChrCode, ChrName, NohName,
+                    Tel_Mobile, Email, Address, Juso, PostNo
+                FROM local_elders
+                WHERE PriestName LIKE ? OR ChrName LIKE ? OR NohName LIKE ?
+                ORDER BY NohName, ChrName, PriestName
+                LIMIT 200
+            """, (search_pattern, search_pattern, search_pattern))
         results = [dict(r) for r in c.fetchall()]
         return results
     except Exception as e:

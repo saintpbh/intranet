@@ -1,0 +1,16 @@
+## Modified/Added Functions and Variables
+
+1. client/src/utils/offlineDb.js
+- Function: getCachedSearch(type, searchTerm) (Modified)
+  - Variable: nameA (Comparator variable)
+  - Variable: nameB (Comparator variable)
+
+2. server/main.py
+- Function: get_ministers(search: str = "") (Modified)
+  - Variable: query (SQL query string)
+- Function: get_addressbook(search: str = "") (Modified)
+  - Variable: query (SQL query string)
+- Function: get_churches(search: str = "") (Modified)
+  - Variable: query (SQL query string)
+- Function: get_elders(search: str = "") (Modified)
+  - Variable: query (SQL query string)
