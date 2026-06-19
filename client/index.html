@@ -55,7 +55,7 @@
     </script>
 
     <link rel="icon" type="image/png" href="/assets/pwa-192x192.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>기장주소록</title>
     <meta name="description" content="한국기독교장로회총회 기장주소록 - 목회자, 장로, 교회 검색" />
 
@@ -75,8 +75,27 @@
     <!-- Pretendard -->
     <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
     <!-- Map: using Google Maps iframe + OpenStreetMap tiles (no API key needed) -->
+    <style>
+      @media (max-width: 900px) and (orientation: landscape) {
+        #landscape-warning {
+          display: flex !important;
+        }
+        #root {
+          display: none !important;
+        }
+      }
+      @keyframes rotatePhone {
+        0%, 100% { transform: rotate(0deg); }
+        50% { transform: rotate(-90deg); }
+      }
+    </style>
   </head>
   <body>
+    <div id="landscape-warning" style="display:none; position:fixed; inset:0; background:#0A2540; z-index:999999; flex-direction:column; align-items:center; justify-content:center; color:white; font-family:Pretendard,-apple-system,BlinkMacSystemFont,system-ui,sans-serif; padding:24px; text-align:center;">
+      <span class="material-symbols-outlined" style="font-size: 64px; margin-bottom: 16px; color:#38bdf8; animation: rotatePhone 2s infinite ease-in-out;">screen_rotation</span>
+      <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 8px; font-family: 'Manrope', Pretendard, sans-serif;">세로 모드 전용 앱입니다</h2>
+      <p style="font-size: 14px; opacity: 0.8; line-height: 1.6; margin: 0;">이 서비스는 세로 화면에 최적화되어 있습니다.<br>휴대폰을 세로 방향으로 돌려주세요.</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <!-- SW registration is handled by swManager.js in React -->

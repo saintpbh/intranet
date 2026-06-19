@@ -1,4 +1,4 @@
-Counts (total, not_null, zero, null): (2099, 86, 12, 2013)
+Counts (total, not_null, zero, null): (2099, 255, 46, 1844)
 Geocoded sample:
 - 천호동: 서울시 동대문구 제기로 131 (37.587734, 127.0483502)
 - 도문: 서울 도봉구 쌍문1동 (37.654393, 127.0173354)

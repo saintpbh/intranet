@@ -287,31 +287,136 @@ const HomePage = () => {
   const fcmInitRef = useRef(false);
   const touchStartRef = useRef(null);
 
-  useEffect(() => {
+  const [pullDelta, setPullDelta] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const startYRef = useRef(null);
+
+  const loadData = useCallback((forceRefresh = false) => {
     const nohName = user?.NOHNAME || user?.noh_name || '';
     const sichalName = user?.SICHALNAME || user?.sichal_name || '';
     
-    // 공지사항: 로컬 서버 API
+    const todayStr = new Date().toISOString().substring(0, 10);
+    const cachedDate = localStorage.getItem('prok_last_fetch_date');
+    const cachedNotices = localStorage.getItem('prok_cached_notices');
+    const cachedAds = localStorage.getItem('prok_cached_ads');
+
+    if (!forceRefresh && cachedDate === todayStr && cachedNotices && cachedAds) {
+      try {
+        setNotices(JSON.parse(cachedNotices));
+        setAds(JSON.parse(cachedAds));
+        setApiError(false);
+        setLoading(false);
+        return;
+      } catch (err) {
+        console.error("Error parsing cache:", err);
+      }
+    }
+
+    if (forceRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
     const noticePromise = fetch(`${API_BASE}/api/notices?target_noh=${encodeURIComponent(nohName)}&target_sichal=${encodeURIComponent(sichalName)}`)
       .then(r => r.ok ? r.json() : [])
       .catch(() => []);
 
-    // 광고 배너: Firestore (온라인 직접)
     const adPromise = getActiveAds().catch(() => []);
 
     Promise.all([noticePromise, adPromise]).then(([noticeData, adData]) => {
       const sorted = (Array.isArray(noticeData) ? noticeData : [])
-        .sort((a, b) => (scopeOrder[a.scope] ?? 99) - (scopeOrder[b.scope] ?? 99));
+        .sort((a, b) => {
+          // 어드민 작성 공지(scope_code가 없거나 prok_board_32_로 시작하지 않는 경우) 우선 순위 부여
+          const aIsAdmin = !a.scope_code || !a.scope_code.startsWith('prok_board_32_');
+          const bIsAdmin = !b.scope_code || !b.scope_code.startsWith('prok_board_32_');
+
+          if (aIsAdmin && !bIsAdmin) return -1;
+          if (!aIsAdmin && bIsAdmin) return 1;
+
+          // 동일 그룹 내에서는 작성일 내림차순(최신순) 정렬
+          const dateA = a.created_at || '';
+          const dateB = b.created_at || '';
+          return dateB.localeCompare(dateA);
+        })
+        .slice(0, 5);
+
+      const adsList = Array.isArray(adData) ? adData : [];
+
       setNotices(sorted);
-      setAds(Array.isArray(adData) ? adData : []);
+      setAds(adsList);
       setApiError(false);
+
+      localStorage.setItem('prok_last_fetch_date', todayStr);
+      localStorage.setItem('prok_cached_notices', JSON.stringify(sorted));
+      localStorage.setItem('prok_cached_ads', JSON.stringify(adsList));
     }).catch(err => {
       console.error("API Fetch Error:", err);
       setApiError(true);
-      setNotices([]);
-      setAds([]);
-    }).finally(() => setLoading(false));
+      if (cachedNotices && cachedAds) {
+        try {
+          setNotices(JSON.parse(cachedNotices));
+          setAds(JSON.parse(cachedAds));
+        } catch (e) {}
+      }
+    }).finally(() => {
+      setLoading(false);
+      setIsRefreshing(false);
+    });
   }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadData(false);
+    }
+  }, [user, loadData]);
+
+  // Pull-to-refresh touch event handlers
+  useEffect(() => {
+    if (selectedNotice || selectedAd) return;
+
+    const handleTouchStart = (e) => {
+      if (window.scrollY === 0) {
+        startYRef.current = e.touches[0].clientY;
+      }
+    };
+
+    const handleTouchMove = (e) => {
+      if (startYRef.current === null) return;
+      const currentY = e.touches[0].clientY;
+      const diff = currentY - startYRef.current;
+      if (diff > 0 && window.scrollY === 0) {
+        const dist = Math.min(80, diff * 0.4);
+        setPullDelta(dist);
+        if (dist > 5) {
+          if (e.cancelable) e.preventDefault();
+        }
+      } else {
+        startYRef.current = null;
+        setPullDelta(0);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (startYRef.current !== null) {
+        if (pullDelta >= 50 && !isRefreshing) {
+          loadData(true);
+        }
+        setPullDelta(0);
+        startYRef.current = null;
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: false });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [pullDelta, isRefreshing, loadData, selectedNotice, selectedAd]);
 
   // FCM 푸시 알림 토큰 등록 (최초 1회 및 변경 시)
   useEffect(() => {
@@ -455,6 +560,22 @@ const HomePage = () => {
       )}
 
       <main className="pt-24 px-6 max-w-2xl mx-auto space-y-6">
+        {/* Pull-to-refresh indicator */}
+        <div 
+          className="overflow-hidden flex items-center justify-center bg-primary-container/15 rounded-2xl transition-all duration-100 ease-out"
+          style={{ 
+            height: isRefreshing ? '52px' : `${pullDelta}px`,
+            opacity: isRefreshing ? 1 : pullDelta / 50,
+            marginBottom: (isRefreshing || pullDelta > 0) ? '12px' : '0px'
+          }}
+        >
+          <div className="flex items-center gap-2 py-2">
+            <span className="material-symbols-outlined animate-spin text-xl text-primary">sync</span>
+            <span className="text-xs font-bold text-primary font-['Manrope',_'Pretendard']">
+              {isRefreshing ? '새 소식 불러오는 중...' : '놓으면 공지사항 새로고침'}
+            </span>
+          </div>
+        </div>
         
         {/* Welcome Section - compact */}
         <section>
@@ -650,7 +771,7 @@ const HomePage = () => {
                       )}
                     </div>
                     <h4 className="text-sm font-bold text-primary truncate leading-snug font-['Manrope',_'Pretendard']">
-                      {n.title}
+                      {n.title.length > 45 ? n.title.substring(0, 45) + '...' : n.title}
                     </h4>
                   </div>
                   <span className="text-xs text-outline font-medium flex-shrink-0 hidden sm:block">

@@ -6,7 +6,7 @@ import CertRequest from './CertRequest';
 import InsuranceStatus from './InsuranceStatus';
 import PensionStatus from './PensionStatus';
 import { useState, useCallback, useEffect } from 'react';
-import { useBackButton } from '../useBackButton';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import MobileHeader from './mobile/MobileHeader';
 import API_BASE from '../api';
 import ApiImage from './ApiImage';
@@ -15,7 +15,18 @@ import { forceAppUpdate } from '../utils/swManager';
 
 const MyInfoPage = () => {
   const { user, isLoggedIn, logout } = useAuth();
-  const [view, setView] = useState('main');
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view = searchParams.get('view') || 'main';
+
+  const setView = useCallback((newView) => {
+    if (newView === 'main') {
+      setSearchParams({});
+    } else {
+      setSearchParams({ view: newView });
+    }
+  }, [setSearchParams]);
+
   const [profileData, setProfileData] = useState(null);
   const [notiPermission, setNotiPermission] = useState(
     'Notification' in window ? Notification.permission : 'denied'
@@ -66,8 +77,25 @@ const MyInfoPage = () => {
 
   useEffect(() => { if (isLoggedIn) fetchProfile(); }, [isLoggedIn, fetchProfile]);
 
-  const goBack = useCallback(() => { setView('main'); fetchProfile(); }, [fetchProfile]);
-  useBackButton(view !== 'main' && isLoggedIn, goBack);
+  const goBack = useCallback(() => {
+    navigate(-1);
+    fetchProfile();
+  }, [navigate, fetchProfile]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [view]);
+
+  useEffect(() => {
+    if (view !== 'main') {
+      window.__isSubViewActive = true;
+    } else {
+      window.__isSubViewActive = false;
+    }
+    return () => {
+      window.__isSubViewActive = false;
+    };
+  }, [view]);
 
   useEffect(() => {
     const handleResetView = () => {
@@ -118,8 +146,6 @@ const MyInfoPage = () => {
   const menuItems = [
     { id: 'profile', label: '현재 정보', icon: 'person', desc: '내 등록 정보 확인 및 수정 요청' },
     { id: 'history', label: '사역 이력', icon: 'history', desc: '교회 배정 이력 조회' },
-    { id: 'insurance', label: '생보납입 현황', icon: 'account_balance', desc: '생활보장제 납입 이력 조회' },
-    { id: 'pension', label: '연금납입 현황', icon: 'savings', desc: '연금 납입 이력 및 예상 수령액 조회' },
   ];
 
   return (
