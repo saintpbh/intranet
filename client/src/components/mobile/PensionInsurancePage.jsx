@@ -352,29 +352,34 @@ const PensionInsurancePage = () => {
             {lastEstimate && (
               <button
                 onClick={() => toggleSection('calculator')}
-                className={`w-full text-left bg-gradient-to-r from-indigo-50 via-blue-50 to-violet-50 rounded-2xl p-4 border border-indigo-200/60 shadow-sm transition-all duration-300 active:scale-[0.98] ${
-                  expandedSection === 'calculator' ? 'ring-2 ring-indigo-400 ring-offset-2' : ''
+                className={`w-full text-left bg-gradient-to-r from-emerald-50 via-teal-50/70 to-emerald-100/40 rounded-2xl p-4 border border-emerald-200 shadow-sm transition-all duration-300 active:scale-[0.98] ${
+                  expandedSection === 'calculator' ? 'ring-2 ring-emerald-500 ring-offset-2' : ''
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-indigo-600 text-xl">payments</span>
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-emerald-600 text-xl animate-pulse">calculate</span>
                     </div>
                     <div>
-                      <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-wider">예상 연금 월 수령액</p>
-                      <p className="text-lg font-extrabold text-indigo-900 font-['Manrope','Pretendard']">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-emerald-800 font-extrabold tracking-wider uppercase bg-emerald-100 px-2 py-0.5 rounded-full">
+                          연금계산기
+                        </span>
+                      </div>
+                      <p className="text-xs text-on-surface-variant font-medium mt-1">예상 연금 월 수령액</p>
+                      <p className="text-lg font-extrabold text-emerald-900 font-['Manrope','Pretendard'] mt-0.5">
                         {fmt(lastEstimate.estimated_monthly)}<span className="text-xs font-bold ml-0.5">원</span>
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-700 text-[11px] font-bold">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 text-[11px] font-bold">
                       만 {lastEstimate.retire_age}세
                     </span>
-                    <div className="flex items-center gap-0.5 mt-1 text-indigo-400 text-[10px] justify-end">
+                    <div className="flex items-center gap-0.5 mt-2.5 text-emerald-600 text-[10px] font-bold justify-end">
+                      <span>{expandedSection === 'calculator' ? '접기' : '모의 계산하기'}</span>
                       <span className="material-symbols-outlined text-xs">{expandedSection === 'calculator' ? 'expand_less' : 'expand_more'}</span>
-                      계산기
                     </div>
                   </div>
                 </div>
@@ -385,19 +390,29 @@ const PensionInsurancePage = () => {
             {!lastEstimate && calcData && (
               <button
                 onClick={() => toggleSection('calculator')}
-                className={`w-full text-left bg-gradient-to-r from-violet-50 to-indigo-50 rounded-2xl p-4 border border-violet-200/60 shadow-sm transition-all active:scale-[0.98] ${
-                  expandedSection === 'calculator' ? 'ring-2 ring-violet-400 ring-offset-2' : ''
+                className={`w-full text-left bg-gradient-to-r from-emerald-50 via-teal-50/70 to-emerald-100/40 rounded-2xl p-4 border border-emerald-200 shadow-sm transition-all duration-300 active:scale-[0.98] ${
+                  expandedSection === 'calculator' ? 'ring-2 ring-emerald-500 ring-offset-2' : ''
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-violet-600 text-xl">calculate</span>
+                <div className="flex items-center gap-3 w-full">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-emerald-600 text-xl animate-pulse">calculate</span>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-violet-900">예상 연금 계산기</p>
-                    <p className="text-[11px] text-violet-500 mt-0.5">은퇴 나이별 예상 연금 월 수령액을 확인하세요</p>
+                  <div className="flex-grow">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-emerald-800 font-extrabold tracking-wider uppercase bg-emerald-100 px-2 py-0.5 rounded-full">
+                        연금계산기
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold text-emerald-950 mt-1">예상 연금 모의 계산기</p>
+                    <p className="text-[10px] text-emerald-700/80 mt-0.5 font-medium">은퇴 나이별 예상 연금 월 수령액을 지금 확인해보세요</p>
                   </div>
-                  <span className="material-symbols-outlined text-violet-400 ml-auto">{expandedSection === 'calculator' ? 'expand_less' : 'arrow_forward_ios'}</span>
+                  <div className="flex flex-col items-end shrink-0 gap-1">
+                    <div className="flex items-center gap-0.5 text-emerald-600 text-[10px] font-bold">
+                      <span>{expandedSection === 'calculator' ? '접기' : '시작하기'}</span>
+                      <span className="material-symbols-outlined text-xs">{expandedSection === 'calculator' ? 'expand_less' : 'arrow_forward_ios'}</span>
+                    </div>
+                  </div>
                 </div>
               </button>
             )}
