@@ -9,6 +9,9 @@
   .pt-safe {
     padding-top: env(safe-area-inset-top);
   }
+  .pt-24 {
+    padding-top: calc(var(--header-height) + 2rem) !important;
+  }
   .touch-none {
     touch-action: none;
   }
@@ -34,6 +37,7 @@ html {
    ============================================ */
 
 :root {
+  --header-height: calc(env(safe-area-inset-top, 0px) + 64px);
   /* Apple System Colors */
   --system-blue: #007AFF;
   --system-gray: #8E8E93;

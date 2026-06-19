@@ -35,7 +35,7 @@ const UpdateBar = () => {
       <div
         style={{
           position: 'fixed',
-          top: 64,       // MobileHeader 높이 바로 아래
+          top: 'var(--header-height)',       // MobileHeader 높이 바로 아래
           left: 0,
           right: 0,
           zIndex: 9999,
@@ -74,7 +74,7 @@ const UpdateBar = () => {
       <div
         style={{
           position: 'fixed',
-          top: showBar ? 67 : 64,
+          top: showBar ? 'calc(var(--header-height) + 3px)' : 'var(--header-height)',
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 9998,

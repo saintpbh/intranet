@@ -5,7 +5,7 @@ const MobileHeader = ({ title, showBack = false, onBack }) => {
   const { user } = useAuth();
   
   return (
-    <header className="fixed top-0 left-0 w-full z-40 bg-white/70 backdrop-blur-2xl shadow-[0_20px_40px_rgba(10,37,64,0.06)] flex justify-between items-center px-6 py-4">
+    <header className="fixed top-0 left-0 w-full z-40 bg-white/70 backdrop-blur-2xl shadow-[0_20px_40px_rgba(10,37,64,0.06)] flex justify-between items-center px-6 pb-4 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
       <div className="flex items-center gap-4">
         {showBack && (
           <button onClick={onBack} className="active:scale-95 transition-transform duration-200 text-slate-900 flex items-center justify-center">
