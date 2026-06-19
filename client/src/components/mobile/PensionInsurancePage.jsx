@@ -362,7 +362,7 @@ const PensionInsurancePage = () => {
                       <span className="material-symbols-outlined text-indigo-600 text-xl">payments</span>
                     </div>
                     <div>
-                      <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-wider">예상 월 수령액</p>
+                      <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-wider">예상 연금 월 수령액</p>
                       <p className="text-lg font-extrabold text-indigo-900 font-['Manrope','Pretendard']">
                         {fmt(lastEstimate.estimated_monthly)}<span className="text-xs font-bold ml-0.5">원</span>
                       </p>
@@ -395,7 +395,7 @@ const PensionInsurancePage = () => {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-violet-900">예상 연금 계산기</p>
-                    <p className="text-[11px] text-violet-500 mt-0.5">은퇴 나이별 예상 월 수령액을 확인하세요</p>
+                    <p className="text-[11px] text-violet-500 mt-0.5">은퇴 나이별 예상 연금 월 수령액을 확인하세요</p>
                   </div>
                   <span className="material-symbols-outlined text-violet-400 ml-auto">{expandedSection === 'calculator' ? 'expand_less' : 'arrow_forward_ios'}</span>
                 </div>
@@ -661,7 +661,7 @@ const PensionInsurancePage = () => {
                       <div className="absolute inset-0 bg-gradient-to-br from-[#0d1b2a] to-[#1b4332]" />
                       <div className="absolute inset-0 opacity-10" style={{backgroundImage:'radial-gradient(circle at 80% 20%, rgba(255,255,255,0.3) 0%, transparent 50%)'}} />
                       <div className="relative z-10 p-6 text-center">
-                        <p className="text-white/60 text-[10px] font-semibold uppercase tracking-widest mb-1">예상 월 지급액</p>
+                        <p className="text-white/60 text-[10px] font-semibold uppercase tracking-widest mb-1">예상 연금 월 수령액</p>
                         <p className="text-3xl font-black font-['Manrope','Pretendard'] tracking-tight">
                           {fmt(estimate.estimated_monthly)}<span className="text-base font-bold ml-1 text-white/80">원</span>
                         </p>
