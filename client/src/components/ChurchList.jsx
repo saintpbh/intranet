@@ -36,17 +36,26 @@ async function geocodeAddress(address) {
  * OpenStreetMap 정적 지도 이미지 컴포넌트
  * 주소를 기반으로 geocoding → OSM 타일로 배경 지도 렌더링
  */
-const StaticMapBackground = ({ address, className }) => {
+const StaticMapBackground = ({ address, latitude, longitude, className }) => {
   const canvasRef = useRef(null);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (!address) { setFailed(true); return; }
     let cancelled = false;
 
     const renderMap = async () => {
-      const coords = await geocodeAddress(address);
+      let coords = null;
+      
+      const latVal = parseFloat(latitude);
+      const lngVal = parseFloat(longitude);
+      if (!isNaN(latVal) && !isNaN(lngVal) && latVal !== 0.0 && lngVal !== 0.0) {
+        coords = { lat: latVal, lng: lngVal };
+      } else {
+        if (!address) { setFailed(true); return; }
+        coords = await geocodeAddress(address);
+      }
+      
       if (cancelled) return;
       if (!coords) { setFailed(true); return; }
 
@@ -244,6 +253,8 @@ const ChurchList = ({ searchTerm, onSelect }) => {
               {/* 지도 배경 영역 */}
               <StaticMapBackground 
                 address={address} 
+                latitude={item.latitude || item.LATITUDE}
+                longitude={item.longitude || item.LONGITUDE}
                 className="h-28 sm:h-32 w-full flex-shrink-0"
               />
               <div className="p-5 flex-1 flex flex-col justify-center">

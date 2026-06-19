@@ -296,6 +296,81 @@ def get_connection():
     raw_conn = db_pool.get_connection()
     return PooledConnectionWrapper(raw_conn, db_pool)
 
+def background_geocoder():
+    """배후에서 위도/경도가 누락된 지교회의 주소를 지오코딩하여 로컬 SQLite DB를 업데이트하는 백그라운드 스레드"""
+    import threading
+    import time
+    import urllib.request
+    import urllib.parse
+    import json
+    import sqlite3
+    
+    logging.info("[Geocoder] Background geocoder thread started.")
+    while True:
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            
+            # 위·경도가 없고 주소가 입력된 지교회 1건을 조회
+            c.execute("""
+                SELECT ChrCode, ADDRESS 
+                FROM local_churches 
+                WHERE latitude IS NULL AND ADDRESS IS NOT NULL AND ADDRESS != ''
+                LIMIT 1
+            """)
+            row = c.fetchone()
+            if not row:
+                conn.close()
+                time.sleep(60) # 변환할 교회가 없으면 60초 대기 후 다시 확인
+                continue
+                
+            chr_code = row['ChrCode']
+            addr = row['ADDRESS'].strip()
+            
+            # 주소 정제: 괄호 및 층/호 등의 상세주소 제거하여 매칭 성공률 극대화
+            query = addr
+            for delimiter in ['(', '건물', '층', '호']:
+                if delimiter in query:
+                    query = query.split(delimiter)[0].strip()
+            
+            url = f"https://nominatim.openstreetmap.org/search?format=json&q={urllib.parse.quote(query)}&countrycodes=kr&limit=1"
+            req = urllib.request.Request(
+                url,
+                headers={'User-Agent': 'ProkGeocoder/1.0 (info@prok.org)'}
+            )
+            
+            lat, lon = None, None
+            try:
+                # 1.2초 대기하여 Nominatim의 1 req/sec 정책 준수
+                time.sleep(1.2)
+                with urllib.request.urlopen(req) as response:
+                    res_data = json.loads(response.read().decode('utf-8'))
+                    if res_data and len(res_data) > 0:
+                        lat = float(res_data[0]['lat'])
+                        lon = float(res_data[0]['lon'])
+            except Exception as api_err:
+                logging.error(f"[Geocoder] Nominatim API request failed: {api_err}")
+                conn.close()
+                time.sleep(10) # API 오류 시 10초간 루프 일시정지
+                continue
+                
+            if lat and lon:
+                c.execute("UPDATE local_churches SET latitude = ?, longitude = ? WHERE ChrCode = ?", (lat, lon, chr_code))
+                conn.commit()
+                logging.info(f"[Geocoder] Updated '{chr_code}' ({query}) coordinates to {lat}, {lon}")
+            else:
+                # 지오코딩 실패 시 0.0으로 업데이트하여 재시도 무한루프 방지
+                c.execute("UPDATE local_churches SET latitude = 0.0, longitude = 0.0 WHERE ChrCode = ?", (chr_code,))
+                conn.commit()
+                logging.warn(f"[Geocoder] Could not geocode '{query}' for '{chr_code}', marked as 0.0")
+                
+            conn.close()
+            
+        except Exception as loop_err:
+            logging.error(f"[Geocoder] Loop exception: {loop_err}")
+            time.sleep(15)
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -352,9 +427,19 @@ async def startup_event():
                 Remark TEXT,
                 Cnt INTEGER,
                 HJcode TEXT,
-                MOCKNAME TEXT
+                MOCKNAME TEXT,
+                latitude REAL,
+                longitude REAL
             )
         """)
+        try:
+            sqlite_conn.execute("ALTER TABLE local_churches ADD COLUMN latitude REAL")
+        except Exception:
+            pass
+        try:
+            sqlite_conn.execute("ALTER TABLE local_churches ADD COLUMN longitude REAL")
+        except Exception:
+            pass
         sqlite_conn.execute("""
             CREATE TABLE IF NOT EXISTS local_elders (
                 PriestCode TEXT PRIMARY KEY,
@@ -429,6 +514,13 @@ async def startup_event():
         mssql_conn = get_connection()
         mssql_conn.close()
         logging.info("[Startup] MSSQL connection successful.")
+        
+        # Start background geocoder thread
+        import threading
+        t = threading.Thread(target=background_geocoder, daemon=True)
+        t.start()
+        logging.info("[Startup] Started background geocoding thread.")
+        
     except Exception as e:
         logging.critical(f"[Startup] MSSQL connection failed! Error: {e}")
         import os
@@ -692,7 +784,8 @@ def replicate_mssql_to_local():
         sqlite_conn = sqlite3.connect('requests.db')
         c = sqlite_conn.cursor()
         
-        # (1) 데이터 청소
+        # (1) 데이터 청소 및 기존 교회 좌표 임시 보존 (주소가 변경되지 않은 경우 보존)
+        c.execute("CREATE TEMP TABLE temp_coords AS SELECT ChrCode, ADDRESS, latitude, longitude FROM local_churches WHERE latitude IS NOT NULL")
         c.execute("DELETE FROM local_ministers")
         c.execute("DELETE FROM local_churches")
         c.execute("DELETE FROM local_elders")
@@ -796,6 +889,24 @@ def replicate_mssql_to_local():
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, addressbook_data)
         
+        # (6) 임시 보존 좌표 복구 (주소가 변경되지 않은 것만 복구)
+        c.execute("""
+            UPDATE local_churches 
+            SET latitude = (
+                SELECT t.latitude FROM temp_coords t 
+                WHERE t.ChrCode = local_churches.ChrCode AND t.ADDRESS = local_churches.ADDRESS
+            ),
+            longitude = (
+                SELECT t.longitude FROM temp_coords t 
+                WHERE t.ChrCode = local_churches.ChrCode AND t.ADDRESS = local_churches.ADDRESS
+            )
+            WHERE ChrCode IN (
+                SELECT ChrCode FROM temp_coords t 
+                WHERE t.ChrCode = local_churches.ChrCode AND t.ADDRESS = local_churches.ADDRESS
+            )
+        """)
+        c.execute("DROP TABLE temp_coords")
+        
         sqlite_conn.commit()
         sqlite_conn.close()
         
@@ -842,7 +953,8 @@ def upload_directory_json_to_firebase():
         c.execute("""
             SELECT 
                 ChrCode, CHRNAME, NohCode, NOHNAME, SichalCode, SICHALNAME, OrgYN, Environment, PostNo, ADDRESS, JUSO,
-                EstDate, EndDate, Tel_Church, Tel_Home, Tel_Mobile, Tel_Fax, HomePage, Email, Remark, Cnt, HJcode, MOCKNAME
+                EstDate, EndDate, Tel_Church, Tel_Home, Tel_Mobile, Tel_Fax, HomePage, Email, Remark, Cnt, HJcode, MOCKNAME,
+                latitude, longitude
             FROM local_churches
         """)
         churches = [dict(r) for r in c.fetchall()]
@@ -933,7 +1045,8 @@ def get_churches(search: str = ""):
             c.execute("""
                 SELECT 
                     ChrCode, CHRNAME, NOHNAME, SICHALNAME, 
-                    Tel_Church, Tel_Mobile, Tel_Fax, ADDRESS, JUSO, PostNo, Email, MOCKNAME
+                    Tel_Church, Tel_Mobile, Tel_Fax, ADDRESS, JUSO, PostNo, Email, MOCKNAME,
+                    latitude, longitude
                 FROM local_churches
                 WHERE CHRNAME LIKE ? OR NOHNAME LIKE ? OR ChrCode = ?
                 ORDER BY CHRNAME, NOHNAME
@@ -943,7 +1056,8 @@ def get_churches(search: str = ""):
             c.execute("""
                 SELECT 
                     ChrCode, CHRNAME, NOHNAME, SICHALNAME, 
-                    Tel_Church, Tel_Mobile, Tel_Fax, ADDRESS, JUSO, PostNo, Email, MOCKNAME
+                    Tel_Church, Tel_Mobile, Tel_Fax, ADDRESS, JUSO, PostNo, Email, MOCKNAME,
+                    latitude, longitude
                 FROM local_churches
                 WHERE CHRNAME LIKE ? OR NOHNAME LIKE ? OR ChrCode = ?
                 ORDER BY NOHNAME, CHRNAME
@@ -1084,7 +1198,8 @@ def sync_directory_fast():
         c.execute("""
             SELECT 
                 ChrCode, CHRNAME, NohCode, NOHNAME, SichalCode, SICHALNAME, OrgYN, Environment, PostNo, ADDRESS, JUSO,
-                EstDate, EndDate, Tel_Church, Tel_Home, Tel_Mobile, Tel_Fax, HomePage, Email, Remark, Cnt, HJcode, MOCKNAME
+                EstDate, EndDate, Tel_Church, Tel_Home, Tel_Mobile, Tel_Fax, HomePage, Email, Remark, Cnt, HJcode, MOCKNAME,
+                latitude, longitude
             FROM local_churches
         """)
         churches = [dict(r) for r in c.fetchall()]
@@ -1175,12 +1290,20 @@ def sync_directory():
         """, (duty_term,))
         churches = cursor.fetchall()
 
-        # Fetch virtual accounts from local SQLite and merge
+        # Fetch virtual accounts and coordinates from local SQLite and merge
         try:
             sql_conn = sqlite3.connect('requests.db')
             sql_c = sql_conn.cursor()
+            
+            # virtual accounts
             sql_c.execute("SELECT chr_code, account_type, virtual_account FROM church_virtual_accounts")
             va_rows = sql_c.fetchall()
+            
+            # coordinates
+            sql_c.execute("SELECT ChrCode, latitude, longitude FROM local_churches")
+            coords_rows = sql_c.fetchall()
+            coords_by_church = {row[0].strip(): {"latitude": row[1], "longitude": row[2]} for row in coords_rows if row[0]}
+            
             sql_conn.close()
             
             va_by_church = {}
@@ -1193,14 +1316,18 @@ def sync_directory():
                     "account_type": row[1].strip() if row[1] else "",
                     "virtual_account": row[2].strip() if row[2] else ""
                 })
-        except:
+        except Exception as e:
+            logging.warn(f"[Sync] SQLite read error: {e}")
             va_by_church = {}
+            coords_by_church = {}
 
         for row in churches:
             code = str(row.get("ChrCode", "")).strip()
             row["virtual_accounts"] = va_by_church.get(code, [])
             mission_va = next((v["virtual_account"] for v in row["virtual_accounts"] if v["account_type"] == "선교주일헌금"), None)
             row["mission_virtual_account"] = mission_va or ""
+            row["latitude"] = coords_by_church.get(code, {}).get("latitude")
+            row["longitude"] = coords_by_church.get(code, {}).get("longitude")
 
         # Fetch all elders
         cursor.execute("""

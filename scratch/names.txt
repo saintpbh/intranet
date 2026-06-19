@@ -6,6 +6,15 @@
   - Variable: nameB (Comparator variable)
 
 2. server/main.py
+- Function: background_geocoder() (New)
+  - Variable: chr_code (SQLite query result field)
+  - Variable: addr (ADDRESS text)
+  - Variable: query (Cleaned address query)
+  - Variable: url (Nominatim search URL)
+  - Variable: lat (Latitude result)
+  - Variable: lon (Longitude result)
+- Function: startup_event() (Modified)
+  - Variable: t (Thread instance for geocoder)
 - Function: get_ministers(search: str = "") (Modified)
   - Variable: query (SQL query string)
 - Function: get_addressbook(search: str = "") (Modified)
@@ -14,3 +23,20 @@
   - Variable: query (SQL query string)
 - Function: get_elders(search: str = "") (Modified)
   - Variable: query (SQL query string)
+- Function: replicate_mssql_to_local() (Modified)
+  - Uses temp table temp_coords to preserve lat/lng
+- Function: upload_directory_json_to_firebase() (Modified)
+  - Selects latitude, longitude in churches query
+- Function: sync_directory_fast() (Modified)
+  - Selects latitude, longitude in local_churches query
+- Function: sync_directory() (Modified)
+  - Variable: coords_rows (fetch results)
+  - Variable: coords_by_church (dictionary mapping code -> lat/lng)
+
+3. client/src/components/ChurchList.jsx
+- Component: StaticMapBackground (Modified)
+  - Prop: latitude
+  - Prop: longitude
+  - Variable: latVal (Parsed latitude float)
+  - Variable: lngVal (Parsed longitude float)
+  - Variable: coords (Coordinates object)
