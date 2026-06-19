@@ -1294,7 +1294,7 @@ const ChurchManagePage = () => {
             <SyncDateLabel />
 
             {/* 최소 데이터 알림 */}
-            {church._isMinimal && (
+            {church._isMinimal && !church._isHeadquarters && (
               <div className={S.card + ' p-4 bg-amber-50 border-amber-200'}>
                 <div className="flex items-center gap-2 text-amber-700 text-sm">
                   <span className="material-symbols-outlined text-[18px]">info</span>
