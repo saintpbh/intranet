@@ -7,6 +7,7 @@
 
 2. server/main.py
 - Function: background_geocoder() (New)
+  - Variable: was_geocoding (Boolean flag for geocoding state)
   - Variable: chr_code (SQLite query result field)
   - Variable: addr (ADDRESS text)
   - Variable: query (Cleaned address query)

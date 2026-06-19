@@ -306,6 +306,7 @@ def background_geocoder():
     import sqlite3
     
     logging.info("[Geocoder] Background geocoder thread started.")
+    was_geocoding = False
     while True:
         try:
             conn = sqlite3.connect(DB_PATH)
@@ -322,8 +323,17 @@ def background_geocoder():
             row = c.fetchone()
             if not row:
                 conn.close()
+                if was_geocoding:
+                    logging.info("[Geocoder] All churches geocoded! Triggering auto-upload to Firebase Storage...")
+                    was_geocoding = False
+                    try:
+                        upload_directory_json_to_firebase()
+                    except Exception as upload_err:
+                        logging.error(f"[Geocoder] Auto-upload failed: {upload_err}")
                 time.sleep(60) # 변환할 교회가 없으면 60초 대기 후 다시 확인
                 continue
+                
+            was_geocoding = True
                 
             chr_code = row['ChrCode']
             addr = row['ADDRESS'].strip()
