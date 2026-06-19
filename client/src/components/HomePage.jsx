@@ -289,7 +289,29 @@ const HomePage = () => {
 
   const [pullDelta, setPullDelta] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isHoldCompleted, setIsHoldCompleted] = useState(false);
+  const holdTimerRef = useRef(null);
+  
   const startYRef = useRef(null);
+  const pullDeltaRef = useRef(0);
+  const isRefreshingRef = useRef(false);
+  const isHoldCompletedRef = useRef(false);
+  const selectedNoticeRef = useRef(null);
+  const selectedAdRef = useRef(null);
+
+  useEffect(() => { isRefreshingRef.current = isRefreshing; }, [isRefreshing]);
+  useEffect(() => { selectedNoticeRef.current = selectedNotice; }, [selectedNotice]);
+  useEffect(() => { selectedAdRef.current = selectedAd; }, [selectedAd]);
+
+  const updatePullDelta = (val) => {
+    pullDeltaRef.current = val;
+    setPullDelta(val);
+  };
+
+  const updateHoldCompleted = (val) => {
+    isHoldCompletedRef.current = val;
+    setIsHoldCompleted(val);
+  };
 
   const loadData = useCallback((forceRefresh = false) => {
     const nohName = user?.NOHNAME || user?.noh_name || '';
@@ -371,12 +393,14 @@ const HomePage = () => {
     }
   }, [user, loadData]);
 
-  // Pull-to-refresh touch event handlers
+  // Pull-to-refresh touch event handlers (delayed hold & high threshold)
   useEffect(() => {
-    if (selectedNotice || selectedAd) return;
-
     const handleTouchStart = (e) => {
-      if (window.scrollY === 0) {
+      if (selectedNoticeRef.current || selectedAdRef.current) return;
+      const container = document.querySelector('.app-content-area');
+      const isAtTop = container ? container.scrollTop === 0 : window.scrollY === 0;
+      
+      if (isAtTop) {
         startYRef.current = e.touches[0].clientY;
       }
     };
@@ -385,24 +409,63 @@ const HomePage = () => {
       if (startYRef.current === null) return;
       const currentY = e.touches[0].clientY;
       const diff = currentY - startYRef.current;
-      if (diff > 0 && window.scrollY === 0) {
-        const dist = Math.min(80, diff * 0.4);
-        setPullDelta(dist);
+      
+      const container = document.querySelector('.app-content-area');
+      const isAtTop = container ? container.scrollTop === 0 : window.scrollY === 0;
+
+      if (diff > 0 && isAtTop) {
+        // limit pull delta to max 120px
+        const dist = Math.min(120, diff * 0.4);
+        updatePullDelta(dist);
+        
+        // Prevent default scrolling when pulling down at the top
         if (dist > 5) {
           if (e.cancelable) e.preventDefault();
         }
+
+        // Hold timer logic when pulled far enough (>= 100px)
+        if (dist >= 100) {
+          if (!holdTimerRef.current && !isHoldCompletedRef.current) {
+            holdTimerRef.current = setTimeout(() => {
+              updateHoldCompleted(true);
+              if (window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(60); // 60ms vibration feedback
+              }
+            }, 2000); // Must hold for 2 seconds (2000ms)
+          }
+        } else {
+          if (holdTimerRef.current) {
+            clearTimeout(holdTimerRef.current);
+            holdTimerRef.current = null;
+          }
+          if (isHoldCompletedRef.current) {
+            updateHoldCompleted(false);
+          }
+        }
       } else {
+        // Reset if they swiped up or scrolled down
+        if (holdTimerRef.current) {
+          clearTimeout(holdTimerRef.current);
+          holdTimerRef.current = null;
+        }
+        updatePullDelta(0);
+        updateHoldCompleted(false);
         startYRef.current = null;
-        setPullDelta(0);
       }
     };
 
     const handleTouchEnd = () => {
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+      
       if (startYRef.current !== null) {
-        if (pullDelta >= 50 && !isRefreshing) {
+        if (isHoldCompletedRef.current && !isRefreshingRef.current) {
           loadData(true);
         }
-        setPullDelta(0);
+        updatePullDelta(0);
+        updateHoldCompleted(false);
         startYRef.current = null;
       }
     };
@@ -415,8 +478,11 @@ const HomePage = () => {
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+      }
     };
-  }, [pullDelta, isRefreshing, loadData, selectedNotice, selectedAd]);
+  }, [loadData]);
 
   // FCM 푸시 알림 토큰 등록 (최초 1회 및 변경 시)
   useEffect(() => {
@@ -565,14 +631,22 @@ const HomePage = () => {
           className="overflow-hidden flex items-center justify-center bg-primary-container/15 rounded-2xl transition-all duration-100 ease-out"
           style={{ 
             height: isRefreshing ? '52px' : `${pullDelta}px`,
-            opacity: isRefreshing ? 1 : pullDelta / 50,
+            opacity: isRefreshing ? 1 : pullDelta / 100,
             marginBottom: (isRefreshing || pullDelta > 0) ? '12px' : '0px'
           }}
         >
           <div className="flex items-center gap-2 py-2">
-            <span className="material-symbols-outlined animate-spin text-xl text-primary">sync</span>
+            <span className={`material-symbols-outlined text-xl text-primary ${isRefreshing ? 'animate-spin' : ''}`}>
+              {isRefreshing ? 'sync' : isHoldCompleted ? 'refresh' : 'arrow_downward'}
+            </span>
             <span className="text-xs font-bold text-primary font-['Manrope',_'Pretendard']">
-              {isRefreshing ? '새 소식 불러오는 중...' : '놓으면 공지사항 새로고침'}
+              {isRefreshing 
+                ? '새 소식 불러오는 중...' 
+                : isHoldCompleted 
+                  ? '놓으면 새로고침 작동!' 
+                  : pullDelta >= 100 
+                    ? '2초간 유지하여 새로고침...' 
+                    : '아래로 당겨서 새로고침'}
             </span>
           </div>
         </div>
