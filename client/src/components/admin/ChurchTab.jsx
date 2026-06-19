@@ -778,7 +778,7 @@ const ChurchTab = ({ user }) => {
   const [showBulletinEdit, setShowBulletinEdit] = useState(false);
   const [bulletinLoading, setBulletinLoading] = useState(false);
   const [currentServiceType, setCurrentServiceType] = useState('주일대예배');
-  const [serviceTypeList, setServiceTypeList] = useState(['주일대예배', '주일오후예배', '청년예배', '저녁예배']);
+  const [serviceTypeList, setServiceTypeList] = useState(['주일대예배', '주일1부예배', '청년예배', '주일오후예배', '수요기도회']);
   const [bulletinList, setBulletinList] = useState([]);
 
   // ── 지도·교회관리 state ──
@@ -803,8 +803,9 @@ const ChurchTab = ({ user }) => {
     return () => clearTimeout(handler);
   }, [adminSearchTerm]);
 
-  const [customChurchCode, setCustomChurchCode] = useState(user?.chr_code || '000000');
-  const [debouncedChurchCode, setDebouncedChurchCode] = useState(user?.chr_code || '000000');
+  const userChrCode = user?.chrCode || user?.chr_code || '';
+  const [customChurchCode, setCustomChurchCode] = useState(userChrCode || '000000');
+  const [debouncedChurchCode, setDebouncedChurchCode] = useState(userChrCode || '000000');
 
   useEffect(() => {
     const handler = setTimeout(() => { setDebouncedChurchCode(customChurchCode); }, 500);
@@ -858,7 +859,7 @@ const ChurchTab = ({ user }) => {
       .then(res => res.ok ? res.json() : [])
       .then(list => {
         if (Array.isArray(list) && list.length > 0) {
-          const merged = Array.from(new Set([...list, '주일대예배', '주일오후예배', '청년예배', '저녁예배']));
+          const merged = Array.from(new Set([...list, '주일대예배', '주일1부예배', '청년예배', '주일오후예배', '수요기도회']));
           setServiceTypeList(merged);
         }
       })
@@ -988,7 +989,7 @@ const ChurchTab = ({ user }) => {
   if (creatingReport || selectedReportId) return <ChurchReportForm user={user} reportId={selectedReportId} onBack={() => { setCreatingReport(false); setSelectedReportId(null); fetchData(); }} onSaved={() => { setCreatingReport(false); setSelectedReportId(null); fetchData(); }} />;
 
   const menus = [
-    { id: 'bulletin', icon: 'menu_book', label: '주보관리' },
+    { id: 'bulletin', icon: 'menu_book', label: '디지털주보' },
     { id: 'cert', icon: 'verified', label: '증명서 관리' },
     { id: 'admin-docs', icon: 'folder_open', label: '행정문서' },
     { id: 'submissions', icon: 'inbox', label: '제출문서' },
@@ -1115,101 +1116,174 @@ const ChurchTab = ({ user }) => {
                 <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>불러오는 중...</div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 24, marginBottom: 28 }}>
-                  {bulletinList.map((b, idx) => {
-                    const serviceGradients = {
-                      '주일대예배': 'linear-gradient(135deg, #1e3a8a, #3b82f6)',
-                      '주일오후예배': 'linear-gradient(135deg, #0f766e, #14b8a6)',
-                      '청년예배': 'linear-gradient(135deg, #6d28d9, #a855f7)',
-                      '저녁예배': 'linear-gradient(135deg, #b45309, #f59e0b)',
-                    };
-                    const gradient = serviceGradients[b.serviceType] || 'linear-gradient(135deg, #475569, #64748b)';
-                    const serviceIcon = b.serviceType.includes('청년') ? '🕊️' : b.serviceType.includes('오후') ? '☀️' : b.serviceType.includes('저녁') ? '🌙' : '⛪';
+                  {(() => {
+                    const WORSHIP_SERVICES = [
+                      { type: '주일대예배', icon: '⛪', color: 'linear-gradient(135deg, #1e3a8a, #3b82f6)', desc: '주일 오전 공동체 메인 예배' },
+                      { type: '주일1부예배', icon: '☀️', color: 'linear-gradient(135deg, #b45309, #f59e0b)', desc: '아침을 여는 경건한 예배' },
+                      { type: '청년예배', icon: '🕊️', color: 'linear-gradient(135deg, #6d28d9, #a855f7)', desc: '청년들의 생동감 넘치는 찬양예배' },
+                      { type: '주일오후예배', icon: '🌅', color: 'linear-gradient(135deg, #0f766e, #14b8a6)', desc: '오후 찬양과 헌신 예배' },
+                      { type: '수요기도회', icon: '📖', color: 'linear-gradient(135deg, #334155, #64748b)', desc: '수요일 저녁 말씀과 기도회' }
+                    ];
 
-                    return (
-                      <div key={idx} className="relative group min-h-[300px] flex flex-col">
-                        {/* Stacked card layers in background */}
-                        <div className="absolute -bottom-2.5 left-4 right-4 h-12 bg-white border border-slate-200/60 rounded-[24px] shadow-[0_4px_12px_rgba(0,0,0,0.03)] -z-10 opacity-50 scale-[0.92] group-hover:-bottom-3.5 transition-all duration-300"></div>
-                        <div className="absolute -bottom-1.5 left-2 right-2 h-12 bg-white border border-slate-200/80 rounded-[24px] shadow-[0_4px_12px_rgba(0,0,0,0.04)] -z-10 opacity-80 scale-[0.96] group-hover:-bottom-2 transition-all duration-300"></div>
+                    const displayDecks = WORSHIP_SERVICES.map(ws => {
+                      const existing = bulletinList.find(b => b.serviceType === ws.type);
+                      return {
+                        serviceType: ws.type,
+                        icon: ws.icon,
+                        color: ws.color,
+                        desc: ws.desc,
+                        isStandard: true,
+                        bulletin: existing || null
+                      };
+                    });
 
-                        {/* Main deck card */}
-                        <div 
-                          className="bg-white rounded-[24px] border border-slate-200/90 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col flex-1 z-10 group-hover:-translate-y-1.5 transition-all duration-300"
-                        >
-                          {/* Header Banner */}
-                          <div style={{ background: gradient, padding: '20px 24px', color: '#fff', position: 'relative' }}>
-                            <div className="absolute right-[-15px] bottom-[-20px] opacity-10 text-[70px] select-none pointer-events-none">{serviceIcon}</div>
-                            <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.85, letterSpacing: '0.08em', marginBottom: 2 }}>
-                              WORSHIP DECK
-                            </div>
-                            <h4 style={{ fontSize: 16, fontWeight: 800, margin: 0, fontFamily: "'Manrope', 'Pretendard'", display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>menu_book</span>
-                              {b.serviceType}
-                            </h4>
-                            <span style={{ position: 'absolute', top: 20, right: 20, fontSize: 10, padding: '3px 8px', borderRadius: 99, background: 'rgba(255,255,255,0.22)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3 }}>
-                              <span style={{ width: 6, height: 6, borderRadius: 99, background: '#4ade80', display: 'inline-block' }}></span>
-                              실시간 배포중
-                            </span>
-                          </div>
+                    bulletinList.forEach(b => {
+                      const isStd = WORSHIP_SERVICES.some(ws => ws.type === b.serviceType);
+                      if (!isStd) {
+                        displayDecks.push({
+                          serviceType: b.serviceType,
+                          icon: '⛪',
+                          color: 'linear-gradient(135deg, #475569, #64748b)',
+                          desc: '사용자 정의 추가 예배',
+                          isStandard: false,
+                          bulletin: b
+                        });
+                      }
+                    });
 
-                          {/* Body Details */}
-                          <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                            <div>
-                              <strong style={{ fontSize: 14, color: '#0A2540', display: 'block', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {b.bulletinTitle || "주일 예배에 성도님들을 초대합니다"}
-                              </strong>
-                              <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#94a3b8' }}>calendar_today</span>
-                                {b.date || "이번 주일 예배"}
+                    return displayDecks.map((d, idx) => {
+                      return (
+                        <div key={idx} className="relative group min-h-[300px] flex flex-col">
+                          {/* Stacked card layers in background */}
+                          <div className="absolute -bottom-2.5 left-4 right-4 h-12 bg-white border border-slate-200/60 rounded-[24px] shadow-[0_4px_12px_rgba(0,0,0,0.03)] -z-10 opacity-50 scale-[0.92] group-hover:-bottom-3.5 transition-all duration-300"></div>
+                          <div className="absolute -bottom-1.5 left-2 right-2 h-12 bg-white border border-slate-200/80 rounded-[24px] shadow-[0_4px_12px_rgba(0,0,0,0.04)] -z-10 opacity-80 scale-[0.96] group-hover:-bottom-2 transition-all duration-300"></div>
+
+                          {/* Main deck card */}
+                          <div 
+                            className="bg-white rounded-[24px] border border-slate-200/90 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col flex-1 z-10 group-hover:-translate-y-1.5 transition-all duration-300"
+                          >
+                            {/* Header Banner */}
+                            <div style={{ background: d.color, padding: '20px 24px', color: '#fff', position: 'relative' }}>
+                              <div className="absolute right-[-15px] bottom-[-20px] opacity-10 text-[70px] select-none pointer-events-none">{d.icon}</div>
+                              <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.85, letterSpacing: '0.08em', marginBottom: 2 }}>
+                                WORSHIP DECK
                               </div>
+                              <h4 style={{ fontSize: 16, fontWeight: 800, margin: 0, fontFamily: "'Manrope', 'Pretendard'", display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>menu_book</span>
+                                {d.serviceType}
+                              </h4>
+                              {d.bulletin ? (
+                                <span style={{ position: 'absolute', top: 20, right: 20, fontSize: 10, padding: '3px 8px', borderRadius: 99, background: 'rgba(255,255,255,0.22)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3 }}>
+                                  <span style={{ width: 6, height: 6, borderRadius: 99, background: '#4ade80', display: 'inline-block' }}></span>
+                                  실시간 배포중
+                                </span>
+                              ) : (
+                                <span style={{ position: 'absolute', top: 20, right: 20, fontSize: 10, padding: '3px 8px', borderRadius: 99, background: 'rgba(255,255,255,0.15)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3 }}>
+                                  <span style={{ width: 6, height: 6, borderRadius: 99, background: '#94a3b8', display: 'inline-block' }}></span>
+                                  미작성
+                                </span>
+                              )}
                             </div>
 
-                            {b.theme && (
-                              <div className="bg-slate-50/80 border border-slate-100/50 rounded-xl p-3 text-[11px] text-slate-600 font-bold italic overflow-hidden text-overflow-ellipsis white-space-nowrap">
-                                💬 표어: {b.theme}
-                              </div>
-                            )}
+                            {/* Body Details */}
+                            <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                              {d.bulletin ? (
+                                <>
+                                  <div>
+                                    <strong style={{ fontSize: 14, color: '#0A2540', display: 'block', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {d.bulletin.bulletinTitle || "주일 예배에 성도님들을 초대합니다"}
+                                    </strong>
+                                    <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                      <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#94a3b8' }}>calendar_today</span>
+                                      {d.bulletin.date || "이번 주일 예배"}
+                                    </div>
+                                  </div>
 
-                            {/* Stats badges */}
-                            <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
-                              <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: '#eff6ff', color: '#1d4ed8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>format_list_numbered</span>
-                                순서 {b.orders?.length || 0}
-                              </span>
-                              <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: '#f0fdf4', color: '#166534', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>notifications</span>
-                                소식 {b.churchNews?.length || 0}
-                              </span>
+                                  {d.bulletin.theme && (
+                                    <div className="bg-slate-50/80 border border-slate-100/50 rounded-xl p-3 text-[11px] text-slate-600 font-bold italic overflow-hidden text-overflow-ellipsis white-space-nowrap">
+                                      💬 표어: {d.bulletin.theme}
+                                    </div>
+                                  )}
+
+                                  {/* Stats badges */}
+                                  <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
+                                    <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: '#eff6ff', color: '#1d4ed8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                      <span className="material-symbols-outlined" style={{ fontSize: 12 }}>format_list_numbered</span>
+                                      순서 {d.bulletin.orders?.length || 0}
+                                    </span>
+                                    <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: '#f0fdf4', color: '#166534', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                      <span className="material-symbols-outlined" style={{ fontSize: 12 }}>notifications</span>
+                                      소식 {d.bulletin.churchNews?.length || 0}
+                                    </span>
+                                  </div>
+                                </>
+                              ) : (
+                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: '#94a3b8', fontSize: 13, gap: 8, minHeight: 120 }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: 24 }}>edit_document</span>
+                                  <span>등록된 주보 정보가 없습니다.</span>
+                                </div>
+                              )}
                             </div>
-                          </div>
 
-                          {/* Actions */}
-                          <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 8, background: '#f8fafc' }}>
-                            <button 
-                              type="button"
-                              className="active:scale-95 transition-transform"
-                              style={{ ...S.gradientBtn, flex: 1, padding: '8px 0', fontSize: 12, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                              onClick={() => {
-                                setBulletinData(b);
-                                setCurrentServiceType(b.serviceType);
-                                setShowBulletinEdit(true);
-                              }}
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
-                              주보 편집
-                            </button>
-                            <button 
-                              type="button"
-                              className="active:scale-95 transition-transform"
-                              style={{ ...S.ghostBtn, padding: '8px 12px', borderRadius: 12, color: '#ef4444', border: '1px solid #fca5a5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                              onClick={() => deleteBulletinData(b.serviceType)}
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
-                            </button>
+                            {/* Actions */}
+                            <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 8, background: '#f8fafc' }}>
+                              {d.bulletin ? (
+                                <>
+                                  <button 
+                                    type="button"
+                                    className="active:scale-95 transition-transform"
+                                    style={{ ...S.gradientBtn, flex: 1, padding: '8px 0', fontSize: 12, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                                    onClick={() => {
+                                      setBulletinData(d.bulletin);
+                                      setCurrentServiceType(d.serviceType);
+                                      setShowBulletinEdit(true);
+                                    }}
+                                  >
+                                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
+                                    주보 편집
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    className="active:scale-95 transition-transform"
+                                    style={{ ...S.ghostBtn, padding: '8px 12px', borderRadius: 12, color: '#ef4444', border: '1px solid #fca5a5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                    onClick={() => deleteBulletinData(d.serviceType)}
+                                  >
+                                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
+                                  </button>
+                                </>
+                              ) : (
+                                <button 
+                                  type="button"
+                                  className="active:scale-95 transition-transform animate-pulse"
+                                  style={{ ...S.gradientBtn, flex: 1, padding: '8px 0', fontSize: 12, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                                  onClick={() => {
+                                    // Open edit modal with empty bulletin
+                                    const emptyBulletin = {
+                                      church_code: targetCode,
+                                      serviceType: d.serviceType,
+                                      bulletinTitle: `${new Date().getFullYear()}년 ${d.serviceType} 주보`,
+                                      date: '',
+                                      theme: d.desc || '',
+                                      bibleVerse: '',
+                                      bibleVerseRef: '',
+                                      orders: [],
+                                      churchNews: []
+                                    };
+                                    setBulletinData(emptyBulletin);
+                                    setCurrentServiceType(d.serviceType);
+                                    setShowBulletinEdit(true);
+                                  }}
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add_circle</span>
+                                  주보 작성
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
 
                   {/* 새 예배 데크 개설 카드 (Placeholder Deck Card) */}
                   <div 

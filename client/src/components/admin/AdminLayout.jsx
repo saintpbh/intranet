@@ -66,10 +66,23 @@ const AdminLogin = ({ onLogin }) => {
 };
 
 const AdminLayout = () => {
-  const [activeTab, setActiveTab] = useState('assembly');
-  const [tabHistory, setTabHistory] = useState(['assembly']);
   const { user, login, logout } = useAuth();
   const navigate = useNavigate();
+
+  const isSystemAdmin = user?.id === 'admin';
+  const isMinister = !!(user?.chrCode || user?.chr_code);
+
+  const [activeTab, setActiveTab] = useState(() => {
+    if (user?.id === 'admin') return 'assembly';
+    if (user?.chrCode || user?.chr_code) return 'church';
+    return 'assembly';
+  });
+
+  const [tabHistory, setTabHistory] = useState(() => {
+    if (user?.id === 'admin') return ['assembly'];
+    if (user?.chrCode || user?.chr_code) return ['church'];
+    return ['assembly'];
+  });
 
   // Apply full-width styling by adding a class to the body
   useEffect(() => {
@@ -88,8 +101,9 @@ const AdminLayout = () => {
 
   // Back-button handler: go to previous tab, then to home
   useEffect(() => {
+    const initialTab = user?.id === 'admin' ? 'assembly' : 'church';
     // Push initial guard entry
-    window.history.pushState({ adminTab: 'assembly', guard: true }, '');
+    window.history.pushState({ adminTab: initialTab, guard: true }, '');
 
     const handlePopState = (e) => {
       const state = e.state;
@@ -117,11 +131,21 @@ const AdminLayout = () => {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [activeTab, navigate]);
+  }, [activeTab, navigate, user]);
 
-  if (!user || user.id !== 'admin') {
+  if (!user || (!isSystemAdmin && !isMinister)) {
     return <AdminLogin onLogin={login} />;
   }
+
+  const visibleTabs = adminTabs.filter(tab => {
+    if (isSystemAdmin) return true;
+    return tab.id === 'church' || tab.id === 'personal';
+  }).map(tab => {
+    if (!isSystemAdmin && tab.id === 'church') {
+      return { ...tab, label: '내 교회', desc: '내 교회 관리 · 주보' };
+    }
+    return tab;
+  });
 
   const renderContent = () => {
     switch (activeTab) {
@@ -150,7 +174,7 @@ const AdminLayout = () => {
 
         {/* Nav Links */}
         <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {adminTabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
@@ -201,9 +225,9 @@ const AdminLayout = () => {
         }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0A2540', fontFamily: "'Manrope', 'Pretendard'" }}>
             <span className="material-symbols-outlined" style={{ fontSize: 24, marginRight: 8, verticalAlign: 'middle' }}>
-              {adminTabs.find(t => t.id === activeTab)?.icon}
+              {visibleTabs.find(t => t.id === activeTab)?.icon}
             </span>
-            {adminTabs.find(t => t.id === activeTab)?.label} 관리
+            {visibleTabs.find(t => t.id === activeTab)?.label} 관리
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

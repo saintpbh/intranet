@@ -1543,6 +1543,7 @@ const ChurchManagePage = () => {
             </div>
 
             {/* ── 기장성도앱 디지털 주보 관리 (예쁜 카드 덱 UI 리뉴얼) ── */}
+            {/* 
             <div className={S.card + ' p-5 relative overflow-hidden'}>
               <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-indigo-500/5 -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
               
@@ -1557,7 +1558,6 @@ const ChurchManagePage = () => {
                 )}
               </div>
 
-              {/* 예배별 카드 덱 목록 */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {WORSHIP_SERVICES.map((ws) => {
                   const data = bulletinDeck[ws.type];
@@ -1573,7 +1573,6 @@ const ChurchManagePage = () => {
                           : 'border-slate-100 bg-slate-50/50 hover:bg-white hover:border-slate-200'
                       }`}
                     >
-                      {/* 카드 헤더 */}
                       <div className="flex justify-between items-start gap-2.5">
                         <div className="flex items-center gap-2.5">
                           <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${ws.color} text-white flex items-center justify-center shadow-sm`}>
@@ -1585,7 +1584,6 @@ const ChurchManagePage = () => {
                           </div>
                         </div>
                         
-                        {/* 실시간 배포 상태 뱃지 */}
                         {isLive ? (
                           <span className="px-2.5 py-0.5 rounded-full bg-green-600/10 text-green-700 text-[9px] font-extrabold flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
@@ -1598,7 +1596,6 @@ const ChurchManagePage = () => {
                         )}
                       </div>
 
-                      {/* 카드 바디 (최근 데이터 현황 또는 작성 유도) */}
                       <div className="mt-4 border-t border-slate-100/70 pt-3 flex justify-between items-center text-[11px] text-slate-500">
                         {isLive ? (
                           <>
@@ -1626,6 +1623,7 @@ const ChurchManagePage = () => {
                 })}
               </div>
             </div>
+            */}
 
             {/* ── 기본 정보 (TB_Chr100 — 간략히 표시) ── */}
             <div 
@@ -1693,14 +1691,14 @@ const ChurchManagePage = () => {
       )}
 
       {/* ── 디지털 주보 관리 모달 ── */}
-      {showBulletinEdit && (
+      {/* {showBulletinEdit && (
         <ChurchBulletinEditModal
           bulletin={bulletinData}
           churchName={getChurchDisplayName()}
           onClose={() => setShowBulletinEdit(false)}
           onSave={saveBulletinData}
         />
-      )}
+      )} */}
 
       {/* ── Toast ── */}
       {toast && (
