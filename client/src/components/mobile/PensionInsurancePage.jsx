@@ -279,7 +279,7 @@ const PensionInsurancePage = () => {
               <button
                 onClick={() => toggleSection('pension')}
                 className={`text-left rounded-[1.5rem] relative overflow-hidden shadow-lg transition-all duration-300 active:scale-[0.97] ${
-                  expandedSection === 'pension' ? 'ring-2 ring-emerald-400 ring-offset-2' : ''
+                  expandedSection === 'pension' ? 'ring-2 ring-emerald-400 ring-offset-2' : 'animate-breath-pension'
                 }`}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-[#1b4332] to-[#40916c]" />
@@ -318,7 +318,7 @@ const PensionInsurancePage = () => {
                   )}
                   <div className="flex items-center gap-1 mt-3 text-white/40 text-[10px]">
                     <span className="material-symbols-outlined text-xs">{expandedSection === 'pension' ? 'expand_less' : 'expand_more'}</span>
-                    상세보기
+                    눌러서 상세보기
                   </div>
                 </div>
               </button>
@@ -327,7 +327,7 @@ const PensionInsurancePage = () => {
               <button
                 onClick={() => toggleSection('insurance')}
                 className={`text-left rounded-[1.5rem] relative overflow-hidden shadow-lg transition-all duration-300 active:scale-[0.97] ${
-                  expandedSection === 'insurance' ? 'ring-2 ring-blue-400 ring-offset-2' : ''
+                  expandedSection === 'insurance' ? 'ring-2 ring-blue-400 ring-offset-2' : 'animate-breath-insurance'
                 }`}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-[#1a5276] to-[#2e86c1]" />
@@ -354,7 +354,7 @@ const PensionInsurancePage = () => {
                   )}
                   <div className="flex items-center gap-1 mt-3 text-white/40 text-[10px]">
                     <span className="material-symbols-outlined text-xs">{expandedSection === 'insurance' ? 'expand_less' : 'expand_more'}</span>
-                    상세보기
+                    눌러서 상세보기
                   </div>
                 </div>
               </button>
@@ -731,6 +731,16 @@ const PensionInsurancePage = () => {
                     <p><strong>📞 총회 연금 담당 02-3499-7608</strong></p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* ═══ Guidance notice when no details are open ═══ */}
+            {!expandedSection && (
+              <div className="bg-surface-container-low rounded-2xl p-5 text-center border border-surface-variant/20 animate-fade-in mt-4">
+                <span className="material-symbols-outlined text-primary text-xl mb-1.5 block">info</span>
+                <p className="text-xs font-extrabold text-primary font-['Manrope',_'Pretendard']">
+                  납입 내역을 보시려면, 연금 또는 생보 버튼을 눌러 주세요!
+                </p>
               </div>
             )}
 

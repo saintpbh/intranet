@@ -1205,3 +1205,27 @@ body.admin-mode #root {
     padding: 16px;
   }
 }
+
+/* Apple Style Breathing Glow Animations for Pension/Insurance Cards */
+@keyframes breath-pension {
+  0%, 100% {
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1), 0 0 0 0px rgba(64, 145, 108, 0.2);
+  }
+  50% {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 0 12px 3px rgba(64, 145, 108, 0.6);
+  }
+}
+@keyframes breath-insurance {
+  0%, 100% {
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1), 0 0 0 0px rgba(46, 134, 193, 0.2);
+  }
+  50% {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 0 12px 3px rgba(46, 134, 193, 0.6);
+  }
+}
+.animate-breath-pension {
+  animation: breath-pension 2.5s ease-in-out infinite;
+}
+.animate-breath-insurance {
+  animation: breath-insurance 2.5s ease-in-out infinite;
+}
