@@ -192,12 +192,15 @@ const SimpleLogin = () => {
               </p>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800/60 rounded-3xl p-5 flex flex-col items-center gap-4">
+            <div className="bg-slate-900 border border-slate-800/60 rounded-3xl p-5 flex flex-col items-center gap-3">
               <img 
-                src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://prok-ga.web.app" 
+                src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://my.prok.or.kr" 
                 alt="QR Code" 
                 className="w-40 h-40 rounded-2xl bg-white p-2 shadow-md border border-slate-800" 
               />
+              <span className="text-[14px] text-indigo-400 font-extrabold tracking-wide uppercase select-all">
+                my.prok.or.kr
+              </span>
               <span className="text-[11px] text-slate-400 font-bold">
                 위 QR 코드를 카메라로 스캔하여<br/>스마트폰에서 바로 접속해 주세요.
               </span>
