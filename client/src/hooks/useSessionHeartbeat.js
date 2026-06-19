@@ -38,6 +38,7 @@ export function useSessionHeartbeat(user) {
     const sendHeartbeat = () => {
       // Don't send heartbeats if the server URL is not available
       if (!API_BASE && window.location.hostname !== 'localhost') return;
+      if (!user) return;
 
       const body = {
         session_id: sessionId.current,

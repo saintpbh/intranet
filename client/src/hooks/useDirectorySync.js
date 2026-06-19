@@ -3,8 +3,10 @@ import { syncFullDirectory } from '../utils/offlineDb';
 
 const SYNC_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-export function useDirectorySync() {
+export function useDirectorySync(isLoggedIn) {
   useEffect(() => {
+    if (!isLoggedIn) return;
+
     const checkAndSync = async () => {
       // Only run in browser environments
       if (typeof window === 'undefined') return;
@@ -27,5 +29,5 @@ export function useDirectorySync() {
     };
 
     checkAndSync();
-  }, []);
+  }, [isLoggedIn]);
 }

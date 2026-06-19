@@ -8,16 +8,17 @@ import { initServiceWorker } from '../utils/swManager';
 import { useDirectorySync } from '../hooks/useDirectorySync';
 import { useSessionHeartbeat } from '../hooks/useSessionHeartbeat';
 import { useAuth } from '../AuthContext';
+import SimpleLogin from './SimpleLogin';
 
 const TAB_PATHS = ['/', '/documents', '/church', '/directory', '/profile'];
 
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isLoggedIn } = useAuth();
 
-  // Initialize background directory sync
-  useDirectorySync();
+  // Initialize background directory sync (runs only if logged in)
+  useDirectorySync(isLoggedIn);
 
   // Session heartbeat for real-time monitoring
   useSessionHeartbeat(user);
@@ -74,6 +75,11 @@ const AppLayout = () => {
   useEffect(() => {
     window.history.pushState({ pwaGuard: true, path: location.pathname }, '');
   }, [location.pathname]);
+
+  // 첫 접속 시 로그인하지 않은 사용자는 다른 어떤 화면이나 메뉴도 보지 못하도록 강제 인증 차단막 작동
+  if (!isLoggedIn) {
+    return <SimpleLogin />;
+  }
 
   return (
     <div className="app-shell pb-safe">
