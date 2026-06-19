@@ -182,13 +182,16 @@ const SimpleLogin = () => {
 
         <main className="max-w-md mx-auto w-full flex-grow flex flex-col justify-center py-12">
           <div className="bg-slate-950/80 backdrop-blur-xl border border-slate-800/80 rounded-[2.5rem] p-8 shadow-[0_25px_60px_rgba(0,0,0,0.4)] text-center space-y-6">
-            <div className="w-20 h-20 rounded-full bg-indigo-500/10 mx-auto flex items-center justify-center border border-indigo-500/20 shadow-inner">
-              <span className="material-symbols-outlined text-[36px] text-indigo-400">cellphone</span>
+            <div className="mx-auto flex items-center justify-center py-2">
+              <img src="/assets/logo.png" alt="한국기독교장로회 로고" className="h-16 object-contain" />
             </div>
             
             <div className="space-y-2">
               <h2 className="text-2xl font-black text-white tracking-tight">스마트폰 전용 PWA 서비스</h2>
-              <p className="text-slate-400 text-sm leading-relaxed">
+              <p className="text-indigo-400 text-sm font-extrabold leading-relaxed">
+                한국기독교장로회 목회자를 위한 주소록앱 입니다.
+              </p>
+              <p className="text-slate-400 text-xs leading-relaxed">
                 본 서비스는 스마트폰 화면(Android / iOS)에 최적화된 **스마트폰 전용 디지털 서비스**입니다. 
               </p>
             </div>
@@ -240,10 +243,13 @@ const SimpleLogin = () => {
 
       <main className="pt-24 px-6 pb-12 max-w-md mx-auto w-full space-y-8 animate-fade-in flex-grow flex flex-col justify-center">
         <div className="text-center pb-4">
-          <div className="w-20 h-20 rounded-full bg-secondary/10 mx-auto mb-6 flex items-center justify-center shadow-sm">
-            <span className="material-symbols-outlined text-4xl text-secondary">domain_verification</span>
+          <div className="mx-auto mb-6 flex items-center justify-center">
+            <img src="/assets/logo.png" alt="한국기독교장로회 로고" className="h-14 object-contain" />
           </div>
           <h2 className="font-['Manrope',_'Pretendard'] text-2xl font-bold text-primary mb-2">실명 본인인증</h2>
+          <p className="text-sm font-extrabold text-indigo-600 mb-2 leading-relaxed">
+            한국기독교장로회 목회자를 위한 주소록앱 입니다.
+          </p>
           <p className="text-sm font-medium text-on-surface-variant leading-relaxed">
             안전한 기장주소록 이용을 위해<br />
             총회 데이터베이스에 등록된 본인 휴대폰 번호로 인증하세요.
