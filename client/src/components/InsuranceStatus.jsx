@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import API_BASE from '../api';
 import MobileHeader from './mobile/MobileHeader';
 
-const InsuranceStatus = ({ user, onBack }) => {
+const InsuranceStatus = ({ user, onBack, hideHeader = false }) => {
   const [summary, setSummary] = useState(null);
   const [detail, setDetail] = useState(null);
   const [selectedYear, setSelectedYear] = useState(null);
@@ -62,11 +62,8 @@ const InsuranceStatus = ({ user, onBack }) => {
 
   const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 
-  return (
-    <div className="min-h-screen bg-surface font-['Plus_Jakarta_Sans',_'Pretendard'] text-on-surface antialiased pb-20">
-      <MobileHeader showBack={true} onBack={onBack} title="생보납입 현황" />
-
-      <main className="pt-24 px-6 max-w-2xl mx-auto space-y-6">
+  const content = (
+    <>
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <span className="material-symbols-outlined text-4xl text-outline animate-spin">progress_activity</span>
@@ -257,6 +254,18 @@ const InsuranceStatus = ({ user, onBack }) => {
             </div>
           </>
         )}
+    </>
+  );
+
+  if (hideHeader) {
+    return <div className="space-y-6">{content}</div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-surface font-['Plus_Jakarta_Sans',_'Pretendard'] text-on-surface antialiased pb-20">
+      <MobileHeader showBack={true} onBack={onBack} title="생보납입 현황" />
+      <main className="pt-24 px-6 max-w-2xl mx-auto space-y-6">
+        {content}
       </main>
     </div>
   );

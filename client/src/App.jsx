@@ -10,6 +10,7 @@ import HomePage from './components/HomePage';
 import SearchPage from './components/SearchPage';
 import MyInfoPage from './components/MyInfoPage';
 import DocumentsPage from './components/mobile/DocumentsPage';
+import PensionInsurancePage from './components/mobile/PensionInsurancePage';
 import ChurchManagePage from './components/ChurchManagePage';
 
 // 어드민 대용량 번들을 코드가 필요한 시점에만 동적으로 불러오도록 Code Splitting(코드 분할) 처리
@@ -24,7 +25,8 @@ function App() {
             {/* Main app with bottom tab bar */}
             <Route element={<AppLayout />}>
               <Route path="/" element={<HomePage />} />
-              <Route path="/documents" element={<DocumentsPage />} />
+              <Route path="/documents" element={<PensionInsurancePage />} />
+              <Route path="/cert-request" element={<DocumentsPage />} />
               <Route path="/church" element={<ChurchManagePage />} />
               <Route path="/directory" element={<SearchPage />} />
               <Route path="/profile" element={<MyInfoPage />} />

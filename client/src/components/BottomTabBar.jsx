@@ -3,9 +3,9 @@ import { triggerHaptic } from '../utils/haptics';
 
 const tabs = [
   { id: 'home', label: '홈', path: '/', icon: 'home' },
-  { id: 'documents', label: '증명서', path: '/documents', icon: 'description' },
-  { id: 'church', label: '교회', path: '/church', icon: 'church' },
   { id: 'directory', label: '주소록', path: '/directory', icon: 'group' },
+  { id: 'church', label: '교회', path: '/church', icon: 'church' },
+  { id: 'documents', label: '연금/생보', path: '/documents', icon: 'savings' },
   { id: 'profile', label: '내 정보', path: '/profile', icon: 'person' },
 ];
 

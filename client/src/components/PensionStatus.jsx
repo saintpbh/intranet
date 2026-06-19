@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import API_BASE from '../api';
 import MobileHeader from './mobile/MobileHeader';
 
-const PensionStatus = ({ user, onBack }) => {
+const PensionStatus = ({ user, onBack, hideHeader = false }) => {
   const [tab, setTab] = useState('history'); // 'history' | 'calculator'
   const [summary, setSummary] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -111,13 +111,8 @@ const PensionStatus = ({ user, onBack }) => {
     if (dir === 'next' && idx > 0) setSelectedYear(yearList[idx-1]);
   };
   const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-  const selStyle = "w-full bg-surface-container-low rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50";
-  const numOpts = (max) => Array.from({length:max+1},(_,i)=>i);
-
-  return (
-    <div className="min-h-screen bg-surface font-['Plus_Jakarta_Sans','Pretendard'] text-on-surface antialiased pb-20">
-      <MobileHeader showBack={true} onBack={onBack} title="연금납입 현황" />
-      <main className="pt-24 px-6 max-w-2xl mx-auto space-y-6">
+  const selStyle = "w-full bg-surface-container-low rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50";  const content = (
+    <>
         {/* Tab Switcher */}
         <div className="flex bg-surface-container-lowest rounded-2xl p-1 shadow-sm">
           {[{id:'history',label:'납입 현황',icon:'receipt_long'},{id:'calculator',label:'예상 연금 계산',icon:'calculate'}].map(t => (
@@ -437,6 +432,18 @@ const PensionStatus = ({ user, onBack }) => {
             )}
           </>
         )}
+      </>
+  );
+
+  if (hideHeader) {
+    return <div className="space-y-6">{content}</div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-surface font-['Plus_Jakarta_Sans','Pretendard'] text-on-surface antialiased pb-20">
+      <MobileHeader showBack={true} onBack={onBack} title="연금납입 현황" />
+      <main className="pt-24 px-6 max-w-2xl mx-auto space-y-6">
+        {content}
       </main>
     </div>
   );

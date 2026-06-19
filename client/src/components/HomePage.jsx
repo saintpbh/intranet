@@ -476,10 +476,10 @@ const HomePage = () => {
         <section>
           <div className="grid grid-cols-2 gap-3">
             <button onClick={() => navigate('/documents')} className="flex items-center gap-3 p-4 bg-gradient-to-br from-secondary to-secondary-container text-white rounded-2xl shadow-[0_10px_20px_rgba(0,112,235,0.15)] active:scale-95 transition-all">
-              <span className="material-symbols-outlined text-2xl opacity-90" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400" }}>auto_awesome</span>
+              <span className="material-symbols-outlined text-2xl opacity-90" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400" }}>savings</span>
               <div className="text-left">
-                <span className="font-bold text-sm font-['Manrope',_'Pretendard'] block">증명서 신청</span>
-                <span className="text-[11px] opacity-80 font-medium">행정문서 발급</span>
+                <span className="font-bold text-sm font-['Manrope',_'Pretendard'] block">연금/생보</span>
+                <span className="text-[11px] opacity-80 font-medium">납입 현황 및 조회</span>
               </div>
             </button>
             <button onClick={() => navigate('/directory')} className="flex items-center gap-3 p-4 bg-surface-container-lowest text-primary rounded-2xl shadow-[0_20px_40px_rgba(10,37,64,0.04)] active:scale-95 transition-all">
