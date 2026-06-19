@@ -170,11 +170,7 @@ const SimpleLogin = () => {
   if (!isMobile) {
     return (
       <div className="min-h-screen bg-slate-900 font-['Plus_Jakarta_Sans',_'Pretendard'] text-slate-100 antialiased flex flex-col justify-between p-6">
-        <header className="w-full flex items-center justify-between max-w-4xl mx-auto py-4 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[28px] text-indigo-400">menu_book</span>
-            <span className="font-extrabold text-[16px] tracking-tight text-white uppercase">Gijang Address Book</span>
-          </div>
+        <header className="w-full flex items-center justify-end max-w-4xl mx-auto py-4 border-b border-slate-800">
           <span className="text-[11px] bg-slate-800 text-slate-300 font-semibold px-3 py-1 rounded-full border border-slate-700">
             스마트폰 전용
           </span>
