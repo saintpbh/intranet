@@ -1403,7 +1403,7 @@ const ChurchManagePage = () => {
                   {mapLoading && <span className="material-symbols-outlined animate-spin text-[14px] text-slate-400 ml-1">progress_activity</span>}
                   {!mapData && !mapLoading && !mapError && <span className="text-[11px] text-orange-500 font-medium ml-2">(미등록)</span>}
                 </h3>
-                {!mapError && (
+                {/* {!mapError && (
                   <button 
                     type="button"
                     onClick={() => setEditMap(true)}
@@ -1411,7 +1411,7 @@ const ChurchManagePage = () => {
                   >
                     <span className="material-symbols-outlined text-[16px]">edit</span>
                   </button>
-                )}
+                )} */}
               </div>
 
               {mapError ? (
@@ -1671,14 +1671,14 @@ const ChurchManagePage = () => {
       </main>
 
       {/* ── Gijang Map Edit Modal ── */}
-      {editMap && (
+      {/* {editMap && (
         <GijangMapEditModal
           mapData={mapData}
           churchName={getChurchDisplayName()}
           onClose={() => setEditMap(false)}
           onSave={saveMapData}
         />
-      )}
+      )} */}
 
       {/* ── 총회 DB 변경 요청 모달 ── */}
       {showInfoEdit && (
