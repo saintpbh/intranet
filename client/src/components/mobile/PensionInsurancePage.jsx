@@ -26,54 +26,63 @@ const AnimatedNumber = ({ value, duration = 800 }) => {
 };
 
 /* ──── Monthly Grid Component ──── */
-const MonthlyGrid = ({ monthly, formatAmt }) => (
-  <div className="grid grid-cols-4 gap-2">
-    {monthly.map((m, idx) => (
-      <div
-        key={m.month}
-        className={`relative rounded-xl p-2.5 text-center transition-all duration-300 ${
-          m.paid
-            ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/80 border border-emerald-200/60 shadow-sm'
-            : 'bg-surface-container-low/50 border border-surface-variant/20'
-        }`}
-      >
-        <p className={`text-[10px] font-bold mb-1 ${m.paid ? 'text-emerald-600' : 'text-outline/60'}`}>
-          {MONTHS[idx]}
-        </p>
-        {m.paid ? (
-          <>
-            <div className="w-6 h-6 rounded-full bg-emerald-500 mx-auto flex items-center justify-center mb-1">
-              <span className="material-symbols-outlined text-white text-xs">check</span>
-            </div>
-            <p className="text-[9px] font-bold text-emerald-700 tabular-nums">{formatAmt(m.amt)}</p>
-          </>
-        ) : (
-          <>
-            <div className="w-6 h-6 rounded-full bg-surface-variant/30 mx-auto flex items-center justify-center mb-1">
-              <span className="material-symbols-outlined text-outline/30 text-xs">remove</span>
-            </div>
-            <p className="text-[9px] text-outline/40">-</p>
-          </>
-        )}
-      </div>
-    ))}
-  </div>
-);
+const MonthlyGrid = ({ monthly, formatAmt, color = 'emerald' }) => {
+  const isEmerald = color === 'emerald';
+  return (
+    <div className="grid grid-cols-4 gap-2">
+      {monthly.map((m, idx) => (
+        <div
+          key={m.month}
+          className={`relative rounded-xl p-2.5 text-center transition-all duration-300 ${
+            m.paid
+              ? isEmerald
+                ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/80 border border-emerald-200/60 shadow-sm'
+                : 'bg-gradient-to-br from-blue-50 to-blue-100/80 border border-blue-200/60 shadow-sm'
+              : 'bg-surface-container-low/50 border border-surface-variant/20'
+          }`}
+        >
+          <p className={`text-[10px] font-bold mb-1 ${m.paid ? (isEmerald ? 'text-emerald-600' : 'text-blue-600') : 'text-outline/60'}`}>
+            {MONTHS[idx]}
+          </p>
+          {m.paid ? (
+            <>
+              <div className={`w-6 h-6 rounded-full mx-auto flex items-center justify-center mb-1 ${isEmerald ? 'bg-emerald-500' : 'bg-blue-500'}`}>
+                <span className="material-symbols-outlined text-white text-xs">check</span>
+              </div>
+              <p className={`text-[9px] font-bold tabular-nums ${isEmerald ? 'text-emerald-700' : 'text-blue-700'}`}>{formatAmt(m.amt)}</p>
+            </>
+          ) : (
+            <>
+              <div className="w-6 h-6 rounded-full bg-surface-variant/30 mx-auto flex items-center justify-center mb-1">
+                <span className="material-symbols-outlined text-outline/30 text-xs">remove</span>
+              </div>
+              <p className="text-[9px] text-outline/40">-</p>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 /* ──── Year Navigator Component ──── */
-const YearNavigator = ({ selectedYear, yearList, onNavigate, detail, formatAmt }) => {
+const YearNavigator = ({ selectedYear, yearList, onNavigate, detail, formatAmt, color = 'emerald' }) => {
   const idx = yearList.indexOf(selectedYear);
+  const isEmerald = color === 'emerald';
+  const textColor = isEmerald ? 'text-emerald-700' : 'text-blue-700';
+  const btnHoverColor = isEmerald ? 'hover:bg-emerald-50' : 'hover:bg-blue-50';
+
   return (
     <div className="flex items-center justify-between bg-white/80 backdrop-blur-sm rounded-2xl px-3 py-2.5 shadow-sm border border-surface-variant/20">
       <button
         onClick={() => onNavigate('prev')}
         disabled={idx >= yearList.length - 1}
-        className="w-9 h-9 rounded-full hover:bg-surface-container-high active:scale-90 transition-all disabled:opacity-20 flex items-center justify-center"
+        className={`w-9 h-9 rounded-full ${btnHoverColor} active:scale-90 transition-all disabled:opacity-20 flex items-center justify-center`}
       >
-        <span className="material-symbols-outlined text-primary text-lg">chevron_left</span>
+        <span className={`material-symbols-outlined ${textColor} text-lg`}>chevron_left</span>
       </button>
       <div className="text-center">
-        <p className="font-['Manrope','Pretendard'] font-extrabold text-lg text-primary">{selectedYear}년</p>
+        <p className={`font-['Manrope','Pretendard'] font-extrabold text-lg ${textColor}`}>{selectedYear}년</p>
         {detail && (
           <p className="text-[10px] text-on-surface-variant mt-0.5">
             {detail.months_paid}개월 · {formatAmt(detail.year_total)}원
@@ -83,9 +92,9 @@ const YearNavigator = ({ selectedYear, yearList, onNavigate, detail, formatAmt }
       <button
         onClick={() => onNavigate('next')}
         disabled={idx <= 0}
-        className="w-9 h-9 rounded-full hover:bg-surface-container-high active:scale-90 transition-all disabled:opacity-20 flex items-center justify-center"
+        className={`w-9 h-9 rounded-full ${btnHoverColor} active:scale-90 transition-all disabled:opacity-20 flex items-center justify-center`}
       >
-        <span className="material-symbols-outlined text-primary text-lg">chevron_right</span>
+        <span className={`material-symbols-outlined ${textColor} text-lg`}>chevron_right</span>
       </button>
     </div>
   );
@@ -411,6 +420,7 @@ const PensionInsurancePage = () => {
                   onNavigate={navPenYear}
                   detail={penDetail}
                   formatAmt={fmt}
+                  color="emerald"
                 />
 
                 {/* Monthly Grid */}
@@ -419,14 +429,14 @@ const PensionInsurancePage = () => {
                     <span className="material-symbols-outlined text-2xl text-outline animate-spin">progress_activity</span>
                   </div>
                 ) : penDetail?.monthly ? (
-                  <MonthlyGrid monthly={penDetail.monthly} formatAmt={fmt} />
+                  <MonthlyGrid monthly={penDetail.monthly} formatAmt={fmt} color="emerald" />
                 ) : null}
 
                 {/* Year History — Compact */}
                 <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm overflow-hidden border border-surface-variant/20">
                   <div className="px-4 py-2.5 bg-surface-container-low/30 border-b border-surface-variant/20">
                     <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-secondary text-xs">calendar_month</span>
+                      <span className="material-symbols-outlined text-emerald-600 text-xs">calendar_month</span>
                       연도별 납입
                     </p>
                   </div>
@@ -467,7 +477,7 @@ const PensionInsurancePage = () => {
                     </p>
                   </div>
                   {insSummary.monthly_charge > 0 && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold">
                       <span className="material-symbols-outlined text-xs">payments</span>
                       월 {fmt(insSummary.monthly_charge)}원
                     </span>
@@ -481,6 +491,7 @@ const PensionInsurancePage = () => {
                   onNavigate={navInsYear}
                   detail={insDetail}
                   formatAmt={fmt}
+                  color="blue"
                 />
 
                 {/* Monthly Grid */}
@@ -489,14 +500,14 @@ const PensionInsurancePage = () => {
                     <span className="material-symbols-outlined text-2xl text-outline animate-spin">progress_activity</span>
                   </div>
                 ) : insDetail?.monthly ? (
-                  <MonthlyGrid monthly={insDetail.monthly} formatAmt={fmt} />
+                  <MonthlyGrid monthly={insDetail.monthly} formatAmt={fmt} color="blue" />
                 ) : null}
 
                 {/* Year History */}
                 <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm overflow-hidden border border-surface-variant/20">
                   <div className="px-4 py-2.5 bg-surface-container-low/30 border-b border-surface-variant/20">
                     <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-secondary text-xs">calendar_month</span>
+                      <span className="material-symbols-outlined text-blue-600 text-xs">calendar_month</span>
                       연도별 납입
                     </p>
                   </div>
@@ -512,7 +523,7 @@ const PensionInsurancePage = () => {
                         <span className={`text-sm font-bold ${yr.year === insYear ? 'text-blue-700' : 'text-on-surface'}`}>{yr.year}</span>
                         <div className="flex items-center gap-3">
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                            yr.months_paid >= 12 ? 'bg-emerald-100 text-emerald-700'
+                            yr.months_paid >= 12 ? 'bg-blue-100 text-blue-700'
                             : yr.months_paid >= 6 ? 'bg-amber-100 text-amber-700'
                             : 'bg-red-100 text-red-700'
                           }`}>{yr.months_paid}/12</span>
@@ -525,7 +536,7 @@ const PensionInsurancePage = () => {
 
                 {/* Info note */}
                 <div className="bg-surface-container-low rounded-xl px-3 py-2.5 border border-surface-variant/40 flex items-start gap-2">
-                  <span className="material-symbols-outlined text-secondary text-sm shrink-0 mt-0.5">info</span>
+                  <span className="material-symbols-outlined text-blue-500 text-sm shrink-0 mt-0.5">info</span>
                   <p className="text-[10px] text-on-surface-variant leading-relaxed">
                     총회 생활보장제 납입 기록입니다. 문의: 총회 사무국
                   </p>
