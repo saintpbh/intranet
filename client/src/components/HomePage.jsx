@@ -597,7 +597,19 @@ const HomePage = () => {
         <section>
           <div className="grid grid-cols-2 gap-3">
             <button onClick={() => navigate('/documents')} className="flex items-center gap-3 p-4 bg-gradient-to-br from-secondary to-secondary-container text-white rounded-2xl shadow-[0_10px_20px_rgba(0,112,235,0.15)] active:scale-95 transition-all">
-              <span className="material-symbols-outlined text-2xl opacity-90" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400" }}>savings</span>
+              <svg className="w-6 h-6 opacity-90 text-current fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                {/* Ferrule (top tip) */}
+                <path d="M12 2v1" />
+                {/* Canopy */}
+                <path d="M3 12c0-5 4-9 9-9s9 4 9 9" />
+                {/* Scalloped bottom edge */}
+                <path d="M3 12c1.5 1 4.5 1 6 0 1.5 1 4.5 1 6 0 1.5 1 4.5 1 6 0" />
+                {/* Ribs inside canopy */}
+                <path d="M12 3c-1.5 3-2.5 6-3 9" />
+                <path d="M12 3c1.5 3 2.5 6 3 9" />
+                {/* Shaft & Hook handle */}
+                <path d="M12 12v7a2 2 0 0 1-2 2h-1" />
+              </svg>
               <div className="text-left">
                 <span className="font-bold text-sm font-['Manrope',_'Pretendard'] block">연금/생보</span>
                 <span className="text-[11px] opacity-80 font-medium">납입 현황 및 조회</span>

@@ -287,7 +287,19 @@ const PensionInsurancePage = () => {
                 <div className="relative z-10 p-5">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-white text-base">savings</span>
+                      <svg className="w-4 h-4 text-white fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                        {/* Ferrule (top tip) */}
+                        <path d="M12 2v1" />
+                        {/* Canopy */}
+                        <path d="M3 12c0-5 4-9 9-9s9 4 9 9" />
+                        {/* Scalloped bottom edge */}
+                        <path d="M3 12c1.5 1 4.5 1 6 0 1.5 1 4.5 1 6 0 1.5 1 4.5 1 6 0" />
+                        {/* Ribs inside canopy */}
+                        <path d="M12 3c-1.5 3-2.5 6-3 9" />
+                        <path d="M12 3c1.5 3 2.5 6 3 9" />
+                        {/* Shaft & Hook handle */}
+                        <path d="M12 12v7a2 2 0 0 1-2 2h-1" />
+                      </svg>
                     </div>
                     <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">연금</span>
                   </div>

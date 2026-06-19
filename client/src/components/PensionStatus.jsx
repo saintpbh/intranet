@@ -153,7 +153,19 @@ const PensionStatus = ({ user, onBack, hideHeader = false }) => {
                   <div className="relative z-10 p-6">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-10 h-10 rounded-full bg-white/15 backdrop-blur flex items-center justify-center">
-                        <span className="material-symbols-outlined text-xl">savings</span>
+                        <svg className="w-5 h-5 text-current fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                          {/* Ferrule (top tip) */}
+                          <path d="M12 2v1" />
+                          {/* Canopy */}
+                          <path d="M3 12c0-5 4-9 9-9s9 4 9 9" />
+                          {/* Scalloped bottom edge */}
+                          <path d="M3 12c1.5 1 4.5 1 6 0 1.5 1 4.5 1 6 0 1.5 1 4.5 1 6 0" />
+                          {/* Ribs inside canopy */}
+                          <path d="M12 3c-1.5 3-2.5 6-3 9" />
+                          <path d="M12 3c1.5 3 2.5 6 3 9" />
+                          {/* Shaft & Hook handle */}
+                          <path d="M12 12v7a2 2 0 0 1-2 2h-1" />
+                        </svg>
                       </div>
                       <div>
                         <p className="text-white/70 text-xs font-semibold uppercase tracking-wider">연금납입</p>
