@@ -103,6 +103,7 @@ const PensionStatus = ({ user, onBack, hideHeader = false }) => {
     finally { setEstimateLoading(false); }
   }, [user, calcData, retireAge, lev]);
 
+  const numOpts = (max) => Array.from({ length: max + 1 }, (_, i) => i);
   const fmt = (v) => v ? v.toLocaleString('ko-KR') : '0';
   const yearList = summary?.summary?.map(s => s.year) || [];
   const navYear = (dir) => {
